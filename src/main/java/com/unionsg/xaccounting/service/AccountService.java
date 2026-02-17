@@ -1,5 +1,6 @@
 package com.unionsg.xaccounting.service;
 
+import com.unionsg.xaccounting.dto.AccountCreationDTO;
 import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.ChartOfAccountClearTo_ENTITY;
 import com.unionsg.xaccounting.repository.AccountRepository;
@@ -24,34 +25,37 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final ChartOfAccountRepository chartOfAccountRepository;
     private final ChartOfAccountClearTo_Repository chartOfAccountClearToRepository;
+    //private final AccountCreationDTO accountCreationDTO;
 
     @Transactional
-    public AccountDTO createAccount(AccountDTO accountDTO) {
+    public AccountCreationDTO createAccount(AccountCreationDTO accountCreationDTO) {
+        System.out.println("before the if condition");
         // Validate chart code exists
 //        ChartOfAccount chartOfAccount = chartOfAccountRepository.findByCoaCode(accountDTO.getChartCode())
 //                .orElseThrow(() -> new RuntimeException("Chart of Account not found with code: " + accountDTO.getChartCode()));
-        ChartOfAccountClearTo_ENTITY chartOfAccountClearTo = chartOfAccountClearToRepository.findById(accountDTO.getCoaClearToId())
-                .orElseThrow(() -> new RuntimeException("Chart of account clear to not found with code: "+ accountDTO.getCoaClearToId()));
+        ChartOfAccountClearTo_ENTITY chartOfAccountClearTo = chartOfAccountClearToRepository.findById(Long.parseLong(accountCreationDTO.getClearsTo()))
+                .orElseThrow(() -> new RuntimeException("Chart of account clear to not found with code: "+ accountCreationDTO.getCoaClearToId()));
 
+        System.out.println("after the if condition");
        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-       LocalDateTime dateTime = LocalDateTime.parse(accountDTO.getOpeningBalanceDate(), formatter);
+        String parsedDate = accountCreationDTO.getOpeningBalanceDate() + " 00:00:00";
+       LocalDateTime dateTime = LocalDateTime.parse(parsedDate, formatter);
 
         // Check if account ID already exists
-        if (accountRepository.existsByAccountId(accountDTO.getAccountId())) {
-            throw new RuntimeException("Account ID already exists: " + accountDTO.getAccountId());
+        if (accountRepository.existsByAccountId(accountCreationDTO.getAccountId())) {
+            throw new RuntimeException("Account ID already exists: " + accountCreationDTO.getAccountId());
         }
 
         AccountEntity entity = AccountEntity.builder()
-                .accountId(accountDTO.getAccountId())
-                .accountName(accountDTO.getAccountName())
+                .accountId(accountCreationDTO.getAccountId())
+                .accountName(accountCreationDTO.getAccountName())
                 .coaClearTo(chartOfAccountClearTo)
-                .openingBalance(accountDTO.getOpeningBalance())
+                .openingBalance(accountCreationDTO.getOpeningBalance())
                 .opening_balance_date(dateTime)
-                .taxRate(accountDTO.getTaxRate())
-                .createdBy(accountDTO.getCreatedBy())
-                .description(accountDTO.getDescription())
-                .currency(accountDTO.getCurrency())
+                .taxRate(accountCreationDTO.getTaxRate())
+                .createdBy(accountCreationDTO.getCreatedBy())
+                .description(accountCreationDTO.getDescription())
+                .currency(accountCreationDTO.getCurrency())
                 //.dateCreated(accountDTO.getDateCreated())
                 //.clearsTo(accountDTO.getClearsTo())
                 //.restriction(accountDTO.getRestriction())
@@ -68,7 +72,8 @@ public class AccountService {
                 .build();
 
         AccountEntity saved = accountRepository.save(entity);
-        return convertToDTO(saved);
+        //return convertToDTO(saved);
+        return convertToAccountCreationDTO(saved);
     }
 
     @Transactional(readOnly = true)
@@ -142,6 +147,39 @@ public class AccountService {
         entity.setDeleted(true);
         AccountEntity updated = accountRepository.save(entity);
         return convertToDTO(updated);
+    }
+
+    private AccountCreationDTO convertToAccountCreationDTO(AccountEntity entity){
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime dateTime = entity.getOpening_balance_date();
+        String dateString = dateTime.format(formatter);
+        return AccountCreationDTO.builder()
+                .accountId(entity.getAccountId())
+                .accountName(entity.getAccountName())
+                //.chartCode(entity.getChartOfAccount() != null ? entity.getChartOfAccount().getCoaCode() : null)
+                //.clearsTo(entity.getClearsTo())
+                .coaClearToId(entity.getCoaClearTo().getId())
+//                .restriction(entity.getRestriction())
+//                .postingLevel(entity.getPostingLevel())
+//                .levelId(entity.getLevelId())
+                .currency(entity.getCurrency())
+                .description(entity.getDescription())
+                .taxRate(entity.getTaxRate())
+                .openingBalance(entity.getOpeningBalance())
+                .openingBalanceDate(dateString)
+                .createdBy(entity.getCreatedBy())
+                .dateCreated(entity.getDateCreated())
+
+//                .statementType(entity.getStatementType())
+//                .statementCode(entity.getStatementCode())
+//                .societyId(entity.getSocietyId())
+//                .circuitId(entity.getCircuitId())
+//                .postedBy(entity.getPostedBy())
+//                .approvedBy(entity.getApprovedBy())
+//                .approvedStatus(entity.getApprovedStatus())
+//                .deleted(entity.isDeleted())
+//                .dateCreated(entity.getDateCreated())
+                .build();
     }
 
     private AccountDTO convertToDTO(AccountEntity entity) {

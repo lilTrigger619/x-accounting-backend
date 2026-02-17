@@ -19,7 +19,7 @@ public class ChartOfAccount {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "coa_code", nullable = false)
+    @Column(name = "coa_code", nullable = false, unique = true)
     private Long coaCode;
 
     @Column(nullable = false)

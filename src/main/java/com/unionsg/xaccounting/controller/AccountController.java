@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.controller;
 
 //public class AccountController {
 //}
+import com.unionsg.xaccounting.dto.AccountCreationDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +21,9 @@ public class AccountController {
     private final AccountService accountService;
 
     @PostMapping
-    public ResponseEntity<AccountDTO> createAccount(@RequestBody AccountDTO accountDTO) {
-        AccountDTO created = accountService.createAccount(accountDTO);
-        return new ResponseEntity<>(created, HttpStatus.CREATED);
+    public ResponseEntity<AccountCreationDTO> createAccount(@RequestBody AccountCreationDTO accountDTO) {
+        AccountCreationDTO created = accountService.createAccount(accountDTO);
+        return new ResponseEntity(created, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")

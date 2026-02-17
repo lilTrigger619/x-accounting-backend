@@ -1,24 +1,23 @@
 package com.unionsg.xaccounting.dto;
+
+import java.time.LocalDateTime;
 import lombok.*;
 import java.time.LocalDateTime;
-
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
-public class AccountDTO {
-    private Long id;
+public class AccountCreationDTO {
     private String accountId;
     private String accountName;
     private Long chartCode;
     private String clearsTo;
-//    private String restriction;
+    //    private String restriction;
 //    private String postingLevel;
 //    private String levelId;
     private String currency;
-//    private String statementType;
+    //    private String statementType;
 //    private String statementCode;
 //    private String societyId;
 //    private String circuitId;
@@ -41,4 +40,3 @@ public class AccountDTO {
 //    private int accountType ;
 //    private int subAccountType ;
 }
-

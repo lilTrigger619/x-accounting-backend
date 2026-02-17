@@ -5,6 +5,7 @@ public class Account {
 
  */
 package com.unionsg.xaccounting.entity;
+import com.unionsg.xaccounting.utils.GenerateAccountNumbers;
 import lombok.*;
 //import javax.persistence.*;
 import jakarta.persistence.*;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 import lombok.Data;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.UUID;
 
 @Entity
 @Table(name = "account")
@@ -24,6 +26,7 @@ public class AccountEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition="serial")
     private Long id;
 
     @Column(name = "account_id")
@@ -36,7 +39,7 @@ public class AccountEntity {
 //    private Set<ChartOfAccountClearTo_ENTITY> coaClearTo= new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "account", referencedColumnName = "id")
+    @JoinColumn(name = "clearTo", referencedColumnName = "id")
     private ChartOfAccountClearTo_ENTITY coaClearTo;
     /**
     @Column(name = "chart_code", length = 150)
@@ -90,9 +93,9 @@ public class AccountEntity {
 
 
     @Column(name = "deleted")
-    private boolean  deleted = false;
+    private boolean  deleted;
 
-    @Column(name = "deletedBy", nullable = false)
+    @Column(name = "deletedBy", nullable = true)
     private String deletedBy ;
 
     @Column(nullable = true)
@@ -125,6 +128,14 @@ public class AccountEntity {
         if (dateCreated == null) {
             dateCreated = LocalDateTime.now();
         }
+
+        if (accountId == null)
+            accountId = GenerateAccountNumbers.generateAccountNumber();
+
+        deleted = false;
+
+        if (createdBy == null)
+            createdBy = "system";
 
     }
 }

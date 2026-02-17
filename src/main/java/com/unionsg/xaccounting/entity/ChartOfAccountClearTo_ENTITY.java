@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 public class ChartOfAccountClearTo_ENTITY {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition="serial")
     private Long id;
 //
 //    @OneToMany(mappedBy = 'chartOfAccount', cascade = CascadeType.ALL)
@@ -33,7 +34,7 @@ public class ChartOfAccountClearTo_ENTITY {
     // there should be a function to be creating the codes
     // maybe by incrementing or by generating random codes.
     @Column(name = "clear_to_code")
-    private String clearToCode;
+    private int clearToCode;
 
     @OneToMany(mappedBy = "coaClearTo", cascade = CascadeType.ALL)
     private List<AccountEntity> accounts;
@@ -51,7 +52,7 @@ public class ChartOfAccountClearTo_ENTITY {
     @Column(name = "deleted")
     private Boolean deleted = false;
 
-    @Column(name = "deleted_by")
+    @Column(name = "deleted_by", nullable = true)
     private String deletedB;
 
     @Column(name = "date_deleted")

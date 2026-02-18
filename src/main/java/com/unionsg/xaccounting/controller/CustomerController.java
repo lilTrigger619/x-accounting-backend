@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.controller;
 
 import com.unionsg.xaccounting.dto.customer.*;
 import com.unionsg.xaccounting.response.ApiResponse;
+import com.unionsg.xaccounting.response.PaginationResponse;
 import com.unionsg.xaccounting.service.customer.CustomerService;
 
 import jakarta.validation.Valid;
@@ -26,6 +27,19 @@ public class CustomerController {
                         .data(response)
                         .build()
                 );
+    }
+
+    @GetMapping
+    public ResponseEntity<PaginationResponse<CustomerResponseDTO>> getCustomers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir,
+            @RequestParam(required = false) String search
+    ){
+        PaginationResponse<CustomerResponseDTO> response =
+                customerService.getAllCustomers(page, size, sortBy, sortDir, search);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")

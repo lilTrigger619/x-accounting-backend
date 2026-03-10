@@ -9,12 +9,14 @@ import lombok.Data;
 public class CreateSupplierRequestDTO {
     // Identity
     private String supplierType;
-    private String title;
-    private String firstName;
-    private String lastName;
+//    private String title;
+//    private String firstName;
+//    private String lastName;
+    private String contactPerson;
     private String companyName;
     private String displayName;
     private String status;
+    private String category;
 
 
     // contact
@@ -24,15 +26,17 @@ public class CreateSupplierRequestDTO {
     private String website;
 
     //billing Address
-    private AddressDTO billingAddress;
+    private AddressDTO address;
 
-    // shipping Address
-    private AddressDTO shippingAddress;
+//    // shipping Address
+//    private AddressDTO shippingAddress;
 
     // Tax info
-    private TaxInfoDTO taxInfo;
+    private SupplierTaxInfoDTO taxInfo;
 
     // paymentTerms;
+    private SupplierPaymentTermsDTO paymentTerms;
 
-    private PaymentTermsDTO paymentTerms;
+    // additional information
+    private String additionalInformation;
 }

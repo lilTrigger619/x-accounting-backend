@@ -44,6 +44,9 @@ dependencies {
 
     // postgresql
     runtimeOnly 'org.postgresql:postgresql'
+
+//        implementation 'org.hibernate:hibernate-core' // Use latest stable version
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 }
 
 

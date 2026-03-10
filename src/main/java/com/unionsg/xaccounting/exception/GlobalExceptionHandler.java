@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.builder()
                         .success(false)
                         .message(ex.getMessage())
-                        .data(null)
+                        .content(null)
                         .build()
                 );
     }
@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.builder()
                         .success(false)
                         .message(ex.getMessage())
-                        .data(null)
+                        .content(null)
                         .build()
                 );
     }
@@ -45,7 +45,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.builder()
                         .success(false)
                         .message(errors)
-                        .data(null)
+                        .content(null)
                         .build()
                 );
     }
@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.builder()
                         .success(false)
                         .message("An unexpected error occured")
-                        .data(null)
+                        .content(null)
                         .build()
                 );
     }

@@ -60,9 +60,10 @@ public class SupplierServiceImpl implements SupplierService{
             supplierPage = supplierRepository.findAll((root, query, cb)->
 
                            cb.or(
-                                   cb.like(cb.lower(root.get("name")), "%"+search.toLowerCase() + "%"),
+                                   cb.like(cb.lower(root.get("displayName")), "%"+search.toLowerCase() + "%"),
                                    cb.like(cb.lower(root.get("email")), "%"+ search.toLowerCase()+ "%"),
-                                   cb.like(cb.lower(root.get("email")), "%"+search.toLowerCase()+"%")
+                                   cb.like(cb.lower(root.get("companyName")), "%"+search.toLowerCase()+"%"),
+                                   cb.like(cb.lower(root.get("contactPerson")), "%"+search.toLowerCase()+"%")
                            ), pageable);
         }else {
             supplierPage = supplierRepository.findAll(pageable);

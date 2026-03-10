@@ -1,6 +1,6 @@
 package com.unionsg.xaccounting.enums;
 
-public enum CustomerStatus {
+public enum UserStatus {
     ACTIVE,
-    INACTIVE
+    DISABLED
 }

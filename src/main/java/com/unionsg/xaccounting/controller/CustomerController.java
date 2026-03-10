@@ -19,12 +19,13 @@ public class CustomerController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<CustomerResponseDTO>> createCustomer(@Valid @RequestBody CreateCustomerRequestDTO request ){
+        System.out.println("hello from the con");
         CustomerResponseDTO response = customerService.createCustomer(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.<CustomerResponseDTO>builder()
                         .success(true)
                         .message("Customer created successfully")
-                        .data(response)
+                        .content(response)
                         .build()
                 );
     }
@@ -33,7 +34,7 @@ public class CustomerController {
     public ResponseEntity<PaginationResponse<CustomerResponseDTO>> getCustomers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "name") String sortBy,
+            @RequestParam(defaultValue = "displayName") String sortBy,
             @RequestParam(defaultValue = "asc") String sortDir,
             @RequestParam(required = false) String search
     ){
@@ -50,7 +51,31 @@ public class CustomerController {
                 ApiResponse.<CustomerResponseDTO>builder()
                         .success(true)
                         .message("Customer retrieved successfully")
-                        .data(response)
+                        .content(response)
+                        .build()
+        );
+    }
+
+    @GetMapping("/{id}/getPaymentTerm")
+    public ResponseEntity<ApiResponse<PaymentTermsDTO>> getCustomerPaymentTerm(@PathVariable Long id){
+        PaymentTermsDTO paymentTerm = customerService.getCustomerPaymentTerms(id);
+        return ResponseEntity.ok(
+                ApiResponse.<PaymentTermsDTO>builder()
+                        .success(true)
+                        .message("Payment terms retrieved")
+                        .content(paymentTerm)
+                        .build()
+        );
+    }
+
+    @GetMapping("/{id}/getBillingAddress")
+    public ResponseEntity<ApiResponse<AddressDTO>> getBillingAddress(@PathVariable Long id){
+        AddressDTO customerAddress = customerService.getCustomerBillingAddress(id);
+        return ResponseEntity.ok(
+                ApiResponse.<AddressDTO>builder()
+                        .success(true)
+                        .message("Billing address retrieved")
+                        .content(customerAddress)
                         .build()
         );
     }

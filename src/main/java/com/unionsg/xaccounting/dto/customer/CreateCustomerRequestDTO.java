@@ -2,7 +2,7 @@ package com.unionsg.xaccounting.dto.customer;
 
 import lombok.Data;
 import java.math.BigDecimal;
-import java.security.Identity;
+//import java.security.Identity;
 
 
 @Data
@@ -18,6 +18,7 @@ public class CreateCustomerRequestDTO {
 
     // contact
     private String email;
+    private String emaill;
     private String phone;
     private String mobile;
     private String website;

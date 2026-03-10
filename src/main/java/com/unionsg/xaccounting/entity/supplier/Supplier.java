@@ -38,14 +38,17 @@ public class Supplier {
     @Column(name = "supplier_type", nullable = false)
     private CustomerType supplierType;
 
-    @Enumerated(EnumType.STRING)
-    private Title title;
+//    @Enumerated(EnumType.STRING)
+//    private Title title;
 
-    @Column(name = "first_name")
-    private String firstName;
+//    @Column(name = "first_name")
+//    private String firstName;
+//
+//    @Column(name = "last_name")
+//    private String lastName;
 
-    @Column(name = "last_name")
-    private String lastName;
+    @Column(name = "contact_person")
+    private String contactPerson;
 
     @Column(name = "company_name")
     private String companyName;
@@ -57,6 +60,10 @@ public class Supplier {
     @Column(nullable = false)
     private CustomerStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SupplierCategory category;
+
     //--------------------
     // contact info
     // ------------------------
@@ -66,25 +73,29 @@ public class Supplier {
     private String mobile;
     private String website;
 
+    private String additionalInformation;
+
 
     // --
     // Relationships
     // -----------
+//    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+//    @JoinColumn(name = "billing_address_id")
+//    private Address billingAddress;
+//
+//    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+//    @JoinColumn(name = "shipping_address_id")
+//    private Address shippingAddress;
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "billing_address_id")
-    private Address billingAddress;
-
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "shipping_address_id")
-    private Address shippingAddress;
+    private Address address;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "tax_info_id")
-    private TaxInfo taxInfo;
+    private WithholdingTax taxInfo;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "payment_terms_id")
-    private PaymentTerms paymentTerms;
+    private SupplierPaymentTerms paymentTerms;
 
     // --------------------
     // Audit

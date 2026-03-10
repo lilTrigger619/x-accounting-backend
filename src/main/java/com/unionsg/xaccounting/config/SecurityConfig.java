@@ -12,70 +12,116 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
+
+
+import org.springframework.context.annotation.*;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.*;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import com.unionsg.xaccounting.security.JwtAuthenticationFilter;
+import com.unionsg.xaccounting.security.JwtAuthenticationFilter;
+import com.unionsg.xaccounting.security.JwtService;
+//
+//@Configuration
+//public class SecurityConfig {
+//
+//    @Bean
+//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
+////       http
+////               .csrf(csrf -> csrf.disable())
+////               .formLogin(form->form.disable())
+////               .httpBasic(basic->basic.disable())
+////               .authorizeHttpRequests(auth -> auth
+////                       .requestMatchers("/api/auth/**").permitAll()
+////                       .anyRequest().authenticated());
+////       return http.build();
+////
+//
+////       http
+////               .csrf(csrf -> csrf.disable())
+////               .cors(cors -> cors.disable())
+////               .formLogin(form -> form.disable())
+////               .httpBasic(basic -> basic.disable())
+////               .authorizeHttpRequests(auth -> auth
+////                       .anyRequest().permitAll()
+////               );
+////       return http.build();
+//        http
+//                .csrf(csrf-> csrf.disable())
+//                .cors(cors->cors.configurationSource(corsConfigurationSource()))
+//                .formLogin(form ->form.disable())
+//                .httpBasic(basic -> basic.disable())
+//                .authorizeHttpRequests(auth->auth
+//                        .requestMatchers("/api/auth/**").permitAll()
+//                        .anyRequest().permitAll()
+//                );
+//        return http.build();
+//    }
+//
+//    @Bean
+//    public CorsConfigurationSource corsConfigurationSource(){
+//        CorsConfiguration configuration = new CorsConfiguration();
+//
+//        // Allow frontend origins
+//        configuration.setAllowedOrigins(Arrays.asList(
+//                "http://localhost:8081"
+//        ));
+//
+//        // allow all http methods
+//        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+//
+//        // allow all headers
+//        configuration.setAllowedHeaders(Arrays.asList("*"));
+//
+//        // allow credentials (cookies, authorization headers)
+//        configuration.setAllowCredentials(true);
+//
+//        // Expose headers to frontend
+//        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+//
+//        // Cache preflight response
+//        configuration.setMaxAge(3600L);
+//
+//        UrlBasedCorsConfigurationSource source =  new UrlBasedCorsConfigurationSource();
+//        source.registerCorsConfiguration("/**", configuration);
+//
+//        return source;
+//    }
+//
+//    @Bean
+//    public PasswordEncoder passwordEncoder(){
+//        return new BCryptPasswordEncoder();
+//    }
+//}
+
+
+
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception{
-//       http
-//               .csrf(csrf -> csrf.disable())
-//               .formLogin(form->form.disable())
-//               .httpBasic(basic->basic.disable())
-//               .authorizeHttpRequests(auth -> auth
-//                       .requestMatchers("/api/auth/**").permitAll()
-//                       .anyRequest().authenticated());
-//       return http.build();
-//
+    private final JwtAuthenticationFilter jwtFilter;
 
-//       http
-//               .csrf(csrf -> csrf.disable())
-//               .cors(cors -> cors.disable())
-//               .formLogin(form -> form.disable())
-//               .httpBasic(basic -> basic.disable())
-//               .authorizeHttpRequests(auth -> auth
-//                       .anyRequest().permitAll()
-//               );
-//       return http.build();
-        http
-                .csrf(csrf-> csrf.disable())
-                .cors(cors->cors.configurationSource(corsConfigurationSource()))
-                .formLogin(form ->form.disable())
-                .httpBasic(basic -> basic.disable())
-                .authorizeHttpRequests(auth->auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .anyRequest().permitAll()
-                );
-        return http.build();
+    public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(){
-        CorsConfiguration configuration = new CorsConfiguration();
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        // Allow frontend origins
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:8081"
-        ));
+        http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/auth/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // allow all http methods
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-
-        // allow all headers
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-
-        // allow credentials (cookies, authorization headers)
-        configuration.setAllowCredentials(true);
-
-        // Expose headers to frontend
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
-
-        // Cache preflight response
-        configuration.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source =  new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-
-        return source;
+        return http.build();
     }
 
     @Bean
@@ -83,4 +129,3 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-

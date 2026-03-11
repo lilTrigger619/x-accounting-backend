@@ -1,6 +1,9 @@
 package com.unionsg.xaccounting.entity.User;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -11,6 +14,8 @@ import java.util.Set;
         @UniqueConstraint(columnNames = {"name"})
     }
 )
+@Getter
+@Setter
 public class Role {
 
     @Id

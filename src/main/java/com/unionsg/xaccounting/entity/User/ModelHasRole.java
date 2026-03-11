@@ -11,6 +11,7 @@ public class ModelHasRole {
     private ModelRoleId id;
 
     @ManyToOne
+    @MapsId("roleId")
     @JoinColumn(name = "role_id")
     private Role role;
 

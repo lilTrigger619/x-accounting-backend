@@ -11,6 +11,7 @@ public class ModelHasPermission {
     private ModelPermissionId id;
 
     @ManyToOne
+    @MapsId("permissionId")
     @JoinColumn(name = "permission_id")
     private Permission permission;
 

@@ -6,12 +6,12 @@ import java.util.Set;
 
 @Entity
 @Table(
-    name = "roles",
+    name = "permissions",
     uniqueConstraints = {
         @UniqueConstraint(columnNames = {"name"})
     }
 )
-public class Role {
+public class Permission {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,21 +20,13 @@ public class Role {
     @Column(length = 255)
     private String name;
 
-    private String description;
-
-    @Column(name = "is_system")
-    private Boolean isSystem = false;
-
-    @Column(length = 1)
-    private String status = "1";
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "role")
+    @OneToMany(mappedBy = "permission")
     private Set<RoleHasPermission> rolePermissions;
 
 }

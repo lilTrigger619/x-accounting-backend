@@ -1,45 +1,37 @@
 package com.unionsg.xaccounting.entity.User;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-
-import java.time.LocalDateTime;
+import lombok.*;
+import com.unionsg.xaccounting.enums.RoleStatus;
 import java.util.Set;
 
 @Entity
-@Table(
-    name = "roles",
-    uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"name"})
-    }
-)
+@Table(name = "roles")
+@Builder
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Role {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 255)
     private String name;
 
-    private String description;
+    private String guardName;
 
-    @Column(name = "is_system")
-    private Boolean isSystem = false;
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RoleStatus status = RoleStatus.ACTIVE;
 
-    @Column(length = 1)
-    private String status = "1";
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @OneToMany(mappedBy = "role")
-    private Set<RoleHasPermission> rolePermissions;
-
+    @ManyToMany
+    @JoinTable(
+            name = "role_permissions",
+            joinColumns = @JoinColumn(name = "role_id"),
+            inverseJoinColumns = @JoinColumn(name = "permission_id")
+    )
+    private Set<Permission> permissions;
 }

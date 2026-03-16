@@ -1,32 +1,36 @@
 package com.unionsg.xaccounting.entity.User;
 
+import com.unionsg.xaccounting.enums.PermissionStatus;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import lombok.*;
+
 import java.util.Set;
 
 @Entity
-@Table(
-    name = "permissions",
-    uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"name"})
-    }
-)
+@Table(name = "permissions")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Permission {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 255)
     private String name;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private String guardName;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PermissionStatus status = PermissionStatus.ACTIVE;
 
-    @OneToMany(mappedBy = "permission")
-    private Set<RoleHasPermission> rolePermissions;
+    @ManyToMany(mappedBy = "permissions")
+    private Set<Role> roles;
 
+    @ManyToMany(mappedBy = "permissions")
+    private Set<User> users;
 }

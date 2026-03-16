@@ -17,9 +17,13 @@ import java.util.UUID;
 @EntityListeners(AuditingEntityListener.class)
 public abstract class AuditableBase {
 
+    //    @Id
+    //    @Column(updatable = false, nullable = false)
+    //    private UUID id;
     @Id
-    @GeneratedValue
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(updatable = false, nullable = false)
+    private Long id;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -29,13 +33,10 @@ public abstract class AuditableBase {
     @Column(nullable = false)
     private Instant updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
     @CreatedBy
-    private Role createdBy;
+    @Column(updatable = false)
+    private Long createdBy;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "updated_by")
     @LastModifiedBy
-    private Role updatedBy;
+    private Long updatedBy;
 }

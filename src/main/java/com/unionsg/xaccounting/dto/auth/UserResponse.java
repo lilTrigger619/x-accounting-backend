@@ -3,6 +3,8 @@ package com.unionsg.xaccounting.dto.auth;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.*;
+
 @Getter
 @Builder
 public class UserResponse {
@@ -10,6 +12,7 @@ public class UserResponse {
     private String email;
     private String firstName;
     private String lastName;
-    private String role;
     private String status;
+    private List<RoleResponse> roles;
+    private Set<String> directPermissions;
 }

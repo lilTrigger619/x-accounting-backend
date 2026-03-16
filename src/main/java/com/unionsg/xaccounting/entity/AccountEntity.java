@@ -26,7 +26,7 @@ public class AccountEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(columnDefinition="serial")
+    //@Column(columnDefinition="serial")
     private Long id;
 
     @Column(name = "account_id")

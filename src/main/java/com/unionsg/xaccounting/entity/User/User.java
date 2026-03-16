@@ -1,15 +1,14 @@
 package com.unionsg.xaccounting.entity.User;
 
-
 import com.unionsg.xaccounting.entity.AuditableBase;
 import com.unionsg.xaccounting.enums.UserStatus;
+
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
-//import org.hibernate.annotations.Where;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.util.Set;
 
 @Entity
 @Table(
@@ -24,11 +23,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @SQLDelete(sql = "UPDATE users SET status = 'DISABLED' WHERE id = ?")
-//@Where(clause = "status <> 'DISABLED'")
 public class User extends AuditableBase {
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.UUID)
-//    private UUID id;
 
     @Column(nullable = false, length = 150)
     private String email;
@@ -46,11 +41,25 @@ public class User extends AuditableBase {
     @Column(nullable = false, length = 20)
     private UserStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
-
     private Instant lastLoginAt;
+
+    // USER → ROLES
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles;
+
+    // USER → DIRECT PERMISSIONS
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_permissions",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "permission_id")
+    )
+    private Set<Permission> permissions;
 
     public String getFullName() {
         return firstName + " " + lastName;

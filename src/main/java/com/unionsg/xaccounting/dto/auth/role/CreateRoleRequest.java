@@ -1,0 +1,21 @@
+package com.unionsg.xaccounting.dto.auth.role;
+ 
+import lombok.Getter;
+import lombok.Setter;
+ 
+import java.util.Set;
+ 
+@Getter
+@Setter
+public class CreateRoleRequest {
+    private String name;
+    private String guardName; // optional, defaults to "web"
+    private Set<Long> permissionIds;
+ 
+    public void setPermissionIds(Set<Object> ids) {
+        if (ids == null) { this.permissionIds = new java.util.HashSet<>(); return; }
+        this.permissionIds = ids.stream()
+                .map(id -> Long.parseLong(id.toString()))
+                .collect(java.util.stream.Collectors.toSet());
+    }
+}

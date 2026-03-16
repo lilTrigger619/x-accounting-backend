@@ -1,24 +1,36 @@
 package com.unionsg.xaccounting.config;
 
-import com.unionsg.xaccounting.entity.User.User;
-import com.unionsg.xaccounting.repository.UserRepository;
+import com.unionsg.xaccounting.security.auth.UserPrincipal;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.Optional;
 
 @Configuration
-@EnableJpaAuditing
+@EnableJpaAuditing(auditorAwareRef = "auditorAware")
 public class JpaConfig {
 
-    private final UserRepository userRepository;
-
-    public JpaConfig(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
-
     @Bean
-    public AuditorAware<User> auditorProvider() {
-        return new AuditorAwareImpl(userRepository);
+    public AuditorAware<Long> auditorAware() {
+        return () -> {
+            Authentication authentication =
+                    SecurityContextHolder.getContext().getAuthentication();
+
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return Optional.empty();
+            }
+
+            Object principal = authentication.getPrincipal();
+
+            if (principal instanceof UserPrincipal userPrincipal) {
+                return Optional.of(userPrincipal.getUser().getId());
+            }
+
+            return Optional.empty();
+        };
     }
 }

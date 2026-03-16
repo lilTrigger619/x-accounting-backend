@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 public class ChartOfAccountClearTo_ENTITY {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(columnDefinition="serial")
+    //@Column(columnDefinition="serial")
     private Long id;
 //
 //    @OneToMany(mappedBy = 'chartOfAccount', cascade = CascadeType.ALL)

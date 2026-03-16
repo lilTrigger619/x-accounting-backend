@@ -1,30 +1,31 @@
 package com.unionsg.xaccounting.dto.auth;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-//import jakarta.validation.constraints.
 import lombok.Getter;
 import lombok.Setter;
 
-
-//public record CreateUserRequest(
-//        @Email String email,
-//        @NotBlank String password
-//){}
-
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Getter
 @Setter
-public class CreateUserRequest{
+public class CreateUserRequest {
     private String email;
     private String password;
     private String firstName;
     private String lastName;
-    private String roleName;
-}
 
-/**
-public class RegisterRequest {
-}
+    private Set<Long> roleIds = new HashSet<>();
+    private Set<Long> permissionIds = new HashSet<>();
 
- **/
+    // Force Jackson to deserialize as Long not Integer
+    public void setRoleIds(Set<Object> ids) {
+        this.roleIds = ids == null ? new HashSet<>() :
+            ids.stream().map(id -> Long.parseLong(id.toString())).collect(Collectors.toSet());
+    }
+
+    public void setPermissionIds(Set<Object> ids) {
+        this.permissionIds = ids == null ? new HashSet<>() :
+            ids.stream().map(id -> Long.parseLong(id.toString())).collect(Collectors.toSet());
+    }
+}

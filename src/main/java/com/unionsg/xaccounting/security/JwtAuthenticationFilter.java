@@ -38,22 +38,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         if (!jwtService.isTokenValid(token)) {
-            filterChain.doFilter(request, response);
-            return;
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                    {"success": false, "message": "Token expired or invalid. Please login again."}
+                    """);
+            return; // stop the chain — don't continue to the controller
         }
 
         String userId = jwtService.extractUserId(token);
-
         var userDetails = userDetailsService.loadUserByUsername(userId);
 
         var authToken = new UsernamePasswordAuthenticationToken(
-                userDetails.getUsername(), // this becomes principal
+                userDetails,
                 null,
                 userDetails.getAuthorities()
         );
 
         SecurityContextHolder.getContext().setAuthentication(authToken);
-
         filterChain.doFilter(request, response);
     }
 }

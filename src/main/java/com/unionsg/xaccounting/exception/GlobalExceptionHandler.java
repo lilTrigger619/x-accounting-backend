@@ -14,6 +14,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Object>> handleNotFound(ResourceNotFoundException ex) {
+        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.builder()
                         .success(false)
@@ -25,6 +26,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<Object>> handleBadRequest(BadRequestException ex) {
+//        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.builder()
                         .success(false)
@@ -66,6 +68,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleRuntime(RuntimeException ex) {
         System.out.println("RuntimeException: " + ex.getMessage());
 
+        ex.printStackTrace();
         String message = ex.getMessage();
 
         HttpStatus status = HttpStatus.BAD_REQUEST;

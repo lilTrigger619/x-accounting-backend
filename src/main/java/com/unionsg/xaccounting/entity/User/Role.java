@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import com.unionsg.xaccounting.enums.RoleStatus;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "roles")
@@ -15,9 +16,11 @@ import java.util.Set;
 public class Role {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+//    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue
+    private UUID id;
 
+    @Column(nullable = false, unique = true, length = 50)
     private String name;
 
     private String guardName;

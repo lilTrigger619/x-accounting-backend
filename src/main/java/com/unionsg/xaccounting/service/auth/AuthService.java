@@ -126,7 +126,7 @@ public class AuthService {
         Cookie cookie = new Cookie("refreshToken", "");
         cookie.setHttpOnly(true);
         cookie.setPath("/");
-        cookie.setMaxAge(0); // delete it
+        cookie.setMaxAge(0); // delete i
         response.addCookie(cookie);
     }
 
@@ -136,6 +136,7 @@ public class AuthService {
     public String refresh(HttpServletRequest request) {
 
         String refreshToken = extractRefreshTokenFromCookie(request);
+        System.out.println("the refresh token "+ refreshToken);
 
         if (refreshToken == null) {
             throw new RuntimeException("Refresh token missing");
@@ -164,6 +165,7 @@ public class AuthService {
 
     private String extractRefreshTokenFromCookie(HttpServletRequest request) {
         if (request.getCookies() == null) return null;
+        System.out.println("all cookies "+ Arrays.toString(request.getCookies()));
         return Arrays.stream(request.getCookies())
                 .filter(c -> "refreshToken".equals(c.getName()))
                 .map(Cookie::getValue)

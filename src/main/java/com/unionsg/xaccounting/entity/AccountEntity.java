@@ -5,6 +5,7 @@ public class Account {
 
  */
 package com.unionsg.xaccounting.entity;
+import com.unionsg.xaccounting.entity.customer.Address;
 import com.unionsg.xaccounting.utils.GenerateAccountNumbers;
 import lombok.*;
 //import javax.persistence.*;
@@ -14,6 +15,7 @@ import lombok.Data;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.UUID;
+import com.unionsg.xaccounting.entity.User.User;
 
 @Entity
 @Table(name = "account")
@@ -105,8 +107,11 @@ public class AccountEntity {
     @Column(name = "date_created")
     private LocalDateTime dateCreated;
 
-    @Column(name="created_by")
-    private String createdBy;
+//    @OneToOne( orphanRemoval = true)
+//    private User createdBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="createdBy", referencedColumnName = "email")
+    private User createdBy;
 
     @Column(name = "opening_balance")
     private String openingBalance;
@@ -134,8 +139,8 @@ public class AccountEntity {
 
         deleted = false;
 
-        if (createdBy == null)
-            createdBy = "system";
+//        if (createdBy == null)
+//            createdBy = "system";
 
     }
 }

@@ -4,11 +4,12 @@ import lombok.Builder;
 import lombok.Getter;
  
 import java.util.Set;
+import java.util.UUID;
  
 @Getter
 @Builder
 public class RoleDetailResponse {
-    private Long id;
+    private UUID id;
     private String name;
     private String guardName;
     private String status;

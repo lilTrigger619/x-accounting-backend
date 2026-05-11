@@ -8,9 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
-@RequestMapping("/permissions")
+@RequestMapping("/api/permissions")
 public class PermissionController {
 
     private final PermissionQueryService permissionQueryService;
@@ -33,7 +34,7 @@ public class PermissionController {
 
     @DeleteMapping("/{id}")
     @RequirePermission(value = "view_role", group = "Role Management")
-    public ResponseEntity<ApiResponse<PermissionResponse>> togglePermissionStatus(@PathVariable("id") Long id) {
+    public ResponseEntity<ApiResponse<PermissionResponse>> togglePermissionStatus(@PathVariable("id") UUID id) {
         PermissionResponse permission = permissionQueryService.togglePermissionStatus(id);
         String message = permission.getStatus().equals("ACTIVE") 
                 ? "Permission activated successfully" 

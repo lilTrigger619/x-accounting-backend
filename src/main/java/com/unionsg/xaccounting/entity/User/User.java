@@ -1,14 +1,18 @@
 package com.unionsg.xaccounting.entity.User;
 
+import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.entity.AuditableBase;
 import com.unionsg.xaccounting.enums.UserStatus;
 
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
+import org.springframework.context.annotation.Bean;
+import org.springframework.data.domain.AuditorAware;
 
 import java.time.Instant;
 import java.util.Set;
+import java.util.List;
 
 @Entity
 @Table(
@@ -45,23 +49,27 @@ public class User extends AuditableBase {
 
     // USER → ROLES
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
+//    @JoinTable(
+//            name = "user_roles",
+//            joinColumns = @JoinColumn(name = "user_id"),
+//            inverseJoinColumns = @JoinColumn(name = "role_id")
+//    )
     private Set<Role> roles;
 
     // USER → DIRECT PERMISSIONS
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "user_permissions",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
+//    @JoinTable(
+//            name = "user_permissions",
+//            joinColumns = @JoinColumn(name = "user_id"),
+//            inverseJoinColumns = @JoinColumn(name = "permission_id")
+//    )
     private Set<Permission> permissions;
+
+    @OneToMany(mappedBy = "createdBy", cascade = CascadeType.ALL)
+    private List<AccountEntity> accounts;
 
     public String getFullName() {
         return firstName + " " + lastName;
     }
+
 }

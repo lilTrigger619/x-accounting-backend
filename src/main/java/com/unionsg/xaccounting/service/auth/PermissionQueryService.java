@@ -9,6 +9,7 @@ import com.unionsg.xaccounting.entity.User.Permission;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 public class PermissionQueryService {
@@ -32,7 +33,7 @@ public class PermissionQueryService {
     }
 
     @Transactional
-    public PermissionResponse togglePermissionStatus(Long id) {
+    public PermissionResponse togglePermissionStatus(UUID id) {
         Permission permission = permissionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Permission not found with id: " + id));
 

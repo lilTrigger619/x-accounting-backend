@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
 
+
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
@@ -25,10 +26,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         @Transactional
         public UserDetails loadUserByUsername(String userId) throws UsernameNotFoundException {
 
-        var user = userRepository.findById(Long.parseLong(userId))
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
+//        var user = userRepository.findById(Long.parseLong(userId))
+//                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
 
-        Set<GrantedAuthority> authorities = new HashSet<>();
+            var user = userRepository.findById(UUID.fromString(userId))
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
+            Set<GrantedAuthority> authorities = new HashSet<>();
 
         // roles
         if (user.getRoles() != null) {

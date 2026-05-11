@@ -14,6 +14,7 @@ import com.unionsg.xaccounting.enums.RoleStatus;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,7 +42,7 @@ public class RoleService {
     // ─── GET BY ID ─────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public RoleDetailResponse getRoleById(Long id) {
+    public RoleDetailResponse getRoleById(UUID id) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Role not found with id: " + id));
         return toResponse(role);
@@ -72,7 +73,7 @@ public class RoleService {
     // ─── UPDATE ────────────────────────────────────────────────────────────────
 
     @Transactional
-    public RoleDetailResponse updateRole(Long id, UpdateRoleRequest request) {
+    public RoleDetailResponse updateRole(UUID id, UpdateRoleRequest request) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Role not found with id: " + id));
 
@@ -95,7 +96,7 @@ public class RoleService {
     // ─── DELETE (hard delete — removes role and its assignments) ───────────────
 
     @Transactional
-    public RoleDetailResponse toggleRoleStatus(Long id) {
+    public RoleDetailResponse toggleRoleStatus(UUID id) {
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Role not found with id: " + id));
 
@@ -111,7 +112,7 @@ public class RoleService {
 
     // ─── HELPERS ───────────────────────────────────────────────────────────────
 
-    private Set<Permission> resolvePermissions(Set<Long> permissionIds) {
+    private Set<Permission> resolvePermissions(Set<UUID> permissionIds) {
         if (permissionIds == null || permissionIds.isEmpty()) return Collections.emptySet();
         Set<Permission> permissions = permissionRepository.findAllById(permissionIds)
                 .stream().collect(Collectors.toSet());

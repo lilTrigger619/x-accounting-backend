@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Set;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -12,6 +13,6 @@ public class UpdateUserRequest {
     private String lastName;
     private String email;
     private String status;
-    private Set<Long> roleIds;
-    private Set<Long> permissionIds;
+    private Set<UUID> roleIds;
+    private Set<UUID> permissionIds;
 }

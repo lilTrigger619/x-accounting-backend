@@ -3,6 +3,8 @@ package com.unionsg.xaccounting.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.UUID;
+
 
 @Entity
 @Table(name = "users")
@@ -13,8 +15,8 @@ import lombok.*;
 @Builder
 public class UserEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue
+    private UUID id;
 
 //    @Column(nullable = true, unique = false)
 //    private String first_name;

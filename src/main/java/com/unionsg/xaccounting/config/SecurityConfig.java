@@ -114,15 +114,54 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors->cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/api/users/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
+    // allow frontend origins
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(){
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // allow frontend origins
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:8081", "http://localhost:8080"));
+
+        // allow http methods
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+
+        // allow all headers
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+
+        // allow credentials (cookies, authorization headers)
+        configuration.setAllowCredentials(true);
+
+        // Expose headers to frontend
+        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+
+        // cache preflight response
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    };
 
     @Bean
     public PasswordEncoder passwordEncoder(){

@@ -4,18 +4,19 @@ import lombok.Getter;
 import lombok.Setter;
  
 import java.util.Set;
+import java.util.UUID;
  
 @Getter
 @Setter
 public class CreateRoleRequest {
     private String name;
     private String guardName; // optional, defaults to "web"
-    private Set<Long> permissionIds;
+    private Set<UUID> permissionIds;
  
     public void setPermissionIds(Set<Object> ids) {
         if (ids == null) { this.permissionIds = new java.util.HashSet<>(); return; }
         this.permissionIds = ids.stream()
-                .map(id -> Long.parseLong(id.toString()))
+                .map(id -> UUID.fromString(id.toString()))
                 .collect(java.util.stream.Collectors.toSet());
     }
 }

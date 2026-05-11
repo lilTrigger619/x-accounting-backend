@@ -3,6 +3,7 @@ package com.unionsg.xaccounting.service;
 import com.unionsg.xaccounting.dto.AccountCreationDTO;
 import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.ChartOfAccountClearTo_ENTITY;
+import com.unionsg.xaccounting.entity.User.User;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.ChartOfAccountRepository;
 import com.unionsg.xaccounting.repository.ChartOfAccountClearTo_Repository;
@@ -10,6 +11,7 @@ import com.unionsg.xaccounting.dto.AccountDTO;
 //import com.unionsg.xaccounting.repository.ChartOfAccountRepository
 import com.unionsg.xaccounting.entity.AccountEntity;
 
+import com.unionsg.xaccounting.security.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
+
 
 @Service
 @RequiredArgsConstructor
@@ -29,22 +32,23 @@ public class AccountService {
 
     @Transactional
     public AccountCreationDTO createAccount(AccountCreationDTO accountCreationDTO) {
-        System.out.println("before the if condition");
         // Validate chart code exists
 //        ChartOfAccount chartOfAccount = chartOfAccountRepository.findByCoaCode(accountDTO.getChartCode())
 //                .orElseThrow(() -> new RuntimeException("Chart of Account not found with code: " + accountDTO.getChartCode()));
         ChartOfAccountClearTo_ENTITY chartOfAccountClearTo = chartOfAccountClearToRepository.findById(Long.parseLong(accountCreationDTO.getClearsTo()))
-                .orElseThrow(() -> new RuntimeException("Chart of account clear to not found with code: "+ accountCreationDTO.getCoaClearToId()));
+                .orElseThrow(() -> new RuntimeException("Chart of account clear to not found with code: "+ accountCreationDTO.getClearsTo()));
 
-        System.out.println("after the if condition");
        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        String parsedDate = accountCreationDTO.getOpeningBalanceDate() + " 00:00:00";
+       String parsedDate = accountCreationDTO.getOpeningBalanceDate() + " 00:00:00";
        LocalDateTime dateTime = LocalDateTime.parse(parsedDate, formatter);
 
         // Check if account ID already exists
         if (accountRepository.existsByAccountId(accountCreationDTO.getAccountId())) {
             throw new RuntimeException("Account ID already exists: " + accountCreationDTO.getAccountId());
         }
+        System.out.println("before getting the current user ");
+        User user = SecurityUtils.getCurrentUser();
+        System.out.println("After getting the current user "+user.getFullName());
 
         AccountEntity entity = AccountEntity.builder()
                 .accountId(accountCreationDTO.getAccountId())
@@ -52,8 +56,9 @@ public class AccountService {
                 .coaClearTo(chartOfAccountClearTo)
                 .openingBalance(accountCreationDTO.getOpeningBalance())
                 .opening_balance_date(dateTime)
-                .taxRate(accountCreationDTO.getTaxRate())
-                .createdBy(accountCreationDTO.getCreatedBy())
+                .taxRate(accountCreationDTO.getDefaultTaxRate())
+//                .createdBy(accountCreationDTO.getCreatedBy())
+                .createdBy(user)
                 .description(accountCreationDTO.getDescription())
                 .currency(accountCreationDTO.getCurrency())
                 //.dateCreated(accountDTO.getDateCreated())
@@ -71,7 +76,9 @@ public class AccountService {
                 //.deleted(accountDTO.isDeleted())
                 .build();
 
+        System.out.println("Before account entity build ");
         AccountEntity saved = accountRepository.save(entity);
+        System.out.println("After account entity saved");
         //return convertToDTO(saved);
         return convertToAccountCreationDTO(saved);
     }
@@ -157,18 +164,18 @@ public class AccountService {
                 .accountId(entity.getAccountId())
                 .accountName(entity.getAccountName())
                 //.chartCode(entity.getChartOfAccount() != null ? entity.getChartOfAccount().getCoaCode() : null)
-                //.clearsTo(entity.getClearsTo())
-                .coaClearToId(entity.getCoaClearTo().getId())
+                .clearsTo(entity.getCoaClearTo().getId().toString())
+//                .coaClearToId(entity.getCoaClearTo().getId())
 //                .restriction(entity.getRestriction())
 //                .postingLevel(entity.getPostingLevel())
 //                .levelId(entity.getLevelId())
                 .currency(entity.getCurrency())
                 .description(entity.getDescription())
-                .taxRate(entity.getTaxRate())
+                .defaultTaxRate(entity.getTaxRate())
                 .openingBalance(entity.getOpeningBalance())
                 .openingBalanceDate(dateString)
-                .createdBy(entity.getCreatedBy())
-                .dateCreated(entity.getDateCreated())
+//                .createdBy(entity.getCreatedBy())
+//                .dateCreated(entity.getDateCreated())
 
 //                .statementType(entity.getStatementType())
 //                .statementCode(entity.getStatementCode())
@@ -201,7 +208,7 @@ public class AccountService {
                 .taxRate(entity.getTaxRate())
                 .openingBalance(entity.getOpeningBalance())
                 .openingBalanceDate(dateString)
-                .createdBy(entity.getCreatedBy())
+                .createdBy(entity.getCreatedBy().getFullName())
                 .dateCreated(entity.getDateCreated())
 
 //                .statementType(entity.getStatementType())

@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+/**
 public class AccountCreationDTO {
     private String accountId;
     private String accountName;
@@ -39,4 +40,20 @@ public class AccountCreationDTO {
     private LocalDateTime dateCreated;
 //    private int accountType ;
 //    private int subAccountType ;
+}
+**/
+
+
+public class AccountCreationDTO {
+    private String accountId;
+    private String accountName;
+    private String ChartCode;
+    private String clearsTo;
+    private String currency;
+    private String defaultTaxRate;
+    private String description;
+    private String openingBalance;
+    private String openingBalanceDate;
+    private String statementCode;
+    private String statementType;
 }

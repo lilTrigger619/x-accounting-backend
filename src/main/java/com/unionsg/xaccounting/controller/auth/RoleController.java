@@ -11,9 +11,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
-@RequestMapping("/roles")
+@RequestMapping("/api/roles")
 public class RoleController {
 
     private final RoleService roleService;
@@ -36,7 +37,7 @@ public class RoleController {
     // GET /roles/{id}
     @GetMapping("/{id}")
     @RequirePermission(value = "view_role", group = "Role Management")
-    public ResponseEntity<ApiResponse<RoleDetailResponse>> getRoleById(@PathVariable("id") Long id) {
+    public ResponseEntity<ApiResponse<RoleDetailResponse>> getRoleById(@PathVariable("id") UUID id) {
         return ResponseEntity.ok(ApiResponse.<RoleDetailResponse>builder()
                 .success(true)
                 .message("Role retrieved successfully")
@@ -59,7 +60,7 @@ public class RoleController {
     @PutMapping("/{id}")
     @RequirePermission(value = "edit_role", group = "Role Management")
     public ResponseEntity<ApiResponse<RoleDetailResponse>> updateRole(
-            @PathVariable("id") Long id,
+            @PathVariable("id") UUID id,
             @RequestBody UpdateRoleRequest request) {
         return ResponseEntity.ok(ApiResponse.<RoleDetailResponse>builder()
                 .success(true)
@@ -71,7 +72,7 @@ public class RoleController {
     // DELETE /roles/{id} — soft delete (disables role)
     @DeleteMapping("/{id}")
     @RequirePermission(value = "delete_role", group = "Role Management")
-    public ResponseEntity<ApiResponse<RoleDetailResponse>> toggleRoleStatus(@PathVariable("id") Long id) {
+    public ResponseEntity<ApiResponse<RoleDetailResponse>> toggleRoleStatus(@PathVariable("id") UUID id) {
         RoleDetailResponse role = roleService.toggleRoleStatus(id);
         String message = role.getStatus().equals("ACTIVE") ? "Role activated successfully" : "Role disabled successfully";
         return ResponseEntity.ok(ApiResponse.<RoleDetailResponse>builder()

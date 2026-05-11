@@ -13,8 +13,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.unionsg.xaccounting.response.ApiResponse;
 
+import java.util.UUID;
+
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 public class UserController {
 
     private final UserService userService;
@@ -28,14 +30,16 @@ public class UserController {
     @PostMapping
     @RequirePermission(value = "create_user", group = "User Management")
     public ResponseEntity<UserResponse> createUser(@RequestBody CreateUserRequest request) {
+        System.out.println("I got here!");
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(request));
     }
 
     // GET /users/{id}
     @GetMapping("/{id}")
     @RequirePermission(value = "view_user", group = "User Management")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(userService.getUserById(id));
+//    public ResponseEntity<UserResponse> getUserById(@PathVariable("id") Long id) {
+    public ResponseEntity<UserResponse> getUserById(@PathVariable("id") String id) {
+        return ResponseEntity.ok(userService.getUserById(UUID.fromString(id)));
     }
 
     // GET /users?page=0&size=20&sort=firstName,asc
@@ -50,7 +54,7 @@ public class UserController {
     @PutMapping("/{id}")
     @RequirePermission(value = "update_user", group = "User Management")
     public ResponseEntity<UserResponse> updateUser(
-            @PathVariable("id") Long id,
+            @PathVariable("id") String id,
             @RequestBody UpdateUserRequest request) {
         return ResponseEntity.ok(userService.updateUser(id, request));
     }
@@ -58,8 +62,8 @@ public class UserController {
     // DELETE /users/{id}  (soft delete — sets status = DISABLED)
     @DeleteMapping("/{id}")
     @RequirePermission(value = "delete_user", group = "User Management")
-    public ResponseEntity<ApiResponse<Object>> toggleUserStatus(@PathVariable("id") Long id) {
-        UserResponse user = userService.toggleUserStatus(id);
+    public ResponseEntity<ApiResponse<Object>> toggleUserStatus(@PathVariable("id") String id) {
+        UserResponse user = userService.toggleUserStatus(UUID.fromString(id));
         String message = user.getStatus().equals("ACTIVE") ? "User activated successfully" : "User disabled successfully";
         return ResponseEntity.ok(ApiResponse.builder()
                 .success(true)

@@ -61,7 +61,9 @@ public class UserService {
                 .permissions(permissions)
                 .build();
 
+        System.out.println( " User id "+user);
         userRepository.save(user);
+        System.out.println("after user repository ");
 
         return toResponse(user);
     }
@@ -69,7 +71,8 @@ public class UserService {
     // ─── READ (single) ─────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public UserResponse getUserById(Long id) {
+//    public UserResponse getUserById(Long id) {
+    public UserResponse getUserById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
 
@@ -86,32 +89,43 @@ public class UserService {
     // ─── UPDATE ────────────────────────────────────────────────────────────────
 
     @Transactional
-    public UserResponse updateUser(Long id, UpdateUserRequest request) {
-        User user = userRepository.findById(id)
+    public UserResponse updateUser(String id, UpdateUserRequest request) {
+        System.out.println("before getting the user by uuid");
+        User user = userRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+        System.out.println("after getting the user by uuid");
 
         if (request.getFirstName() != null) {
             user.setFirstName(request.getFirstName());
+            System.out.println("After setting the first name");
         }
         if (request.getLastName() != null) {
             user.setLastName(request.getLastName());
+            System.out.println("After setting the last name");
         }
         if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
             if (userRepository.existsByEmail(request.getEmail())) {
                 throw new RuntimeException("Email already in use");
             }
             user.setEmail(request.getEmail());
+            System.out.println("After setting the email");
         }
         if (request.getStatus() != null) {
             user.setStatus(UserStatus.valueOf(request.getStatus()));
+            System.out.println("AFter setting user status");
         }
         if (request.getRoleIds() != null) {
+            System.out.println("Before setting the role ids");
+            System.out.println("Before setting the role ids "+user.getId());
             user.setRoles(resolveRoles(request.getRoleIds()));
+            System.out.println("After setting user roles");
         }
         if (request.getPermissionIds() != null) {
             user.setPermissions(resolvePermissions(request.getPermissionIds()));
+            System.out.println("After setting user permissions");
         }
 
+        System.out.println("user id "+user.getId());
         userRepository.save(user);
 
         return toResponse(user);
@@ -120,7 +134,7 @@ public class UserService {
     // ─── DELETE (soft — sets status to DISABLED via @SQLDelete) ────────────────
 
     @Transactional
-    public UserResponse toggleUserStatus(Long id) {
+    public UserResponse toggleUserStatus(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
 
@@ -137,7 +151,8 @@ public class UserService {
 
     // ─── HELPERS ───────────────────────────────────────────────────────────────
 
-    private Set<Role> resolveRoles(Set<Long> roleIds) {
+//    private Set<Role> resolveRoles(Set<Long> roleIds) {
+    private Set<Role> resolveRoles(Set<UUID> roleIds) {
         if (roleIds == null || roleIds.isEmpty()) return Collections.emptySet();
         Set<Role> roles = roleRepository.findAllById(roleIds)
                 .stream().collect(Collectors.toSet());
@@ -147,7 +162,7 @@ public class UserService {
         return roles;
     }
 
-    private Set<Permission> resolvePermissions(Set<Long> permissionIds) {
+    private Set<Permission> resolvePermissions(Set<UUID> permissionIds) {
         if (permissionIds == null || permissionIds.isEmpty()) return Collections.emptySet();
         Set<Permission> permissions = permissionRepository.findAllById(permissionIds)
                 .stream().collect(Collectors.toSet());

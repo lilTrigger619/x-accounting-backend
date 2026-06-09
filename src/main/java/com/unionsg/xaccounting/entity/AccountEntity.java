@@ -128,6 +128,19 @@ public class AccountEntity {
     @Column(name="description")
     private String description;
 
+    @Column(name="statement_type")
+    private String statementType;
+
+    @Column(name="statement_code")
+    private String statementCode;
+
+    @Column(name="show_in_report")
+    private Boolean showInReport;
+
+    @Column(name="is_active")
+    private Boolean isActive;
+
+
     @PrePersist
     protected void onCreate() {
         if (dateCreated == null) {

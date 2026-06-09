@@ -180,19 +180,35 @@ public class DatabaseSeeder implements ApplicationRunner {
         // Document config seeding for setting account codes and invoice numbers.
         // we need this to set atleast one invoice number.
         if (docConfigRepo.count() == 0 ){
-            DocumentNumberConfig config =  new DocumentNumberConfig();
-            config.setModule("INVOICE");
-            config.setPrefix("INV");
-            config.setPadding(5);
-            config.setLastNumber(0L);
-            config.setSeparator("-");
-            config.setIncludeYear(true);
-            config.setResetMonthly(false);
-            config.setResetYearly(true);
-            config.setCompanyId(1L);
-            config.setBranchId(1L);
-            config.setCreatedAt(LocalDateTime.now());
-            docConfigRepo.save(config);
+            // document config for document number
+            DocumentNumberConfig invoiceConfig =  new DocumentNumberConfig();
+            invoiceConfig.setModule("INVOICE");
+            invoiceConfig.setPrefix("INV");
+            invoiceConfig.setPadding(5);
+            invoiceConfig.setLastNumber(0L);
+            invoiceConfig.setSeparator("-");
+            invoiceConfig.setIncludeYear(true);
+            invoiceConfig.setResetMonthly(false);
+            invoiceConfig.setResetYearly(true);
+            invoiceConfig.setCompanyId(1L);
+            invoiceConfig.setBranchId(1L);
+            invoiceConfig.setCreatedAt(LocalDateTime.now());
+            docConfigRepo.save(invoiceConfig);
+
+
+            DocumentNumberConfig journalConfig = new DocumentNumberConfig();
+            journalConfig.setModule("JOURNAL");
+            journalConfig.setPrefix("JNL");
+            journalConfig.setPadding(5);
+            journalConfig.setLastNumber(0L);
+            journalConfig.setSeparator("-");
+            journalConfig.setIncludeYear(true);
+            journalConfig.setResetMonthly(false);
+            journalConfig.setResetYearly(true);
+            journalConfig.setCompanyId(1L);
+            journalConfig.setBranchId(1L);
+            journalConfig.setCreatedAt(LocalDateTime.now());
+            docConfigRepo.save(journalConfig);
         }
 
 

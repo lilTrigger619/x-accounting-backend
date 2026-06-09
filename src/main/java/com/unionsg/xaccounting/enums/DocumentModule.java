@@ -5,5 +5,6 @@ public enum DocumentModule {
     PAYMENT,
     CREDIT_NOTE,
     QUOTE,
-    PURCHASE_ORDER
+    PURCHASE_ORDER,
+    JOURNAL
 }

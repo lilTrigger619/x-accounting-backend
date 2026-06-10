@@ -170,8 +170,11 @@ public class DatabaseSeeder implements ApplicationRunner {
             createChartOfAccounts(1, "Asset", assetsClearTo);
             createChartOfAccounts(2, "Liability", liabilityClearTo);
             createChartOfAccounts(3, "Equity", equityClearTo);
-            createChartOfAccounts(4, "Revenue", revenueClearTo);
+            createChartOfAccounts(4, "Income", revenueClearTo);
             createChartOfAccounts(5, "Expense", expenseClearTo);
+            createChartOfAccounts(6, "Bank Account", null);
+            createChartOfAccounts(7, "Credit Card", null);
+            createChartOfAccounts(8, "Cost of Goods Sold", null);
 
             log.info("Database seeding complete.");
         }

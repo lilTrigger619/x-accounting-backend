@@ -40,6 +40,11 @@ public class DatabaseSeeder implements ApplicationRunner {
     private List<ChartOfAccountClearTo_ENTITY> equityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> revenueClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> expenseClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
+    private List<ChartOfAccountClearTo_ENTITY> bankAccountClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
+    private List<ChartOfAccountClearTo_ENTITY> creditCardClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
+    private List<ChartOfAccountClearTo_ENTITY> costOfGoodsSoldClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
+    private List<ChartOfAccountClearTo_ENTITY> accountsPayableClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
+    private List<ChartOfAccountClearTo_ENTITY> accountsReceivableClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
 
     @Override
     @Transactional
@@ -128,13 +133,26 @@ public class DatabaseSeeder implements ApplicationRunner {
         // ==================================
         if (chartOfAccountClearToRepo.count() == 0){
             // all assets clear to
-            assetsClearTo.add( createChartClearToCode(1, "Current Asset"));
-            assetsClearTo.add(createChartClearToCode(2, "Fixed Asset"));
-            assetsClearTo.add(createChartClearToCode(3, "Other Asset"));
-            assetsClearTo.add(createChartClearToCode(4, "Bank"));
-            assetsClearTo.add(createChartClearToCode(5, "Cash"));
-            assetsClearTo.add(createChartClearToCode(6, "Inventory"));
-            assetsClearTo.add(createChartClearToCode(7, "Accounts receivable"));
+            // assetsClearTo.add( createChartClearToCode(1, "Current Asset"));
+            // assetsClearTo.add(createChartClearToCode(2, "Fixed Asset"));
+            // assetsClearTo.add(createChartClearToCode(3, "Other Asset"));
+            // assetsClearTo.add(createChartClearToCode(4, "Bank"));
+            // assetsClearTo.add(createChartClearToCode(5, "Cash"));
+            // assetsClearTo.add(createChartClearToCode(6, "Inventory"));
+            // assetsClearTo.add(createChartClearToCode(7, "Accounts receivable"));
+
+            assetsClearTo.add(createChartClearToCode(1, "Buildings"));
+            assetsClearTo.add(createChartClearToCode(2, "Land"));
+            assetsClearTo.add(createChartClearToCode(3, "Machinery & Equipment"));
+            assetsClearTo.add(createChartClearToCode(4, "Furniture & Fixtures"));
+            assetsClearTo.add(createChartClearToCode(5, "Vehicles"));
+            assetsClearTo.add(createChartClearToCode(6, "Computers"));
+            assetsClearTo.add(createChartClearToCode(7, "Software"));
+            assetsClearTo.add(createChartClearToCode(8, "Leasehold Improvements"));
+            assetsClearTo.add(createChartClearToCode(9, "Intangible Assets"));
+            assetsClearTo.add(createChartClearToCode(10, "Accumulated Depreciation"));
+            assetsClearTo.add(createChartClearToCode(11, "Accumulated Amortization"));
+            assetsClearTo.add(createChartClearToCode(12, "Other Fixed Assets"));
 
             // all liabilities clear to codes
             liabilityClearTo.add( createChartClearToCode(8, "Long term liability"));
@@ -160,7 +178,32 @@ public class DatabaseSeeder implements ApplicationRunner {
             expenseClearTo.add( createChartClearToCode(22, "Payroll expense"));
             expenseClearTo.add( createChartClearToCode(23, "Other expense"));
 
+            // bank account sub types
+            bankAccountClearTo.add(createChartClearToCode(1, "Cash on Hand"));
+            bankAccountClearTo.add(createChartClearToCode(2, "Checking"));
+            bankAccountClearTo.add(createChartClearToCode(3, "Savings"));
+            bankAccountClearTo.add(createChartClearToCode(4, "Money Market"));
+            bankAccountClearTo.add(createChartClearToCode(5, "Trust Account"));
+            bankAccountClearTo.add(createChartClearToCode(6, "Rents Held in Trust"));
+
+
+            // cost of goods sold 
+            costOfGoodsSoldClearTo.add(createChartClearToCode(1, "Cost of Goods Sold"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(2, "Job Materials"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(3, "Equipment Rental"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(4, "Shipping/Freight"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(5, "Subcontractor Costs"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(6, "Direct Labor"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(7, "Merchant Account Fees"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(8, "Other Direct Costs"));
+
+            creditCardClearTo.add(createChartClearToCode(1, "Credit Card"));
+
+            accountsPayableClearTo.add(createChartClearToCode(1, "Accounts Payable"));
+            accountsReceivableClearTo.add(createChartClearToCode(1, "Accounts Receivable"));
         }
+
+
 
         // =================================
         // Chart of account
@@ -172,9 +215,12 @@ public class DatabaseSeeder implements ApplicationRunner {
             createChartOfAccounts(3, "Equity", equityClearTo);
             createChartOfAccounts(4, "Income", revenueClearTo);
             createChartOfAccounts(5, "Expense", expenseClearTo);
-            createChartOfAccounts(6, "Bank Account", null);
-            createChartOfAccounts(7, "Credit Card", null);
-            createChartOfAccounts(8, "Cost of Goods Sold", null);
+            createChartOfAccounts(6, "Bank Account", bankAccountClearTo);
+            createChartOfAccounts(7, "Credit Card", creditCardClearTo);
+            createChartOfAccounts(8, "Cost of Goods Sold", costOfGoodsSoldClearTo);
+            createChartOfAccounts(9, "Accounts payable", accountsPayableClearTo);
+            createChartOfAccounts(10, "Accounts receivable", accountsReceivableClearTo);
+
 
             log.info("Database seeding complete.");
         }
@@ -273,11 +319,13 @@ public class DatabaseSeeder implements ApplicationRunner {
     }
 
     private void createChartOfAccounts(int chartCode, String chartDescription, List<ChartOfAccountClearTo_ENTITY> coa_ct){
+        System.out.println("clear to account "+ coa_ct.size());
        ChartOfAccount coa = ChartOfAccount.builder()
                .coaCode( (long) chartCode)
                .coa_description(chartDescription)
                .coaClearTo(coa_ct)
                .build();
+        coa.getCoaClearTo().forEach(coaClearTo -> coaClearTo.setChartOfAccount(coa));
        chartOfAccountRepo.save(coa);
     }
 }

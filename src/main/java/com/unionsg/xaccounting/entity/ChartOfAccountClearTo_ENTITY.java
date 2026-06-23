@@ -62,5 +62,7 @@ public class ChartOfAccountClearTo_ENTITY {
     protected void onCreate() {
         if (dateCreated == null)
             dateCreated = LocalDateTime.now();
+        if (deleted == null)
+            deleted = true;
     }
 }

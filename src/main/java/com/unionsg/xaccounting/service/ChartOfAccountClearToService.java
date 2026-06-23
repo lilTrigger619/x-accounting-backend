@@ -34,6 +34,7 @@ public class ChartOfAccountClearToService {
         return ChartClearToResponseDto.builder()
                 .id(e.getId())
                 .clearToCode(e.getClearToCode())
+                .chartCode(e.getChartOfAccount() != null ? e.getChartOfAccount().getCoaCode() : null)
                 .description(e.getDescription())
                 .dateCreated(e.getDateCreated())
                 .deleted(e.getDeleted())

@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class ChartClearToResponseDto {
     private Long id;
     private Long clearToCode;
+    private Long chartCode;
     private String description;
     private LocalDateTime dateCreated;
     private Boolean deleted;

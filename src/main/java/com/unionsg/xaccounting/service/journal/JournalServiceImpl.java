@@ -227,8 +227,8 @@ public class JournalServiceImpl implements JournalService {
 
         for (CreateJournalLineRequest request : requests) {
 
-            AccountEntity account = accountRepository.findById(
-                    request.getAccountId()
+            AccountEntity account = accountRepository.findByAccountId(
+                    request.getAccountId().toString()
             ).orElseThrow(() ->
                     new ResourceNotFoundException("Account not found")
             );

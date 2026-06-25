@@ -6,7 +6,8 @@ import com.unionsg.xaccounting.entity.ChartOfAccountClearTo_ENTITY;
 import com.unionsg.xaccounting.entity.User.User;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.ChartOfAccountRepository;
-import com.unionsg.xaccounting.repository.ChartOfAccountClearTo_Repository;
+import com.unionsg.xaccounting.repository.ChartOfAccountClearToRepository;
+
 import com.unionsg.xaccounting.dto.AccountDTO;
 //import com.unionsg.xaccounting.repository.ChartOfAccountRepository
 import com.unionsg.xaccounting.entity.AccountEntity;
@@ -27,7 +28,8 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final ChartOfAccountRepository chartOfAccountRepository;
-    private final ChartOfAccountClearTo_Repository chartOfAccountClearToRepository;
+    private final ChartOfAccountClearToRepository chartOfAccountClearToRepository;
+
     //private final AccountCreationDTO accountCreationDTO;
 
     @Transactional
@@ -35,12 +37,20 @@ public class AccountService {
         // Validate chart code exists
 //        ChartOfAccount chartOfAccount = chartOfAccountRepository.findByCoaCode(accountDTO.getChartCode())
 //                .orElseThrow(() -> new RuntimeException("Chart of Account not found with code: " + accountDTO.getChartCode()));
-        ChartOfAccountClearTo_ENTITY chartOfAccountClearTo = chartOfAccountClearToRepository.findById(Long.parseLong(accountCreationDTO.getClearsTo()))
-                .orElseThrow(() -> new RuntimeException("Chart of account clear to not found with code: "+ accountCreationDTO.getClearsTo()));
+        Long clearToCode = Long.parseLong(accountCreationDTO.getClearsTo());
+        ChartOfAccountClearTo_ENTITY chartOfAccountClearTo = chartOfAccountClearToRepository.findByClearToCode(clearToCode)
+                .orElseThrow(() -> new RuntimeException("Chart of account clear to not found with code: " + accountCreationDTO.getClearsTo()));
 
-       DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-       String parsedDate = accountCreationDTO.getOpeningBalanceDate() + " 00:00:00";
-       LocalDateTime dateTime = LocalDateTime.parse(parsedDate, formatter);
+
+        if (!accountCreationDTO.getOpeningBalance().isEmpty()) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            String parsedDate = accountCreationDTO.getOpeningBalanceDate() + " 00:00:00";
+            LocalDateTime dateTime = LocalDateTime.parse(parsedDate, formatter);
+        }
+
+
+
+
 
         // Check if account ID already exists
         if (accountRepository.existsByAccountId(accountCreationDTO.getAccountId())) {
@@ -54,8 +64,8 @@ public class AccountService {
                 .accountId(accountCreationDTO.getAccountId())
                 .accountName(accountCreationDTO.getAccountName())
                 .coaClearTo(chartOfAccountClearTo)
-                .openingBalance(accountCreationDTO.getOpeningBalance())
-                .opening_balance_date(dateTime)
+                //.openingBalance(accountCreationDTO.getOpeningBalance())
+                //.opening_balance_date(dateTime)
                 .taxRate(accountCreationDTO.getDefaultTaxRate())
 //                .createdBy(accountCreationDTO.getCreatedBy())
                 .createdBy(user)
@@ -122,7 +132,7 @@ public class AccountService {
         entity.setCurrency(accountDTO.getCurrency());
         //already set
         //entity.setCoaClearTo(accountDTO.getCoaClearToId());
-        entity.setOpeningBalance(accountDTO.getOpeningBalance());
+        // entity.setOpeningBalance(accountDTO.getOpeningBalance());
         entity.setTaxRate(accountDTO.getTaxRate());
         entity.setDescription(accountDTO.getDescription());
 //        entity.setStatementType(accountDTO.getStatementType());
@@ -158,8 +168,9 @@ public class AccountService {
 
     private AccountCreationDTO convertToAccountCreationDTO(AccountEntity entity){
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime dateTime = entity.getOpening_balance_date();
-        String dateString = dateTime.format(formatter);
+        // LocalDateTime dateTime = entity.getOpening_balance_date();
+        // String dateString = dateTime.format(formatter);
+        String dateString = null;
         return AccountCreationDTO.builder()
                 .accountId(entity.getAccountId())
                 .accountName(entity.getAccountName())
@@ -172,8 +183,9 @@ public class AccountService {
                 .currency(entity.getCurrency())
                 .description(entity.getDescription())
                 .defaultTaxRate(entity.getTaxRate())
-                .openingBalance(entity.getOpeningBalance())
-                .openingBalanceDate(dateString)
+                //.openingBalance(entity.getOpeningBalance())
+                //.openingBalanceDate(dateString)
+
 //                .createdBy(entity.getCreatedBy())
 //                .dateCreated(entity.getDateCreated())
 
@@ -190,9 +202,9 @@ public class AccountService {
     }
 
     private AccountDTO convertToDTO(AccountEntity entity) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime dateTime = entity.getOpening_balance_date();
-        String dateString = dateTime.format(formatter);
+        // DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        // LocalDateTime dateTime = entity.getOpening_balance_date();
+        // String dateString = dateTime.format(formatter);
         return AccountDTO.builder()
                 .id(entity.getId())
                 .accountId(entity.getAccountId())
@@ -206,8 +218,8 @@ public class AccountService {
                 .currency(entity.getCurrency())
                 .description(entity.getDescription())
                 .taxRate(entity.getTaxRate())
-                .openingBalance(entity.getOpeningBalance())
-                .openingBalanceDate(dateString)
+                //.openingBalance(entity.getOpeningBalance())
+                //.openingBalanceDate(dateString)
                 .createdBy(entity.getCreatedBy().getFullName())
                 .dateCreated(entity.getDateCreated())
 

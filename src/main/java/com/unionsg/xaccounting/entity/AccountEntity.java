@@ -31,7 +31,7 @@ public class AccountEntity {
     //@Column(columnDefinition="serial")
     private Long id;
 
-    @Column(name = "account_id")
+    @Column(name = "account_number")
     private String accountId;
 
     @Column(name = "account_name")
@@ -113,14 +113,14 @@ public class AccountEntity {
     @JoinColumn(name="createdBy", referencedColumnName = "email")
     private User createdBy;
 
-    @Column(name = "opening_balance")
-    private String openingBalance;
+    // @Column(name = "opening_balance")
+    // private String openingBalance;
 
     @Column(name = "currency")
     private String currency;
 
-    @Column(name = "opening_balance_date")
-    private LocalDateTime opening_balance_date;
+    // @Column(name = "opening_balance_date")
+    // private LocalDateTime opening_balance_date;
 
     @Column(name = "tax_rate")
     private String taxRate;
@@ -128,14 +128,14 @@ public class AccountEntity {
     @Column(name="description")
     private String description;
 
-    @Column(name="statement_type")
-    private String statementType;
+    // @Column(name="statement_type")
+    // private String statementType;
 
-    @Column(name="statement_code")
-    private String statementCode;
+    // @Column(name="statement_code")
+    // private String statementCode;
 
-    @Column(name="show_in_report")
-    private Boolean showInReport;
+    // @Column(name="show_in_report")
+    // private Boolean showInReport;
 
     @Column(name="is_active")
     private Boolean isActive;

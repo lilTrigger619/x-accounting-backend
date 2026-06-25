@@ -238,6 +238,7 @@ public class DatabaseSeeder implements ApplicationRunner {
             invoiceConfig.setSeparator("-");
             invoiceConfig.setIncludeYear(true);
             invoiceConfig.setResetMonthly(false);
+            invoiceConfig.setIncludeMonth(false);
             invoiceConfig.setResetYearly(true);
             invoiceConfig.setCompanyId(1L);
             invoiceConfig.setBranchId(1L);
@@ -252,6 +253,7 @@ public class DatabaseSeeder implements ApplicationRunner {
             journalConfig.setLastNumber(0L);
             journalConfig.setSeparator("-");
             journalConfig.setIncludeYear(true);
+            journalConfig.setIncludeMonth(false);
             journalConfig.setResetMonthly(false);
             journalConfig.setResetYearly(true);
             journalConfig.setCompanyId(1L);

@@ -1,6 +1,8 @@
 package com.unionsg.xaccounting.dto;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
+
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -52,8 +54,8 @@ public class AccountCreationDTO {
     private String currency;
     private String defaultTaxRate;
     private String description;
-    private String openingBalance;
-    private String openingBalanceDate;
-    private String statementCode;
-    private String statementType;
+    private Optional<String> openingBalance = Optional.empty();
+    private Optional<String> openingBalanceDate = Optional.empty();
+    // private String statementCode;
+    // private String statementType;
 }

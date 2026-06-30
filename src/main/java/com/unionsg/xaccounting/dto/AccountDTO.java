@@ -29,8 +29,8 @@ public class AccountDTO {
     //private LocalDateTime dateCreated;
 
     //private Long openingBalance;
-    private String openingBalance;
-    private String openingBalanceDate;
+    // private String openingBalance;
+    // private String openingBalanceDate;
     //private double taxRate;
     private String taxRate;
     private String createdBy;

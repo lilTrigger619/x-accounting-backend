@@ -1,5 +1,7 @@
 package com.unionsg.xaccounting.entity;
 
+import com.unionsg.xaccounting.enums.AccountType;
+import com.unionsg.xaccounting.enums.NormalBalance;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -45,5 +47,13 @@ public class ChartOfAccount {
 //    @ManyToOne(fetch = FetchType.LAZY)
 //    @JoinColumn(name= "clear_to", referencedColumnName = 'clear_to')
 //    private clearTO chartOfAccount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private NormalBalance normalBalance;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private AccountType accountType;
 
 }

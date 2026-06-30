@@ -1,11 +1,14 @@
 package com.unionsg.xaccounting.config.seeders;
 
+import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.entity.DocumentNumberConfig;
 import com.unionsg.xaccounting.entity.User.Permission;
 import com.unionsg.xaccounting.entity.User.Role;
 import com.unionsg.xaccounting.entity.User.User;
 import com.unionsg.xaccounting.entity.ChartOfAccountClearTo_ENTITY;
 import com.unionsg.xaccounting.entity.ChartOfAccount;
+import com.unionsg.xaccounting.enums.AccountType;
+import com.unionsg.xaccounting.enums.NormalBalance;
 import com.unionsg.xaccounting.enums.UserStatus;
 import com.unionsg.xaccounting.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +38,8 @@ public class DatabaseSeeder implements ApplicationRunner {
     private final ChartOfAccountClearTo_Repository chartOfAccountClearToRepo;
     private final ChartOfAccountRepository chartOfAccountRepo;
     private final DocumentNumberConfigRepository docConfigRepo;
+
+    private final AccountRepository accountRepository;
     private List<ChartOfAccountClearTo_ENTITY> assetsClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> liabilityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> equityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
@@ -45,6 +50,7 @@ public class DatabaseSeeder implements ApplicationRunner {
     private List<ChartOfAccountClearTo_ENTITY> costOfGoodsSoldClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> accountsPayableClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> accountsReceivableClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
+    private User adminUser;
 
     @Override
     @Transactional
@@ -123,7 +129,7 @@ public class DatabaseSeeder implements ApplicationRunner {
             // =============================
             // USERS
             // =============================
-            createUser("admin@xaccounting.com",      "Admin",  "User",  "Admin@1234",      Set.of(superAdmin), Set.of());
+            this.adminUser = createUser("admin@xaccounting.com",      "Admin",  "User",  "Admin@1234",      Set.of(superAdmin), Set.of());
             createUser("accountant@xaccounting.com", "John",   "Doe",   "Accountant@1234", Set.of(accountant), Set.of());
             createUser("viewer@xaccounting.com",     "Jane",   "Smith", "Viewer@1234",     Set.of(viewer),     Set.of());
         }
@@ -141,6 +147,8 @@ public class DatabaseSeeder implements ApplicationRunner {
             // assetsClearTo.add(createChartClearToCode(6, "Inventory"));
             // assetsClearTo.add(createChartClearToCode(7, "Accounts receivable"));
 
+
+            // Fixed Assets clear to codes
             assetsClearTo.add(createChartClearToCode(1, "Buildings"));
             assetsClearTo.add(createChartClearToCode(2, "Land"));
             assetsClearTo.add(createChartClearToCode(3, "Machinery & Equipment"));
@@ -154,53 +162,56 @@ public class DatabaseSeeder implements ApplicationRunner {
             assetsClearTo.add(createChartClearToCode(11, "Accumulated Amortization"));
             assetsClearTo.add(createChartClearToCode(12, "Other Fixed Assets"));
 
-            // all liabilities clear to codes
-            liabilityClearTo.add( createChartClearToCode(8, "Long term liability"));
-            liabilityClearTo.add( createChartClearToCode(9, "Current liability"));
-            liabilityClearTo.add( createChartClearToCode(10, "Accounts payable"));
-            liabilityClearTo.add( createChartClearToCode(11, "Credit card"));
-            liabilityClearTo.add( createChartClearToCode(12, "Other liability"));
+// Liabilities clear to codes
+            liabilityClearTo.add(createChartClearToCode(13, "Long term liability"));
+            liabilityClearTo.add(createChartClearToCode(14, "Current liability"));
+            liabilityClearTo.add(createChartClearToCode(15, "Accounts payable"));
+//            liabilityClearTo.add(createChartClearToCode(16, "Credit card"));
+            liabilityClearTo.add(createChartClearToCode(17, "Other liability"));
 
-            // All  Equity clear to codes
-            equityClearTo.add(  createChartClearToCode(13, "Owners equity"));
-            equityClearTo.add( createChartClearToCode(14, "Retained earnings"));
-            equityClearTo.add( createChartClearToCode(15, "Other equity"));
+// Equity clear to codes
+            equityClearTo.add(createChartClearToCode(18, "Owners equity"));
+            equityClearTo.add(createChartClearToCode(19, "Retained earnings"));
+            equityClearTo.add(createChartClearToCode(20, "Other equity"));
 
-            // All operating revenue codes
-            revenueClearTo.add( createChartClearToCode(16, "Operating revenue"));
-            revenueClearTo.add( createChartClearToCode(17, "Other income"));
-            revenueClearTo.add( createChartClearToCode(18, "Sales"));
-            revenueClearTo.add(createChartClearToCode(19, "Sales revenue"));
+// Revenue clear to codes
+            revenueClearTo.add(createChartClearToCode(21, "Operating revenue"));
+            revenueClearTo.add(createChartClearToCode(22, "Other income"));
+            revenueClearTo.add(createChartClearToCode(23, "Sales"));
+            revenueClearTo.add(createChartClearToCode(24, "Sales revenue"));
 
-            // All operating expense codes
-            expenseClearTo.add( createChartClearToCode (20, "Direct cost"));
-            expenseClearTo.add( createChartClearToCode(21, "Operating expenses"));
-            expenseClearTo.add( createChartClearToCode(22, "Payroll expense"));
-            expenseClearTo.add( createChartClearToCode(23, "Other expense"));
+// Expense clear to codes
+            expenseClearTo.add(createChartClearToCode(25, "Direct cost"));
+            expenseClearTo.add(createChartClearToCode(26, "Operating expenses"));
+            expenseClearTo.add(createChartClearToCode(27, "Payroll expense"));
+            expenseClearTo.add(createChartClearToCode(28, "Other expense"));
 
-            // bank account sub types
-            bankAccountClearTo.add(createChartClearToCode(1, "Cash on Hand"));
-            bankAccountClearTo.add(createChartClearToCode(2, "Checking"));
-            bankAccountClearTo.add(createChartClearToCode(3, "Savings"));
-            bankAccountClearTo.add(createChartClearToCode(4, "Money Market"));
-            bankAccountClearTo.add(createChartClearToCode(5, "Trust Account"));
-            bankAccountClearTo.add(createChartClearToCode(6, "Rents Held in Trust"));
+// Bank account subtypes
+            bankAccountClearTo.add(createChartClearToCode(29, "Cash on Hand"));
+            bankAccountClearTo.add(createChartClearToCode(30, "Checking"));
+            bankAccountClearTo.add(createChartClearToCode(31, "Savings"));
+            bankAccountClearTo.add(createChartClearToCode(32, "Money Market"));
+            bankAccountClearTo.add(createChartClearToCode(33, "Trust Account"));
+            bankAccountClearTo.add(createChartClearToCode(34, "Rents Held in Trust"));
 
+// Cost of Goods Sold
+            costOfGoodsSoldClearTo.add(createChartClearToCode(35, "Cost of Goods Sold"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(36, "Job Materials"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(37, "Equipment Rental"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(38, "Shipping/Freight"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(39, "Subcontractor Costs"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(40, "Direct Labor"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(41, "Merchant Account Fees"));
+            costOfGoodsSoldClearTo.add(createChartClearToCode(42, "Other Direct Costs"));
 
-            // cost of goods sold 
-            costOfGoodsSoldClearTo.add(createChartClearToCode(1, "Cost of Goods Sold"));
-            costOfGoodsSoldClearTo.add(createChartClearToCode(2, "Job Materials"));
-            costOfGoodsSoldClearTo.add(createChartClearToCode(3, "Equipment Rental"));
-            costOfGoodsSoldClearTo.add(createChartClearToCode(4, "Shipping/Freight"));
-            costOfGoodsSoldClearTo.add(createChartClearToCode(5, "Subcontractor Costs"));
-            costOfGoodsSoldClearTo.add(createChartClearToCode(6, "Direct Labor"));
-            costOfGoodsSoldClearTo.add(createChartClearToCode(7, "Merchant Account Fees"));
-            costOfGoodsSoldClearTo.add(createChartClearToCode(8, "Other Direct Costs"));
+// Credit Card
+            creditCardClearTo.add(createChartClearToCode(43, "Credit Card"));
 
-            creditCardClearTo.add(createChartClearToCode(1, "Credit Card"));
+// Accounts Payable
+            accountsPayableClearTo.add(createChartClearToCode(44, "Accounts Payable"));
 
-            accountsPayableClearTo.add(createChartClearToCode(1, "Accounts Payable"));
-            accountsReceivableClearTo.add(createChartClearToCode(1, "Accounts Receivable"));
+// Accounts Receivable
+            accountsReceivableClearTo.add(createChartClearToCode(45, "Accounts Receivable"));
         }
 
 
@@ -210,16 +221,16 @@ public class DatabaseSeeder implements ApplicationRunner {
         // ================================
 
         if (chartOfAccountRepo.count() == 0){
-            createChartOfAccounts(1, "Asset", assetsClearTo);
-            createChartOfAccounts(2, "Liability", liabilityClearTo);
-            createChartOfAccounts(3, "Equity", equityClearTo);
-            createChartOfAccounts(4, "Income", revenueClearTo);
-            createChartOfAccounts(5, "Expense", expenseClearTo);
-            createChartOfAccounts(6, "Bank Account", bankAccountClearTo);
-            createChartOfAccounts(7, "Credit Card", creditCardClearTo);
-            createChartOfAccounts(8, "Cost of Goods Sold", costOfGoodsSoldClearTo);
-            createChartOfAccounts(9, "Accounts payable", accountsPayableClearTo);
-            createChartOfAccounts(10, "Accounts receivable", accountsReceivableClearTo);
+            createChartOfAccounts(1, "Asset", AccountType.ASSET, NormalBalance.DEBIT,assetsClearTo);
+            createChartOfAccounts(2, "Liability", AccountType.LIABILITY, NormalBalance.CREDIT,liabilityClearTo);
+            createChartOfAccounts(3, "Equity", AccountType.EQUITY, NormalBalance.CREDIT,equityClearTo);
+            createChartOfAccounts(4, "Income", AccountType.INCOME, NormalBalance.CREDIT,revenueClearTo);
+            createChartOfAccounts(5, "Expense", AccountType.EXPENSE , NormalBalance.DEBIT,expenseClearTo);
+            createChartOfAccounts(6, "Bank Account", AccountType.ASSET, NormalBalance.DEBIT,bankAccountClearTo);
+            createChartOfAccounts(7, "Credit Card", AccountType.LIABILITY, NormalBalance.CREDIT, creditCardClearTo);
+            createChartOfAccounts(8, "Cost of Goods Sold", AccountType.EXPENSE,  NormalBalance.DEBIT, costOfGoodsSoldClearTo);
+            createChartOfAccounts(9, "Accounts payable", AccountType.LIABILITY, NormalBalance.CREDIT, accountsPayableClearTo);
+            createChartOfAccounts(10, "Accounts receivable", AccountType.ASSET, NormalBalance.DEBIT,accountsReceivableClearTo);
 
 
             log.info("Database seeding complete.");
@@ -263,7 +274,80 @@ public class DatabaseSeeder implements ApplicationRunner {
         }
 
 
+        if (accountRepository.count() == 0){
+            //assets
+            createAccount("1000", "Cash on Hand", 29L, chartOfAccountClearToRepo);
+            createAccount("1010", "Checking Account", 30L, chartOfAccountClearToRepo);
+            createAccount("1020", "Savings Account", 31L, chartOfAccountClearToRepo);
+            createAccount("1030", "Money Market Account", 32L, chartOfAccountClearToRepo);
 
+            //fixed assets
+            createAccount("1500", "Buildings", 1L, chartOfAccountClearToRepo);
+            createAccount("1510", "Land", 2L, chartOfAccountClearToRepo);
+            createAccount("1520", "Machinery & Equipment", 3L, chartOfAccountClearToRepo);
+            createAccount("1530", "Furniture & Fixtures", 4L, chartOfAccountClearToRepo);
+
+            //fixed/ intangible assets
+            createAccount("1600", "Vehicles", 5L, chartOfAccountClearToRepo);
+            createAccount("1610", "Computers", 6L, chartOfAccountClearToRepo);
+            createAccount("1620", "Software", 7L, chartOfAccountClearToRepo);
+            createAccount("1630", "Leasehold Improvements", 8L, chartOfAccountClearToRepo);
+
+            //Other assets/ adjusments
+            createAccount("1700", "Intangible Assets", 9L, chartOfAccountClearToRepo);
+            createAccount("1710", "Accumulated Depreciation", 10L, chartOfAccountClearToRepo);
+            createAccount("1720", "Accumulated Amortization", 11L, chartOfAccountClearToRepo);
+            createAccount("1730", "Other Fixed Assets", 12L, chartOfAccountClearToRepo);
+
+            //liabilities
+            createAccount("2000", "Long Term Liability", 13L, chartOfAccountClearToRepo);
+            createAccount("2010", "Current Liability", 14L, chartOfAccountClearToRepo);
+            createAccount("2020", "Other Creditors", 15L, chartOfAccountClearToRepo);
+            createAccount("2030", "Credit Card Liability", 16L, chartOfAccountClearToRepo);
+
+            //other liabilities
+            createAccount("2040", "Other Liability", 17L, chartOfAccountClearToRepo);
+            createAccount("2050", "Trust Account Liability", 33L, chartOfAccountClearToRepo);
+            createAccount("2060", "Rents Held in Trust", 34L, chartOfAccountClearToRepo);
+            createAccount("2070", "Merchant Account Fees Payable", 41L, chartOfAccountClearToRepo);
+
+            // equity
+            createAccount("3000", "Owners Equity", 18L, chartOfAccountClearToRepo);
+            createAccount("3010", "Retained Earnings", 19L, chartOfAccountClearToRepo);
+            createAccount("3020", "Other Equity", 20L, chartOfAccountClearToRepo);
+            createAccount("3030", "Capital Contributions", 1L, chartOfAccountClearToRepo); // fallback grouping if needed
+
+            //revenue
+            createAccount("4000", "Operating Revenue", 21L, chartOfAccountClearToRepo);
+            createAccount("4010", "Other Income", 22L, chartOfAccountClearToRepo);
+            createAccount("4020", "Sales", 23L, chartOfAccountClearToRepo);
+            createAccount("4030", "Sales Revenue", 24L, chartOfAccountClearToRepo);
+
+            //expenses
+            createAccount("5000", "Operating Expenses", 25L, chartOfAccountClearToRepo);
+            createAccount("5010", "Payroll Expense", 26L, chartOfAccountClearToRepo);
+            createAccount("5020", "Other Expense", 27L, chartOfAccountClearToRepo);
+            createAccount("5030", "Shipping / Freight", 38L, chartOfAccountClearToRepo);
+
+            //cost of goods sold
+            createAccount("6000", "Cost of Goods Sold", 35L, chartOfAccountClearToRepo);
+            createAccount("6010", "Job Materials", 36L, chartOfAccountClearToRepo);
+            createAccount("6020", "Equipment Rental", 37L, chartOfAccountClearToRepo);
+            createAccount("6030", "Subcontractor Costs", 39L, chartOfAccountClearToRepo);
+
+            //direct cost
+            createAccount("6100", "Direct Cost", 40L, chartOfAccountClearToRepo);
+            createAccount("6110", "Direct Labor", 42L, chartOfAccountClearToRepo);
+            createAccount("6120", "Other Direct Costs", 42L, chartOfAccountClearToRepo);
+            createAccount("6130", "Credit Card Fees", 41L, chartOfAccountClearToRepo);
+
+            //bank / financial fees /liability accounts
+            createAccount("6200", "Credit Card Account", 43L, chartOfAccountClearToRepo);
+            createAccount("6210", "Accounts Payable", 44L, chartOfAccountClearToRepo);
+            createAccount("6220", "Accounts Receivable", 45L, chartOfAccountClearToRepo);
+
+
+        }
 
     }
 
@@ -298,7 +382,7 @@ public class DatabaseSeeder implements ApplicationRunner {
         return roleRepository.save(r);
     }
 
-    private void createUser(String email, String firstName, String lastName,
+    private User createUser(String email, String firstName, String lastName,
                             String rawPassword, Set<Role> roles, Set<Permission> permissions) {
         User u = User.builder()
                 .email(email)
@@ -309,7 +393,7 @@ public class DatabaseSeeder implements ApplicationRunner {
                 .roles(roles)
                 .permissions(permissions)
                 .build();
-        userRepository.save(u);
+      return   userRepository.save(u);
     }
 
     private ChartOfAccountClearTo_ENTITY createChartClearToCode(long clearToCode, String description){
@@ -320,14 +404,46 @@ public class DatabaseSeeder implements ApplicationRunner {
         return chartOfAccountClearToRepo.save(ch);
     }
 
-    private void createChartOfAccounts(int chartCode, String chartDescription, List<ChartOfAccountClearTo_ENTITY> coa_ct){
+    private void createChartOfAccounts(int chartCode, String chartDescription, AccountType accountType, NormalBalance normalBalance, List<ChartOfAccountClearTo_ENTITY> coa_ct){
         System.out.println("clear to account "+ coa_ct.size());
        ChartOfAccount coa = ChartOfAccount.builder()
                .coaCode( (long) chartCode)
                .coa_description(chartDescription)
                .coaClearTo(coa_ct)
+               .accountType(accountType)
+               .normalBalance(normalBalance)
                .build();
         coa.getCoaClearTo().forEach(coaClearTo -> coaClearTo.setChartOfAccount(coa));
        chartOfAccountRepo.save(coa);
+    }
+
+    private void createAccount(
+            String accountNumber,
+            String accountName,
+            Long clearToCode,
+            ChartOfAccountClearTo_Repository clearToRepo
+    ) {
+
+        ChartOfAccountClearTo_ENTITY clearTo =
+                clearToRepo.findByClearToCode(clearToCode)
+                        .orElseThrow(() ->
+                                new RuntimeException("ClearTo not found: " + clearToCode)
+                        );
+
+        this.adminUser = userRepository.findByEmail("admin@xaccounting.com")   .orElseThrow(() ->
+                                new RuntimeException("ClearTo not found: " + clearToCode)
+                        );
+
+        AccountEntity account = new AccountEntity();
+
+        account.setAccountId(accountNumber);
+        account.setAccountName(accountName);
+        account.setCoaClearTo(clearTo);
+        account.setCreatedBy(this.adminUser);
+
+        account.setIsActive(true);
+        account.setDeleted(false);
+
+        accountRepository.save(account);
     }
 }

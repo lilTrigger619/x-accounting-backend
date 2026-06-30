@@ -34,7 +34,7 @@ public class JournalEntry extends BaseEntity {
     @Column(name = "journal_number", nullable = false, length = 50)
     private String journalNumber;
 
-    @Column(name = "reference", length = 100)
+    @Column(name = "reference", length = 100, unique = true)
     private String reference;
 
     @Column(name = "description", length = 500)

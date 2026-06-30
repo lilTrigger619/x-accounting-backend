@@ -22,6 +22,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmailAndStatus(String email, UserStatus status);
 
+
     // for paginated list — optionally filter by status
     Page<User> findAllByStatus(UserStatus status, Pageable pageable);
 

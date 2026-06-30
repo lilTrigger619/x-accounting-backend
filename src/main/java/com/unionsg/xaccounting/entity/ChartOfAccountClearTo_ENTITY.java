@@ -33,7 +33,7 @@ public class ChartOfAccountClearTo_ENTITY {
 
     // there should be a function to be creating the codes
     // maybe by incrementing or by generating random codes.
-    @Column(name = "clear_to_code")
+    @Column(name = "clear_to_code", unique = true)
     private Long clearToCode;
 
     @OneToMany(mappedBy = "coaClearTo", cascade = CascadeType.ALL)

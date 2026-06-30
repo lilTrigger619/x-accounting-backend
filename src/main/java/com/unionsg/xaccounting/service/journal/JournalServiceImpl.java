@@ -67,7 +67,11 @@ public class JournalServiceImpl implements JournalService {
 
         calculateTotals(journal);
 
+        validateBalanced(journal);
+
+
         JournalEntry saved = journalRepository.save(journal);
+
 
         return journalMapper.toResponse(saved);
     }
@@ -301,6 +305,19 @@ public class JournalServiceImpl implements JournalService {
 
         journal.setTotalCredit(totalCredit);
     }
+
+    private void validateBalanced(JournalEntry journal) {
+        BigDecimal totalDebit = journal.getTotalDebit() == null ? BigDecimal.ZERO : journal.getTotalDebit();
+        BigDecimal totalCredit = journal.getTotalCredit() == null ? BigDecimal.ZERO : journal.getTotalCredit();
+
+        // System.out.println("the total debit "+ totalDebit + " total credit "+totalCredit);
+        if (totalDebit.compareTo(totalCredit) != 0) {
+            throw new BadRequestException(
+                    "Journal is not balanced: total debit must equal total credit"
+            );
+        }
+    }
+
 
     private BigDecimal defaultAmount(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;

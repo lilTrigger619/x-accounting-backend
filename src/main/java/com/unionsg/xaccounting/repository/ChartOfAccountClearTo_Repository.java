@@ -7,4 +7,8 @@ import java.util.Optional;
 
 
 @Repository
-public interface ChartOfAccountClearTo_Repository extends JpaRepository<ChartOfAccountClearTo_ENTITY, Long>{ }
+public interface ChartOfAccountClearTo_Repository extends JpaRepository<ChartOfAccountClearTo_ENTITY, Long>{
+
+    Optional<ChartOfAccountClearTo_ENTITY> findByClearToCode(Long clearToCode);
+
+}

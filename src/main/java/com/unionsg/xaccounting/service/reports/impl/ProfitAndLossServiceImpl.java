@@ -9,6 +9,7 @@ package com.unionsg.xaccounting.service.reports.impl;
 //import com.yourcompany.accounting.report.repository.ProfitAndLossRepository;
 //import com.yourcompany.accounting.report.service.ProfitAndLossService;
 import com.unionsg.xaccounting.dto.reports.ProfitLossAccountDto;
+import com.unionsg.xaccounting.dto.reports.ProfitLossReportInternalDTO;
 import com.unionsg.xaccounting.dto.reports.ProfitLossReportResponseDTO;
 import com.unionsg.xaccounting.enums.AccountType;
 import com.unionsg.xaccounting.enums.NormalBalance;
@@ -34,7 +35,7 @@ public class ProfitAndLossServiceImpl implements ProfitAndLossService {
     private final ProfitAndLossRepository repository;
 
     @Override
-    public ProfitLossReportResponseDTO generateReport(
+    public ProfitLossReportInternalDTO generateReport(
             LocalDate fromDate,
             LocalDate toDate
     ) {
@@ -96,7 +97,7 @@ public class ProfitAndLossServiceImpl implements ProfitAndLossService {
                 ? net.abs()
                 : BigDecimal.ZERO;
 
-        return new ProfitLossReportResponseDTO(
+        return new ProfitLossReportInternalDTO(
 
                 fromDate,
 
@@ -105,6 +106,7 @@ public class ProfitAndLossServiceImpl implements ProfitAndLossService {
                 List.copyOf(revenueAccounts),
 
                 List.copyOf(expenseAccounts),
+
 
                 totalRevenue,
 

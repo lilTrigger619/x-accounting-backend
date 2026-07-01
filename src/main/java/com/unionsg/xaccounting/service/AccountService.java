@@ -42,11 +42,11 @@ public class AccountService {
                 .orElseThrow(() -> new RuntimeException("Chart of account clear to not found with code: " + accountCreationDTO.getClearsTo()));
 
 
-        if (!accountCreationDTO.getOpeningBalance().isEmpty()) {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            String parsedDate = accountCreationDTO.getOpeningBalanceDate() + " 00:00:00";
-            LocalDateTime dateTime = LocalDateTime.parse(parsedDate, formatter);
-        }
+//        if (!accountCreationDTO.getOpeningBalance().isEmpty()) {
+//            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+//            String parsedDate = accountCreationDTO.getOpeningBalanceDate() + " 00:00:00";
+//            LocalDateTime dateTime = LocalDateTime.parse(parsedDate, formatter);
+//        }
 
 
 

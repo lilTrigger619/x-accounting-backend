@@ -2,7 +2,9 @@ package com.unionsg.xaccounting.controller;
 
 //import com.yourcompany.accounting.report.dto.ProfitLossReportResponse;
 //import com.yourcompany.accounting.report.service.ProfitAndLossService;
+import com.unionsg.xaccounting.dto.reports.ProfitLossReportInternalDTO;
 import com.unionsg.xaccounting.dto.reports.ProfitLossReportResponseDTO;
+import com.unionsg.xaccounting.service.reports.ProfitAndLossFormatter;
 import com.unionsg.xaccounting.service.reports.ProfitAndLossService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -18,6 +20,8 @@ public class ProfitAndLossController {
 
     private final ProfitAndLossService profitAndLossService;
 
+    private final ProfitAndLossFormatter profitAndLossFormatter;
+
     @GetMapping("/profit-loss")
     public ResponseEntity<ProfitLossReportResponseDTO> getProfitAndLossReport(
             @RequestParam
@@ -30,7 +34,7 @@ public class ProfitAndLossController {
     ) {
 
         ProfitLossReportResponseDTO response =
-                profitAndLossService.generateReport(fromDate, toDate);
+                profitAndLossFormatter.format(fromDate, toDate);
 
         return ResponseEntity.ok(response);
     }

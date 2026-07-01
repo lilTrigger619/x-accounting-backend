@@ -4,8 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-public record ProfitLossReportResponseDTO
-        (
+public record ProfitLossReportInternalDTO (
 
         LocalDate fromDate,
 
@@ -15,14 +14,12 @@ public record ProfitLossReportResponseDTO
 
         List<ProfitLossAccountDto> expenseAccounts,
 
-
-        List<ProfitLossSectionDto> sections,
-
         BigDecimal totalRevenue,
+
         BigDecimal totalExpenses,
-        BigDecimal grossProfit,
+
         BigDecimal netProfit,
+
         BigDecimal netLoss
 
-) {
-}
+) {}

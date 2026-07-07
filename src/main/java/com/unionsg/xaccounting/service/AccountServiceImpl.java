@@ -8,8 +8,10 @@ import com.unionsg.xaccounting.repository.AccountRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageImpl;
+
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -56,6 +58,9 @@ public class AccountServiceImpl implements AccountService {
         };
 
         Page<AccountEntity> page = accountRepository.findAll(spec, pageable);
+
+
+
 
         List<AccountListResponse> mapped = page.getContent().stream()
                 .map(this::toListResponse)

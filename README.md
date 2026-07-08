@@ -181,10 +181,121 @@ The returned JSON matches the hierarchical requirement:
 
 ---
 
+## Custom Report Designer - Report Template APIs
+
+This update adds the **foundation** for a Custom Report Designer, enabling administrators to define entirely new financial reports (templates) without changing Java report engine code.
+
+### What was added
+- **Entities**
+  - `ReportTemplate`
+  - `ReportTemplateSection`
+  - `ReportTemplateSectionAccount`
+- **DTOs** (Java records) for CRUD and assignments
+- **Services** implementing CRUD + business validations
+- **Mappers** for entity <-> DTO conversion
+- **REST controllers** for template/section/account assignment
+- **Validation/business rules** enforced in services:
+  - `templateCode` must be unique
+  - `sectionCode` must be unique within the same template
+  - `displayOrder` cannot be duplicated under the same parent section
+  - parent-child relationships cannot form cycles
+  - deleting a **PUBLISHED** template is prevented
+
+### Status enum
+- `ReportTemplateStatus`: `DRAFT`, `PUBLISHED`, `ARCHIVED`
+
+---
+
+## Template REST Endpoints
+
+Base paths:
+- Template: `/api/v1/report-templates`
+- Sections: `/api/v1/report-templates/{templateId}/sections` and `/api/v1/report-templates/sections/{sectionId}`
+- Section accounts: `/api/v1/report-template-sections/{sectionId}/accounts`
+
+### 1) Create template
+- **POST** `/api/v1/report-templates`
+
+Request: `ReportTemplateRequestDto`
+
+### 2) Get template
+- **GET** `/api/v1/report-templates/{id}`
+
+### 3) List templates
+- **GET** `/api/v1/report-templates`
+
+### 4) Update template
+- **PUT** `/api/v1/report-templates/{id}`
+
+### 5) Delete template
+- **DELETE** `/api/v1/report-templates/{id}`
+
+Rules:
+- Deleting `PUBLISHED` templates throws `TemplatePublishedDeletionException`.
+
+### 6) Update template status
+- **PATCH** `/api/v1/report-templates/{id}/status?status=DRAFT&updatedBy=...`
+
+---
+
+## Section REST Endpoints
+
+### 1) Create section
+- **POST** `/api/v1/report-templates/{templateId}/sections`
+
+Rules:
+- `sectionCode` uniqueness enforced per template
+- `displayOrder` uniqueness enforced per parent (including null parent)
+- cycle prevention enforced
+
+Request: `ReportTemplateSectionRequestDto`
+
+### 2) Get section
+- **GET** `/api/v1/report-templates/sections/{sectionId}`
+
+### 3) List sections by template
+- **GET** `/api/v1/report-templates/{templateId}/sections`
+
+### 4) Update section
+- **PUT** `/api/v1/report-templates/sections/{sectionId}`
+
+### 5) Delete section
+- **DELETE** `/api/v1/report-templates/sections/{sectionId}`
+
+---
+
+## Section Account Assignment REST Endpoints
+
+### 1) Assign account to section
+- **POST** `/api/v1/report-template-sections/{sectionId}/accounts`
+
+Request: `ReportTemplateSectionAccountRequestDto`
+
+Rule:
+- Duplicate assignment of the same `accountId` to the same section is prevented.
+
+### 2) List assigned accounts
+- **GET** `/api/v1/report-template-sections/{sectionId}/accounts`
+
+### 3) Remove assignment
+- **DELETE** `/api/v1/report-template-sections/{sectionId}/accounts/{accountId}`
+
+---
+
+## Controller Advice (Error Handling)
+
+`ReportTemplateControllerAdvice` maps template designer exceptions to HTTP statuses:
+- **404**: not found
+- **409**: conflicts (uniqueness/displayOrder/dup assignment)
+- **400**: business validation failures (cycle/bad operations)
+
+---
+
 ## Notes on Swagger / Caching
 
 - Swagger annotations were added at the controller method level via `@Operation` and `@Tag`.
 - Caching was not added in this patch because the project’s existing reporting architecture didn’t expose a cache strategy or caching dependencies in the inspected code.
 
 If you want caching for date-range report generation, we can add `@Cacheable` at the engine-call boundary once the project’s caching configuration is confirmed.
+
 

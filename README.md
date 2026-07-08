@@ -1,353 +1,190 @@
-# UserSetupApplication — RBAC Developer Manual
+# xaccounting
 
-**Version:** 1.0  
-**Stack:** Spring Boot 4.0.1 · Spring Security 7.0.2 · PostgreSQL 13 · JWT (jjwt 0.11.5)  
-**Base URL:** `http://localhost:8082`
+## Reporting Module - Financial Report REST APIs
 
----
+This project includes a **generic Financial Report Engine** that generates a hierarchical report tree for a given `reportCode` and a date range.
 
-## Table of Contents
+The work in this update adds **thin REST APIs** for the following reports by **reusing the existing engine**:
 
-1. [Overview of RBAC](#1-overview-of-rbac)
-2. [Architecture](#2-architecture)
-3. [Authentication](#3-authentication)
-4. [Managing Users](#4-managing-users)
-5. [Managing Roles](#5-managing-roles)
-6. [Managing Permissions](#6-managing-permissions)
-7. [API Endpoint Reference](#7-api-endpoint-reference)
+- `GET /api/reports/trial-balance`
+- `GET /api/reports/profit-loss` *(already existed via `ProfitAndLossController`; the new controller avoids duplicating the endpoint to prevent ambiguous mappings)*
+- `GET /api/reports/balance-sheet`
+- `GET /api/reports/cash-flow`
 
----
+All endpoints accept:
+- `fromDate` (ISO `yyyy-MM-dd`)
+- `toDate` (ISO `yyyy-MM-dd`)
 
-## 1. Overview of RBAC
-
-Role-Based Access Control (RBAC) is a security model that restricts system access based on the roles assigned to users. In UserSetupApplication, every action is guarded by a named permission. Permissions are grouped into roles, and roles are assigned to users.
-
-### Key Concepts
-
-**Permission** — A named action a user can perform. Example: `create_user`, `view_invoice`, `delete_role`. Permissions can be enabled or disabled independently.
-
-**Role** — A named collection of permissions. Example: `Accountant`, `Super Admin`, `Manager`. Roles can be enabled or disabled. Disabling a role removes all its permissions from assigned users at runtime — without deleting any data.
-
-**User** — A system user assigned one or more roles. Users can also have direct permissions assigned outside of roles.
-
-### How Permission Checks Work
-
-Every protected endpoint is annotated with `@RequirePermission`. Before the request reaches the controller, the `PermissionInterceptor` checks if the current user has the required permission by:
-
-1. Checking the user's **direct permissions** (only ACTIVE ones)
-2. Checking permissions from the user's **ACTIVE roles** (only ACTIVE permissions within those roles)
-
-If either check passes, access is granted. Otherwise a `403 Forbidden` is returned.
-
-```
-Request → JwtAuthenticationFilter → PermissionInterceptor → Controller
-              (validates token)        (checks permission)
-```
-
-### Data Model
-
-```
-users
-  └── user_roles (join) ──→ roles
-                               └── role_permissions (join) ──→ permissions
-  └── user_permissions (join) ──→ permissions
-```
+They return a hierarchical JSON response (nested sections) mapped from the engine tree.
 
 ---
 
-## 2. Architecture
+## Endpoints Added / Updated
 
-### Security Filter Chain
+### 1) Trial Balance
+- **GET** `/api/reports/trial-balance`
 
-| Component | Responsibility |
-|---|---|
-| `JwtAuthenticationFilter` | Extracts Bearer token, validates it, loads `UserPrincipal` into `SecurityContext` |
-| `CustomUserDetailsService` | Loads user by ID from DB, builds authorities |
-| `UserPrincipal` | Wraps `User` entity, provides authorities (roles + permissions) |
-| `PermissionInterceptor` | AOP aspect — intercepts `@RequirePermission`, delegates to `PermissionService` |
-| `PermissionService` | Checks current user's permissions against required permission, respects ACTIVE/DISABLED status |
-| `SecurityUtils` | Extracts `UserPrincipal` from `SecurityContextHolder` |
+### 2) Balance Sheet
+- **GET** `/api/reports/balance-sheet`
 
-### Token Strategy
+### 3) Cash Flow
+- **GET** `/api/reports/cash-flow`
 
-| Token | Lifetime | Storage | Purpose |
-|---|---|---|---|
-| Access Token | 15 minutes | Client memory | Sent as `Authorization: Bearer <token>` |
-| Refresh Token | 7 days | DB + httpOnly cookie | Used to obtain new access token |
+### 4) Profit & Loss
+- **GET** `/api/reports/profit-loss`
+
+This endpoint already existed in `ProfitAndLossController`.
+
+To satisfy Spring MVC mapping rules, the new `ReportsController` **does not declare** a `profit-loss` handler method.
 
 ---
 
-## 3. Authentication
+## Key Design Principle
 
-### Login
+**No business logic is duplicated.**
 
-**POST** `/api/auth/login`
+Each endpoint:
+1. Validates input dates.
+2. Calls the existing `FinancialReportEngine.generate(new FinancialReportEngineRequestDto(reportCode, fromDate, toDate))`.
+3. Converts the returned engine tree into the response DTO format.
 
-Request:
+---
+
+## Classes Added (Reporting Module)
+
+### `ReportsController`
+**File:** `src/main/java/com/unionsg/xaccounting/controller/ReportsController.java`
+
+**Purpose:**
+Provides thin REST endpoints for Trial Balance, Balance Sheet, and Cash Flow.
+
+**Implementation details:**
+- Annotated with `@RestController` and `@RequestMapping` not used (methods define full paths).
+- Uses constructor injection (`@RequiredArgsConstructor`) for:
+  - `FinancialReportEngine engine`
+  - `FinancialReportSectionsMapper mapper`
+- Provides four private helpers:
+  - `trialBalance(fromDate, toDate)`
+  - `balanceSheet(fromDate, toDate)`
+  - `cashFlow(fromDate, toDate)`
+  - `handle(reportCode, reportName, fromDate, toDate)`
+  - `validateDates(fromDate, toDate)`
+
+**Date validation rules (`validateDates`)**
+- Rejects missing dates: throws `IllegalArgumentException`.
+- Rejects invalid ranges: `fromDate` after `toDate` throws `IllegalArgumentException`.
+- Rejects future dates: if either date is after today throws `IllegalArgumentException`.
+
+**Engine call (`handle`)**
+- Calls the generic engine:
+  - `engine.generate(new FinancialReportEngineRequestDto(reportCode, fromDate, toDate))`
+- Maps the engine tree result to the response DTO using:
+  - `mapper.map(tree, reportName)`
+
+**Profit-loss mapping conflict fix**
+- The `profit-loss` endpoint was already present in `ProfitAndLossController`.
+- To avoid Spring’s `Ambiguous mapping` error, `ReportsController` intentionally does not expose `GET /api/reports/profit-loss`.
+
+---
+
+### `FinancialReportSectionsMapper`
+**File:** `src/main/java/com/unionsg/xaccounting/service/reports/engine/FinancialReportSectionsMapper.java`
+
+**Purpose:**
+Maps the engine’s hierarchical tree (`FinancialReportTreeResponseDto`) into the new hierarchical response DTOs.
+
+**Implementation details:**
+- Annotated with `@Component`.
+- Public method:
+  - `FinancialReportSectionsResponseDto map(FinancialReportTreeResponseDto engineResponse, String reportName)`
+
+**Mapping behavior:**
+- Response includes:
+  - `reportName`
+  - `fromDate`
+  - `toDate`
+  - `sections` mapped from `engineResponse.root().children()`
+- Tree node mapping is done recursively:
+  - Node `title` -> `title`
+  - Node `sectionType` -> `type`
+  - Node `value` -> `amount`
+  - Node `children` -> `children`
+
+---
+
+## DTOs Added (Reporting Module)
+
+### `FinancialReportSectionsResponseDto` (Java record)
+**File:** `src/main/java/com/unionsg/xaccounting/dto/reports/FinancialReportSectionsResponseDto.java`
+
+**Fields:**
+- `String reportName`
+- `LocalDate fromDate`
+- `LocalDate toDate`
+- `List<FinancialReportSectionsResponseNodeDto> sections`
+
+Represents the top-level report response.
+
+### `FinancialReportSectionsResponseNodeDto` (Java record)
+**File:** `src/main/java/com/unionsg/xaccounting/dto/reports/FinancialReportSectionsResponseNodeDto.java`
+
+**Fields:**
+- `String title`
+- `SectionType type`
+- `BigDecimal amount`
+- `List<FinancialReportSectionsResponseNodeDto> children`
+
+Represents a single nested section node.
+
+---
+
+## ControllerAdvice Added (Reporting Module)
+
+### `ReportDateValidationControllerAdvice`
+**File:** `src/main/java/com/unionsg/xaccounting/controller/ReportDateValidationControllerAdvice.java`
+
+**Purpose:**
+Provides centralized handling for date validation errors triggered by the reporting endpoints.
+
+**Implementation details:**
+- Annotated with `@RestControllerAdvice`.
+- Handles:
+  - `IllegalArgumentException` -> `400 BAD_REQUEST` with `ApiResponse` payload.
+  - Generic `Exception` -> `500 INTERNAL_SERVER_ERROR` with `ApiResponse` payload.
+
+**Note:**
+This advice is intentionally lightweight and consistent with the existing project’s `ApiResponse` structure.
+
+---
+
+## Report Endpoint Example Response Shape
+
+The returned JSON matches the hierarchical requirement:
+
 ```json
 {
-  "email": "admin@usersetupapplication.com",
-  "password": "Admin@1234"
-}
-```
-
-Response:
-```json
-{
-  "accessToken": "eyJhbGci...",
-  "userId": "1",
-  "email": "admin@usersetupapplication.com",
-  "firstName": "Admin",
-  "lastName": "User",
-  "roles": [
+  "reportName": "Profit & Loss",
+  "fromDate": "2026-01-01",
+  "toDate": "2026-01-31",
+  "sections": [
     {
-      "name": "Super Admin",
-      "permissions": ["create_user", "delete_user", "view_invoice"]
+      "title": "Revenue",
+      "type": "SECTION",
+      "amount": 200000,
+      "children": [
+        {}
+      ]
     }
-  ],
-  "directPermissions": ["export_report"]
-}
-```
-
-- The `refreshToken` is set automatically as an `httpOnly` cookie.
-- The `accessToken` must be sent as a `Bearer` token on all protected requests.
-
-### Logout
-
-**POST** `/api/auth/logout`
-
-- No body required.
-- Revokes the refresh token in the database.
-- Clears the `refreshToken` cookie.
-
-### Refresh Access Token
-
-**POST** `/api/auth/refresh`
-
-- No body required.
-- Reads the `refreshToken` from the httpOnly cookie.
-- Returns a new `accessToken`.
-
-Response:
-```json
-{
-  "accessToken": "eyJhbGci..."
+  ]
 }
 ```
 
 ---
 
-## 4. Managing Users
+## Notes on Swagger / Caching
 
-All user endpoints require a valid Bearer token and the corresponding permission.
+- Swagger annotations were added at the controller method level via `@Operation` and `@Tag`.
+- Caching was not added in this patch because the project’s existing reporting architecture didn’t expose a cache strategy or caching dependencies in the inspected code.
 
-### Create User
+If you want caching for date-range report generation, we can add `@Cacheable` at the engine-call boundary once the project’s caching configuration is confirmed.
 
-**POST** `/users`  
-**Permission required:** `create_user`
-
-```json
-{
-  "email": "john@example.com",
-  "password": "Pass@1234",
-  "firstName": "John",
-  "lastName": "Doe",
-  "roleIds": [1],
-  "permissionIds": [3, 5]
-}
-```
-
-- `roleIds` — IDs from the `roles` table. At least one recommended.
-- `permissionIds` — Direct permissions outside of roles. Can be empty `[]`.
-
-### Get All Users
-
-**GET** `/users?page=0&size=20&sort=firstName,asc`  
-**Permission required:** `view_users`
-
-Returns a paginated list of users with their roles and permissions.
-
-### Get User by ID
-
-**GET** `/users/{id}`  
-**Permission required:** `view_user`
-
-Returns the full user profile including roles (with permissions) and direct permissions.
-
-### Update User
-
-**PUT** `/users/{id}`  
-**Permission required:** `update_user`
-
-```json
-{
-  "firstName": "Jane",
-  "lastName": "Doe",
-  "email": "jane@example.com",
-  "status": "ACTIVE",
-  "roleIds": [1, 2],
-  "permissionIds": []
-}
-```
-
-All fields are optional — only include what you want to change.
-
-### Toggle User Status (Enable / Disable)
-
-**DELETE** `/users/{id}`  
-**Permission required:** `delete_user`
-
-- If the user is `ACTIVE` → sets to `DISABLED`
-- If the user is `DISABLED` → sets to `ACTIVE`
-- A disabled user cannot log in.
-- Roles and permissions are **not** removed — they are preserved for when the user is reactivated.
-
----
-
-## 5. Managing Roles
-
-### Get All Roles
-
-**GET** `/roles`  
-**Permission required:** `view_role`
-
-Returns all roles with their assigned permissions and status.
-
-### Get Role by ID
-
-**GET** `/roles/{id}`  
-**Permission required:** `view_role`
-
-### Create Role
-
-**POST** `/roles`  
-**Permission required:** `create_role`
-
-```json
-{
-  "name": "Accountant",
-  "guardName": "web",
-  "permissionIds": [1, 2, 3]
-}
-```
-
-- `guardName` is optional — defaults to `"web"`.
-- `permissionIds` can be empty `[]`.
-
-### Update Role
-
-**PUT** `/roles/{id}`  
-**Permission required:** `edit_role`
-
-```json
-{
-  "name": "Senior Accountant",
-  "permissionIds": [1, 2, 3, 4]
-}
-```
-
-Both fields are optional. Sending `permissionIds` replaces the existing permissions entirely.
-
-### Toggle Role Status (Enable / Disable)
-
-**DELETE** `/roles/{id}`  
-**Permission required:** `delete_role`
-
-- If the role is `ACTIVE` → sets to `DISABLED`
-- If the role is `DISABLED` → sets to `ACTIVE`
-
-**Important:** When a role is disabled:
-- All users assigned that role **lose all permissions** attached to it immediately
-- The permissions are **not deleted** — they are simply ignored at runtime
-- Re-enabling the role restores all permissions instantly with no reassignment needed
-- Hard deletion of roles is intentionally not supported to prevent fraud and maintain audit integrity
-
----
-
-## 6. Managing Permissions
-
-### Get All Permissions
-
-**GET** `/permissions`  
-**Permission required:** `view_role`
-
-Returns all permissions with their status.
-
-### Toggle Permission Status (Enable / Disable)
-
-**DELETE** `/permissions/{id}`  
-**Permission required:** `view_role`
-
-- If the permission is `ACTIVE` → sets to `DISABLED`
-- If the permission is `DISABLED` → sets to `ACTIVE`
-
-**Important:** When a permission is disabled:
-- All users lose that permission regardless of whether it is assigned directly or through a role
-- The assignment is **not removed** — it is ignored at runtime
-- Re-enabling restores it instantly
-
----
-
-## 7. API Endpoint Reference
-
-### Authentication
-
-| Method | Endpoint | Permission | Description |
-|---|---|---|---|
-| POST | `/api/auth/login` | Public | Login and get tokens |
-| POST | `/api/auth/logout` | Authenticated | Revoke refresh token |
-| POST | `/api/auth/refresh` | Public (cookie) | Get new access token |
-
-### Users
-
-| Method | Endpoint | Permission | Description |
-|---|---|---|---|
-| POST | `/users` | `create_user` | Create new user |
-| GET | `/users` | `view_users` | Get all users (paginated) |
-| GET | `/users/{id}` | `view_user` | Get user by ID |
-| PUT | `/users/{id}` | `update_user` | Update user |
-| DELETE | `/users/{id}` | `delete_user` | Toggle user status |
-
-### Roles
-
-| Method | Endpoint | Permission | Description |
-|---|---|---|---|
-| GET | `/roles` | `view_role` | Get all roles |
-| GET | `/roles/{id}` | `view_role` | Get role by ID |
-| POST | `/roles` | `create_role` | Create new role |
-| PUT | `/roles/{id}` | `edit_role` | Update role |
-| DELETE | `/roles/{id}` | `delete_role` | Toggle role status |
-
-### Permissions
-
-| Method | Endpoint | Permission | Description |
-|---|---|---|---|
-| GET | `/permissions` | `view_role` | Get all permissions |
-| DELETE | `/permissions/{id}` | `view_role` | Toggle permission status |
-
----
-
-## Error Responses
-
-All errors follow this structure:
-
-```json
-{
-  "success": false,
-  "message": "Error description here",
-  "content": null
-}
-```
-
-| HTTP Status | Meaning |
-|---|---|
-| `400 Bad Request` | Invalid input or validation failure |
-| `401 Unauthorized` | Token expired or invalid |
-| `403 Forbidden` | Valid token but missing required permission |
-| `404 Not Found` | Resource not found |
-| `409 Conflict` | Duplicate email or role name |
-| `500 Internal Server Error` | Unexpected server error |
-
----
-
-*UserSetupApplication RBAC Manual — v1.0*

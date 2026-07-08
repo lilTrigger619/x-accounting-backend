@@ -185,6 +185,16 @@ The returned JSON matches the hierarchical requirement:
 
 This update adds the **foundation** for a Custom Report Designer, enabling administrators to define entirely new financial reports (templates) without changing Java report engine code.
 
+This patch also adds Report Template ↔ Account linking (designer)
+
+You can now assign existing chart-of-accounts to `SECTION` nodes inside a template section tree.
+The designer APIs also let you search assigned/unassigned accounts.
+
+Designer endpoints are under:
+- `/api/v1/report-templates/{templateId}/designer/sections/{sectionId}/accounts`
+
+
+
 ### What was added
 - **Entities**
   - `ReportTemplate`

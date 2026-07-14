@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-import static java.util.Map.entry;
 
 /**
  * Seeds production-ready financial report metadata.
@@ -49,6 +48,13 @@ public class ReportMetadataSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        // DISABLED (Phase 5 migration): legacy runtime seeding for ReportDefinition/ReportSection/ReportSectionAccount.
+        // Keep code for rollback/reference, but prevent execution.
+        // (No early return to avoid unreachable code compilation issues.)
+        if (true) {
+            return;
+        }
+
         // Seed definitions + sections
         seedDefinitionIfMissing(TRIAL_BALANCE, "Trial Balance", "Trial balance report definition");
         seedDefinitionIfMissing(PROFIT_AND_LOSS, "Profit and Loss", "Profit and Loss report definition");

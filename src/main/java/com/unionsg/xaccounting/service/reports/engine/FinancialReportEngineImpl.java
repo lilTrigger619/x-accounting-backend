@@ -15,5 +15,14 @@ public class FinancialReportEngineImpl implements FinancialReportEngine {
     public FinancialReportTreeResponseDto generate(FinancialReportEngineRequestDto request) {
         return financialReportBuilder.build(request);
     }
+
+    @Override
+    public FinancialReportTreeResponseDto generateFromTemplate(com.unionsg.xaccounting.entity.reports.ReportTemplate template,
+                                                                     java.time.LocalDate fromDate,
+                                                                     java.time.LocalDate toDate) {
+        return financialReportBuilder.buildFromTemplate(template, fromDate, toDate);
+    }
 }
+
+
 

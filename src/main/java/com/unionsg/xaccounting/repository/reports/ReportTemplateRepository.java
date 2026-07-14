@@ -12,5 +12,12 @@ public interface ReportTemplateRepository extends JpaRepository<ReportTemplate, 
     Optional<ReportTemplate> findByTemplateCode(String templateCode);
 
     boolean existsByTemplateCode(String templateCode);
+
+    Optional<ReportTemplate> findTopByTemplateCodeAndStatusOrderByVersionDesc(
+            String templateCode,
+            com.unionsg.xaccounting.enums.ReportTemplateStatus status
+    );
+
 }
+
 

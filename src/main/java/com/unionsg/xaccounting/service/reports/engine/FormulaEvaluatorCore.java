@@ -1,12 +1,13 @@
 package com.unionsg.xaccounting.service.reports.engine;
 
-import com.unionsg.xaccounting.entity.reports.ReportSection;
+import com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 
 import static com.unionsg.xaccounting.service.reports.engine.FormulaParser.Token;
 import static com.unionsg.xaccounting.service.reports.engine.FormulaParser.TokenType;
@@ -27,17 +28,19 @@ public class FormulaEvaluatorCore {
     }
 
     public Map<String, BigDecimal> evaluate(Map<String, BigDecimal> baseByCode,
-                                             List<ReportSection> sections) {
+                                             List<ReportSectionView> sections) {
         return evaluateInternal(baseByCode, sections, false);
     }
 
+
     Map<String, BigDecimal> evaluateInternal(Map<String, BigDecimal> baseByCode,
-                                              List<ReportSection> sections,
+                                              List<ReportSectionView> sections,
                                               boolean divisionProbe) {
-        Map<String, ReportSection> byCode = new HashMap<>();
-        for (ReportSection s : sections) {
-            byCode.put(s.getCode().toUpperCase(java.util.Locale.ROOT), s);
+        Map<String, ReportSectionView> byCode = new HashMap<>();
+        for (ReportSectionView s : sections) {
+            byCode.put(s.code().toUpperCase(java.util.Locale.ROOT), s);
         }
+
 
         Map<String, BigDecimal> memo = new HashMap<>(normalizeBase(baseByCode));
         Set<String> visiting = new java.util.HashSet<>();
@@ -60,18 +63,20 @@ public class FormulaEvaluatorCore {
     }
 
     private BigDecimal compute(String code,
-                                Map<String, ReportSection> byCode,
+                                Map<String, ReportSectionView> byCode,
                                 Map<String, BigDecimal> memo,
                                 Set<String> visiting,
                                 boolean divisionProbe) {
         String key = code.toUpperCase(java.util.Locale.ROOT);
 
-        ReportSection section = byCode.get(key);
+        ReportSectionView section = byCode.get(key);
+
         if (section == null) {
             return memo.getOrDefault(key, BigDecimal.ZERO);
         }
 
-        String formula = section.getFormula();
+        String formula = section.formula();
+
         if (formula == null || formula.trim().isEmpty()) {
             return memo.getOrDefault(key, BigDecimal.ZERO);
         }

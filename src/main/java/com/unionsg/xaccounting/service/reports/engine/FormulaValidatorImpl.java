@@ -1,15 +1,13 @@
 package com.unionsg.xaccounting.service.reports.engine;
 
-import com.unionsg.xaccounting.entity.reports.ReportSection;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
 
 import static com.unionsg.xaccounting.service.reports.engine.FormulaParser.Token;
 import static com.unionsg.xaccounting.service.reports.engine.FormulaParser.TokenType;
@@ -28,8 +26,9 @@ public class FormulaValidatorImpl implements FormulaValidator {
     @Override
     public void validate(String sectionCode,
                            String formula,
-                           Map<String, ReportSection> allSectionsByCode,
-                           List<ReportSection> sectionsInGraph,
+                           Map<String, com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView> allSectionsByCode,
+                           List<com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView> sectionsInGraph,
+
                            Map<String, BigDecimal> baseByCode) {
         if (formula == null || formula.trim().isEmpty()) return;
 
@@ -67,7 +66,8 @@ public class FormulaValidatorImpl implements FormulaValidator {
     }
 
     private void dfsValidateDependencies(String startCode,
-                                         Map<String, ReportSection> allSectionsByCode,
+                                         Map<String, com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView> allSectionsByCode,
+
                                          Set<String> visiting,
                                          Set<String> visited) {
         if (startCode == null) return;
@@ -76,16 +76,18 @@ public class FormulaValidatorImpl implements FormulaValidator {
     }
 
     private void visit(String code,
-                       Map<String, ReportSection> allSectionsByCode,
+                       Map<String, com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView> allSectionsByCode,
                        Set<String> visiting,
                        Set<String> visited) {
+
         if (visited.contains(code)) return;
         if (!visiting.add(code)) {
             throw new IllegalStateException("Circular reference detected in report formula graph at: " + code);
         }
 
-        ReportSection section = allSectionsByCode.get(code);
-        String formula = section.getFormula();
+        var section = allSectionsByCode.get(code);
+        String formula = section.formula();
+
         if (formula == null || formula.trim().isEmpty()) {
             visiting.remove(code);
             visited.add(code);

@@ -1,7 +1,8 @@
 package com.unionsg.xaccounting.service.reports.template.impl;
 
-import com.unionsg.xaccounting.entity.reports.ReportSection;
 import com.unionsg.xaccounting.entity.reports.ReportTemplateSection;
+import com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView;
+
 import com.unionsg.xaccounting.service.reports.engine.FormulaValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -18,8 +19,9 @@ public class ReportTemplateSectionFormulaValidator {
 
     // public void validateFormula(ReportSection section,
     public void validateFormula(ReportTemplateSection section,
-                                  Map<String, ReportSection> allByCode,
-                                  List<ReportSection> sectionsInGraph,
+                                  Map<String, ReportSectionView> allByCode,
+                                  List<ReportSectionView> sectionsInGraph,
+
                                   Map<String, BigDecimal> baseByCode) {
         // Delegates to FormulaValidator which handles:
         // - invalid syntax
@@ -34,6 +36,7 @@ public class ReportTemplateSectionFormulaValidator {
                 sectionsInGraph,
                 baseByCode
         );
+
     }
 
     

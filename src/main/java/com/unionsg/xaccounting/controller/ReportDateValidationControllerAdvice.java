@@ -27,10 +27,11 @@ public class ReportDateValidationControllerAdvice {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleOther(Exception ex) {
         // fallback - avoid leaking internals
+        System.out.println(ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.builder()
                         .success(false)
-                        .message("Unexpected error occurred")
+                        .message(ex.toString())
                         .content(null)
                         .build());
     }

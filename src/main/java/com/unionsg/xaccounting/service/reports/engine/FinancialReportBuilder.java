@@ -3,10 +3,10 @@ package com.unionsg.xaccounting.service.reports.engine;
 import com.unionsg.xaccounting.dto.reports.FinancialReportEngineRequestDto;
 import com.unionsg.xaccounting.dto.reports.FinancialReportTreeNodeDto;
 import com.unionsg.xaccounting.dto.reports.FinancialReportTreeResponseDto;
-import com.unionsg.xaccounting.entity.reports.ReportDefinition;
-import com.unionsg.xaccounting.entity.reports.ReportSection;
-import com.unionsg.xaccounting.repository.reports.ReportDefinitionRepository;
-import com.unionsg.xaccounting.repository.reports.ReportSectionRepository;
+import com.unionsg.xaccounting.entity.reports.ReportTemplate;
+import com.unionsg.xaccounting.repository.reports.ReportTemplateRepository;
+import com.unionsg.xaccounting.repository.reports.ReportTemplateSectionRepository;
+import com.unionsg.xaccounting.repository.reports.ReportTemplateSectionAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,63 +17,35 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FinancialReportBuilder {
 
-    private final SectionAggregator sectionAggregator;
-    private final SectionAggregatorView sectionAggregatorView;
+private final SectionAggregatorView sectionAggregatorView;
     private final FormulaEvaluator formulaEvaluator;
-    private final ReportSectionTreeResolver treeResolver;
     private final com.unionsg.xaccounting.service.reports.engine.adapter.ReportSectionTreeResolverView treeResolverView;
-    private final ReportDefinitionRepository reportDefinitionRepository;
-    private final ReportSectionRepository reportSectionRepository;
 
     // Template data sources
-    private final com.unionsg.xaccounting.repository.reports.ReportTemplateRepository reportTemplateRepository;
-    private final com.unionsg.xaccounting.repository.reports.ReportTemplateSectionRepository reportTemplateSectionRepository;
-    private final com.unionsg.xaccounting.repository.reports.ReportTemplateSectionAccountRepository reportTemplateSectionAccountRepository;
+    private final ReportTemplateRepository reportTemplateRepository;
+    private final ReportTemplateSectionRepository reportTemplateSectionRepository;
+    private final ReportTemplateSectionAccountRepository reportTemplateSectionAccountRepository;
 
-    public FinancialReportTreeResponseDto build(FinancialReportEngineRequestDto request) {
-        ReportDefinition reportDefinition = reportDefinitionRepository.findByCode(request.reportCode())
-                .orElseThrow(() -> new IllegalArgumentException("Report definition not found for code: " + request.reportCode()));
-
-        List<ReportSection> sections = reportSectionRepository.findByReportDefinitionId(reportDefinition.getId()).stream()
-                .filter(ReportSection::isActive)
-                .sorted(Comparator.comparingInt(ReportSection::getDisplayOrder))
-                .toList();
-
-        // Aggregate leaf/assigned balances (DB aggregation)
-        var sectionBalances = sectionAggregator.aggregate(reportDefinition.getId(), request.from(), request.to());
-
-        // Evaluate formulas/subtotals/totals
-        List<com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView> sectionViews = sections.stream()
-                .map(com.unionsg.xaccounting.service.reports.engine.view.RuntimeReportSectionAdapter::adapt)
-                .toList();
-
-        var evaluated = formulaEvaluator.evaluate(sectionBalances, sectionViews);
-
-        // Build tree for frontend rendering
-        FinancialReportTreeNodeDto root = treeResolver.buildTree(sections, (java.util.Map<String, java.math.BigDecimal>) evaluated);
-
-        return new FinancialReportTreeResponseDto(
-                reportDefinition.getCode(),
-                request.from(),
-                request.to(),
-                root
-        );
+public FinancialReportTreeResponseDto build(FinancialReportEngineRequestDto request) {
+        throw new UnsupportedOperationException("Use generateFromTemplate() in Phase 3");
     }
 
-    public FinancialReportTreeResponseDto buildFromTemplate(com.unionsg.xaccounting.entity.reports.ReportTemplate template,
+public FinancialReportTreeResponseDto buildFromTemplate(ReportTemplate template,
                                                              java.time.LocalDate fromDate,
                                                              java.time.LocalDate toDate) {
 
         if (template == null) {
             throw new IllegalArgumentException("ReportTemplate is required");
         }
-
+        System.out.println("template name "+template);
         // Load template sections (visible only)
         List<com.unionsg.xaccounting.entity.reports.ReportTemplateSection> templateSections =
                 reportTemplateSectionRepository.findByReportTemplateId(template.getId()).stream()
                         .filter(com.unionsg.xaccounting.entity.reports.ReportTemplateSection::isVisible)
                         .sorted(Comparator.comparingInt(com.unionsg.xaccounting.entity.reports.ReportTemplateSection::getDisplayOrder))
                         .toList();
+        
+        System.out.println("got the template sections");
 
         // Load section accounts mapped to the template sections
         java.util.Map<Long, List<com.unionsg.xaccounting.entity.reports.ReportTemplateSectionAccount>> accountsBySectionId =
@@ -83,7 +55,7 @@ public class FinancialReportBuilder {
             var accounts = reportTemplateSectionAccountRepository.findByReportTemplateSectionIdOrderByDisplayOrderAsc(s.getId());
             accountsBySectionId.put(s.getId(), accounts);
         }
-
+         
         // Convert template -> section views
         List<com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView> sectionViews =
                 com.unionsg.xaccounting.service.reports.engine.adapter.TemplateReportAdapter.adapt(

@@ -46,6 +46,7 @@ public class ReportsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
     ) {
+        System.out.println("Okya");
         return handle("BALANCE_SHEET", "Balance Sheet", fromDate, toDate);
     }
 

@@ -40,12 +40,13 @@ public class ReportTemplateMapper {
                 .status(dto.status())
                 .version(dto.version())
                 .isSystemTemplate(dto.isSystemTemplate())
-                .createdBy(createdBy != null ? createdBy : dto.createdBy())
+                .createdBy(createdBy)
                 .createdDate(now)
                 .updatedBy(null)
                 .updatedDate(null)
                 .build();
     }
+
 
     public void applyUpdates(ReportTemplate entity, ReportTemplateRequestDto dto, String updatedBy) {
         entity.setTemplateCode(dto.templateCode());

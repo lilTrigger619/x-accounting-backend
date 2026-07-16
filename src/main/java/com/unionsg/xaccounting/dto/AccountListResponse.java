@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class AccountListResponse {
+    private Long id;
     private String accountNumber;
     private String accountName;
     private String accountType;

@@ -30,11 +30,14 @@ public class ReportTemplateServiceImpl implements ReportTemplateService {
             throw new TemplateCodeAlreadyExistsException("templateCode already exists: " + request.templateCode());
         }
 
-        String createdBy = request.createdBy();
+        var principal = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String createdBy = principal instanceof com.unionsg.xaccounting.security.auth.UserPrincipal up ? up.getUsername() : principal.toString();
         ReportTemplate entity = mapper.toEntityForCreate(request, createdBy);
         entity.setVersion(request.version());
 
+
         ReportTemplate saved = repository.save(entity);
+        System.out.println("After saving");
         return mapper.toResponse(saved);
     }
 
@@ -71,10 +74,11 @@ public class ReportTemplateServiceImpl implements ReportTemplateService {
             throw new TemplateCodeAlreadyExistsException("templateCode already exists: " + request.templateCode());
         }
 
-        mapper.applyUpdates(entity, request, request.createdBy());
+        var principal = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String updatedBy = principal instanceof com.unionsg.xaccounting.security.auth.UserPrincipal up ? up.getUsername() : principal.toString();
 
-        // Version bump if status changes to published
-        entity.setUpdatedBy(request.createdBy());
+        mapper.applyUpdates(entity, request, updatedBy);
+
 
         ReportTemplate saved = repository.save(entity);
         return mapper.toResponse(saved);
@@ -95,12 +99,18 @@ public class ReportTemplateServiceImpl implements ReportTemplateService {
 
     @Override
     @Transactional
-    public ReportTemplateResponseDto setStatus(Long id, ReportTemplateStatus status, String updatedBy) {
+    public ReportTemplateResponseDto setStatus(Long id, ReportTemplateStatus status) {
+
         ReportTemplate entity = repository.findById(id)
                 .orElseThrow(() -> new TemplateNotFoundException("Template not found for id: " + id));
 
+        var principal = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String updatedBy = principal instanceof com.unionsg.xaccounting.security.auth.UserPrincipal up ? up.getUsername() : principal.toString();
+
         entity.setStatus(status);
         entity.setUpdatedBy(updatedBy);
+
+
 
         ReportTemplate saved = repository.save(entity);
         return mapper.toResponse(saved);

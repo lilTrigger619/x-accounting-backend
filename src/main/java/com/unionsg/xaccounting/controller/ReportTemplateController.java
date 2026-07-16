@@ -47,9 +47,10 @@ public class ReportTemplateController {
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<ReportTemplateResponseDto> setStatus(@PathVariable Long id,
-                                                                 @RequestParam ReportTemplateStatus status,
-                                                                 @RequestParam(required = false) String updatedBy) {
-        return ResponseEntity.ok(service.setStatus(id, status, updatedBy));
+                                                                 @RequestParam ReportTemplateStatus status) {
+        return ResponseEntity.ok(service.setStatus(id, status));
+
     }
+
 }
 

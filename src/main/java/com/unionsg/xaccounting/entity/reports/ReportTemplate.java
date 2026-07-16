@@ -8,10 +8,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(
-        name = "report_templates",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_report_template_code", columnNames = {"template_code"})
-        }
+        name = "report_templates"
 )
 @Getter
 @Setter
@@ -24,7 +21,7 @@ public class ReportTemplate {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "template_code", nullable = false, unique = true, length = 100)
+    @Column(name = "template_code", nullable = false, length = 100)
     private String templateCode;
 
     @Column(name = "template_name", nullable = false, length = 200)
@@ -42,6 +39,10 @@ public class ReportTemplate {
 
     @Column(nullable = false)
     private Integer version;
+
+    @Version
+    private Long optLock;
+
 
     @Column(name = "is_system_template", nullable = false)
     private boolean isSystemTemplate;

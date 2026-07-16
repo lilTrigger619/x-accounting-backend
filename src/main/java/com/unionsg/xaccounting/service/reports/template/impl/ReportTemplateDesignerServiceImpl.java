@@ -30,6 +30,11 @@ public class ReportTemplateDesignerServiceImpl implements ReportTemplateDesigner
         ReportTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new TemplateNotFoundException("Template not found: " + templateId));
 
+        if (template.getStatus() != com.unionsg.xaccounting.enums.ReportTemplateStatus.DRAFT) {
+            throw new InvalidTemplateStateException("Only DRAFT templates are editable by designers. Current=" + template.getStatus());
+        }
+
+
         if (sectionRepository.findByReportTemplateIdAndSectionCode(templateId, request.sectionCode()).isPresent()) {
             throw new TemplateSectionCodeAlreadyExistsException("sectionCode already exists in template. code=" + request.sectionCode());
         }

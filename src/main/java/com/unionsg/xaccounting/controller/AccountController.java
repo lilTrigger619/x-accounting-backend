@@ -29,7 +29,7 @@ public class AccountController {
     }
 
     // Required endpoint: GET /api/v1/accounts
-    @GetMapping("/api/v1/accounts")
+    @GetMapping("/v1")
     public ResponseEntity<Page<AccountListResponse>> getAccounts(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) com.unionsg.xaccounting.enums.AccountType accountType,

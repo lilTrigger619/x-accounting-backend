@@ -26,11 +26,9 @@ public record ReportTemplateRequestDto(
         @NotNull
         Integer version,
 
-        boolean isSystemTemplate,
+        boolean isSystemTemplate
 
-        @NotBlank
-        @Size(max = 200)
-        String createdBy
 ) {
 }
+
 

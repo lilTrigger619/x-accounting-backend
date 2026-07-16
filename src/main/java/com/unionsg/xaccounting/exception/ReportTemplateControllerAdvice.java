@@ -28,5 +28,15 @@ public class ReportTemplateControllerAdvice {
     public ResponseEntity<String> handleBadRequest(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
     }
+
+    @ExceptionHandler(com.unionsg.xaccounting.service.reports.exception.DraftLockOwnedException.class)
+    public ResponseEntity<String> handleDraftLockOwned(com.unionsg.xaccounting.service.reports.exception.DraftLockOwnedException ex) {
+        // Prompt requires 409 with meaningful message.
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                "{\"message\":\"Report template is currently being edited by another session\",\"lockedBy\":\"" + ex.getLockedBy() + "\"}"
+        );
+    }
+
+
 }
 

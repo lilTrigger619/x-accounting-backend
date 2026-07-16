@@ -76,6 +76,7 @@ public class AccountServiceImpl implements AccountService {
         BigDecimal balance = BigDecimal.ZERO;
 
         AccountListResponse.AccountListResponseBuilder builder = AccountListResponse.builder()
+                .id(entity.getId())
                 .accountNumber(entity.getAccountId())
                 .accountName(entity.getAccountName())
                 .accountType(entity.getCoaClearTo() != null && entity.getCoaClearTo().getChartOfAccount() != null

@@ -33,6 +33,11 @@ public class ReportTemplateSectionServiceImpl implements ReportTemplateSectionSe
         ReportTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new TemplateNotFoundException("Template not found for id: " + templateId));
 
+        if (template.getStatus() != com.unionsg.xaccounting.enums.ReportTemplateStatus.DRAFT) {
+            throw new com.unionsg.xaccounting.service.reports.exception.InvalidTemplateStateException("Only DRAFT templates are editable. Current=" + template.getStatus());
+        }
+
+
         if (sectionRepository.findByReportTemplateIdAndSectionCode(templateId, request.sectionCode()).isPresent()) {
             throw new TemplateSectionCodeAlreadyExistsException("sectionCode already exists in template. code=" + request.sectionCode());
         }
@@ -72,7 +77,12 @@ public class ReportTemplateSectionServiceImpl implements ReportTemplateSectionSe
         ReportTemplateSection entity = sectionRepository.findById(sectionId)
                 .orElseThrow(() -> new TemplateNotFoundException("Section not found for id: " + sectionId));
 
+        if (entity.getReportTemplate().getStatus() != com.unionsg.xaccounting.enums.ReportTemplateStatus.DRAFT) {
+            throw new com.unionsg.xaccounting.service.reports.exception.InvalidTemplateStateException("Only DRAFT templates are editable. Current=" + entity.getReportTemplate().getStatus());
+        }
+
         Long templateId = entity.getReportTemplate().getId();
+
 
         // Unique sectionCode within template
         sectionRepository.findByReportTemplateIdAndSectionCode(templateId, request.sectionCode())

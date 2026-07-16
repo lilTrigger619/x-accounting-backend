@@ -20,6 +20,7 @@ public interface ReportTemplateService {
 
     void delete(Long id);
 
-    ReportTemplateResponseDto setStatus(Long id, ReportTemplateStatus status, String updatedBy);
+    ReportTemplateResponseDto setStatus(Long id, ReportTemplateStatus status);
+
 }
 

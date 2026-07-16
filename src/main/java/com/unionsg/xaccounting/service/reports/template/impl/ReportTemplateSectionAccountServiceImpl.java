@@ -34,6 +34,11 @@ public class ReportTemplateSectionAccountServiceImpl implements ReportTemplateSe
         ReportTemplateSection section = sectionRepository.findById(sectionId)
                 .orElseThrow(() -> new TemplateNotFoundException("Template section not found: " + sectionId));
 
+        if (section.getReportTemplate().getStatus() != com.unionsg.xaccounting.enums.ReportTemplateStatus.DRAFT) {
+            throw new com.unionsg.xaccounting.service.reports.exception.InvalidTemplateStateException("Only DRAFT templates are editable. Current=" + section.getReportTemplate().getStatus());
+        }
+
+
         if (request.reportTemplateSectionId() != null && !request.reportTemplateSectionId().equals(sectionId)) {
             throw new IllegalArgumentException("reportTemplateSectionId mismatch with path id");
         }
@@ -61,8 +66,13 @@ public class ReportTemplateSectionAccountServiceImpl implements ReportTemplateSe
                 .orElseThrow(() -> new TemplateSectionAccountNotFoundException(
                         "Assignment not found. sectionId=" + sectionId + " accountId=" + accountId));
 
+        if (existing.getReportTemplateSection().getReportTemplate().getStatus() != com.unionsg.xaccounting.enums.ReportTemplateStatus.DRAFT) {
+            throw new com.unionsg.xaccounting.service.reports.exception.InvalidTemplateStateException("Only DRAFT templates are editable. Current=" + existing.getReportTemplateSection().getReportTemplate().getStatus());
+        }
+
         assignmentRepository.delete(existing);
     }
+
 
     @Override
     @Transactional(readOnly = true)

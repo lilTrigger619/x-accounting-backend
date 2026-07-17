@@ -21,7 +21,9 @@ import com.unionsg.xaccounting.repository.reports.ReportTemplateSectionAccountRe
 import com.unionsg.xaccounting.repository.reports.ReportTemplateSectionRepository;
 import com.unionsg.xaccounting.service.reports.exception.ConcurrentTemplateModificationException;
 import com.unionsg.xaccounting.service.reports.exception.InvalidTemplateStateException;
+import com.unionsg.xaccounting.dto.reports.ReportTemplateValidationResponse;
 import com.unionsg.xaccounting.service.reports.exception.PublishValidationException;
+
 import com.unionsg.xaccounting.service.reports.template.lifecycle.ReportTemplateLifecycleService;
 import com.unionsg.xaccounting.service.reports.engine.view.ReportSectionView;
 
@@ -50,6 +52,12 @@ public class ReportTemplateLifecycleServiceImpl implements ReportTemplateLifecyc
     private final FinancialReportEngine financialReportEngine;
     private final FormulaValidator formulaValidator;
 
+    // NOTE: validation is orchestrated by ValidationCoordinator (shared by /validate and /publish)
+
+
+    private final com.unionsg.xaccounting.service.reports.template.validation.ValidationCoordinator validationCoordinator;
+
+
     private final com.unionsg.xaccounting.service.reports.template.audit.ReportTemplateAuditService auditService;
 
 
@@ -66,25 +74,31 @@ public class ReportTemplateLifecycleServiceImpl implements ReportTemplateLifecyc
 
 
     @Override
-    @Transactional
-    public void validate(Long templateId) {
-        // method throws PublishValidationException if invalid
-        doValidate(templateId);
+    @Transactional(readOnly = true)
+    public ReportTemplateValidationResponse validateTemplate(Long templateId) {
+        // no DB mutation; coordinator does read-only validation
+        return validationCoordinator.validateTemplate(templateId);
     }
+
 
     @Override
     @Transactional
     public void publish(Long templateId, String updatedBy) {
         ReportTemplate draft = loadDraftTemplate(templateId);
 
-        List<PublishValidationException.ValidationError> errors = validateInternal(draft.getId());
-        if (!errors.isEmpty()) {
-            System.out.println(errors.toString());
-            throw new PublishValidationException("Template publish validation failed", errors);
+        // Reuse the same validation service as the validate endpoint.
+        // Publishing is blocked only when there are ANY errors; warnings are allowed.
+        ReportTemplateValidationResponse validation = validateTemplate(templateId);
+        if (validation != null && !validation.valid()) {
+            throw new PublishValidationException("Template publish validation failed",
+                    validation.errors().stream()
+                            .map(e -> new PublishValidationException.ValidationError(e.code(), e.message(), e.path()))
+                            .toList());
         }
 
         createPublishedVersion(draft, updatedBy);
         auditService.record(templateId, com.unionsg.xaccounting.enums.ReportTemplateHistoryAction.PUBLISH);
+
 
     }
 
@@ -126,12 +140,7 @@ public class ReportTemplateLifecycleServiceImpl implements ReportTemplateLifecyc
         return template;
     }
 
-    private void doValidate(Long templateId) {
-        List<PublishValidationException.ValidationError> errors = validateInternal(templateId);
-        if (!errors.isEmpty()) {
-            throw new PublishValidationException("Template validation failed", errors);
-        }
-    }
+
 
     private List<PublishValidationException.ValidationError> validateInternal(Long templateId) {
         ReportTemplate template = templateRepository.findById(templateId)

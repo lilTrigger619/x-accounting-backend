@@ -8,7 +8,8 @@ public interface ReportTemplateLifecycleService {
 
     FinancialReportTreeResponseDto preview(Long templateId, LocalDate fromDate, LocalDate toDate);
 
-    void validate(Long templateId);
+    com.unionsg.xaccounting.dto.reports.ReportTemplateValidationResponse validateTemplate(Long templateId);
+
 
     void publish(Long templateId, String updatedBy);
 

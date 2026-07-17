@@ -3,6 +3,7 @@ package com.unionsg.xaccounting.controller;
 import com.unionsg.xaccounting.dto.reports.FinancialReportTreeResponseDto;
 import com.unionsg.xaccounting.dto.reports.ReportTemplateDto;
 import com.unionsg.xaccounting.dto.reports.ReportTemplatePreviewRequestDto;
+import com.unionsg.xaccounting.dto.reports.ReportTemplateValidationResponse;
 import com.unionsg.xaccounting.security.auth.UserPrincipal;
 import com.unionsg.xaccounting.service.reports.template.lifecycle.ReportTemplateLifecycleService;
 
@@ -33,15 +34,35 @@ public class ReportTemplateLifecycleController {
         );
     }
 
+    @PostMapping("/{id}/validate")
+    public ResponseEntity<ReportTemplateValidationResponse> validate(
+            @PathVariable("id") Long templateId
+    ) {
+        return ResponseEntity.ok(lifecycleService.validateTemplate(templateId));
+    }
+
+
+
     @PostMapping("/{id}/publish")
     public ResponseEntity<Map<String, Object>> publish(
             @PathVariable("id") Long templateId,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         String updatedBy = userPrincipal.getUsername();
+
+        // Validate first; publishing may proceed only when there are no errors
+        // (warnings are allowed).
+        var validation = lifecycleService.validateTemplate(templateId);
+        if (validation != null && !validation.valid()) {
+            // HTTP 400 with the exact same validation response object
+            return ResponseEntity.badRequest().body(Map.of("valid", validation.valid(), "errors", validation.errors(), "warnings", validation.warnings()));
+        }
+
         lifecycleService.publish(templateId, updatedBy);
         return ResponseEntity.ok(Map.of("success", true));
     }
+
+
 
     @PostMapping("/{id}/archive")
     public ResponseEntity<Map<String, Object>> archive(

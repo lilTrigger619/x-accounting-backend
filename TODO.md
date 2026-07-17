@@ -1,25 +1,36 @@
-# TODO.md
+# TODO - Report Template Validation Refactor
 
-## Phase 7.4 – Report Audit Trail
+## Step 1: Repo understanding checkpoint
+- [x] Located current publish endpoint and validation logic inside `ReportTemplateLifecycleServiceImpl.validateInternal`.
 
-- [x] Inspect template lifecycle + template CRUD paths to ensure all actions log exactly once
+## Step 2: Add DTOs
+- [ ] Create `ReportTemplateValidationResponse`, `ValidationErrorDto`, `ValidationWarningDto` (records/classes) under `dto/reports`.
 
-- [x] Create entity: ReportTemplateHistory
+## Step 3: Implement validation architecture
+- [ ] Add `validation` package with:
+  - [ ] `ValidationCoordinator`
+  - [ ] `StructureValidator`
+  - [ ] `AccountAssignmentValidator`
+  - [ ] `BusinessRuleValidator`
+  - [ ] (Reuse or wrap existing formula validation logic as needed)
 
-- [x] Create enum: ReportTemplateHistoryAction
+## Step 4: Expose validate endpoint
+- [ ] Add `POST /api/v1/report-templates/{id}/validate` to controller returning the DTO.
+- [ ] Ensure endpoint never publishes and never creates versions.
 
-- [x] Create repository: ReportTemplateHistoryRepository (history by templateId, ordered asc)
+## Step 5: Refactor publish workflow
+- [ ] Modify publish endpoint/service to call coordinator first.
+- [ ] If ANY errors => HTTP 400 + same DTO response.
+- [ ] If only warnings => publish proceeds.
 
-- [x] Create DTO: ReportTemplateHistoryDto
+## Step 6: Implement SectionType rules
+- [ ] Update validation rules for GROUP/DETAIL/SUBTOTAL/TOTAL as specified.
+- [ ] Implement specified errors + warnings.
 
-- [x] Create centralized AuditService: ReportTemplateAuditService (no duplicated logging logic)
+## Step 7: Wiring and cleanup
+- [ ] Remove/stop using the old exception-driven validation path for publish/validate.
+- [ ] Ensure no duplicated validation logic.
 
-- [x] Implement ReportTemplateHistoryService + endpoint:
-  - [x] GET /api/v1/report-templates/{id}/history (chronological)
+## Step 8: Build & tests
+- [ ] Run `./gradlew test` and fix any compilation/test failures.
 
-- [x] Wire audit logging into:
-  - [x] ReportTemplateServiceImpl: create/update/setStatus/delete
-  - [x] ReportTemplateLifecycleServiceImpl: preview/publish/archive/clone
-  - [x] VersionHistoryServiceImpl: rollback
-
-- [x] Compile/test build (`./gradlew test`)

@@ -1,20 +1,11 @@
 package com.unionsg.xaccounting.service.invoice;
-//package com.accounting.invoice.service;
 
-//import com.accounting.customer.domain.Customer;
-//import com.accounting.customer.repository.CustomerRepository;
-//import com.accounting.invoice.domain.Invoice;
-//import com.accounting.invoice.dto.request.CreateInvoiceRequest;
-//import com.accounting.invoice.dto.response.InvoiceResponse;
-//import com.accounting.invoice.mapper.InvoiceMapper;
-//import com.accounting.invoice.repository.InvoiceRepository;
-//import com.accounting.paymentterms.domain.PaymentTerms;
-//import com.accounting.paymentterms.repository.PaymentTermsRepository;
 import com.unionsg.xaccounting.MapperLayer.InvoiceMapper;
 import com.unionsg.xaccounting.dto.FileUploadRequestDto;
 import com.unionsg.xaccounting.dto.invoice.CreateInvoiceRequest;
 import com.unionsg.xaccounting.dto.invoice.InvoiceResponse;
 import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsResponse;
+import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsRow;
 
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
@@ -35,7 +26,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-//CustomerPaymentTermsRepo
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -46,7 +36,6 @@ public class InvoiceService {
 
     private final InvoiceRepository invoiceRepository;
     private final CustomerRepository customerRepository;
-//    private final PaymentTermsRepository paymentTermsRepository;
     private final CustomerPaymentTermsRepo paymentTermsRepository;
     private final InvoiceCalculationService calculationService;
     private final DocumentNumberGeneratorService generator;
@@ -174,11 +163,6 @@ public class InvoiceService {
         return InvoiceMapper.toResponse(invoice);
     }
 
-        /*
-     =============================
-     List Invoices
-     =============================
-     */
 
     public Page<InvoiceResponse> getInvoices(
             Pageable pageable
@@ -190,12 +174,6 @@ public class InvoiceService {
     }
 
 
-    /*
-     =============================
-     Delete Invoice
-     =============================
-     */
-
     public void deleteInvoice(Long id) {
 
         Invoice invoice =
@@ -206,11 +184,6 @@ public class InvoiceService {
         invoiceRepository.delete(invoice);
     }
 
-       /*
-     =============================
-     Send Invoice
-     =============================
-     */
 
     @Transactional
     public InvoiceResponse sendInvoice(Long id) {
@@ -228,11 +201,6 @@ public class InvoiceService {
         );
     }
 
-        /*
-     =============================
-     Mark As Paid
-     =============================
-     */
 
     @Transactional
     public InvoiceResponse markAsPaid(Long id) {
@@ -251,13 +219,6 @@ public class InvoiceService {
     }
 
 
-
-    /*
-     =============================
-     Cancel Invoice
-     =============================
-     */
-
     @Transactional
     public InvoiceResponse cancelInvoice(Long id) {
 
@@ -273,14 +234,10 @@ public class InvoiceService {
         );
     }
 
-    /*
-     =============================
-     Invoice Totals (Aggregations)
-     =============================
-     */
+
     @Transactional(readOnly = true)
     public InvoiceTotalsResponse getInvoiceTotals() {
-        return invoiceRepository.getInvoiceTotals(
+        InvoiceTotalsRow row = invoiceRepository.getInvoiceTotals(
                 InvoiceStatus.PAID,
                 InvoiceStatus.OVERDUE,
                 java.util.List.of(
@@ -288,7 +245,30 @@ public class InvoiceService {
                         InvoiceStatus.DRAFT
                 )
         );
+
+        InvoiceTotalsResponse response = new InvoiceTotalsResponse();
+
+        response.setPaid(new InvoiceTotalsResponse.SummaryItem(
+                row.getPaidCount(),
+                row.getPaidAmount()
+        ));
+
+        response.setOverdue(new InvoiceTotalsResponse.SummaryItem(
+                row.getOverdueCount(),
+                row.getOverdueAmount()
+        ));
+
+        response.setPending(new InvoiceTotalsResponse.SummaryItem(
+                row.getPendingCount(),
+                row.getPendingAmount()
+        ));
+
+        response.setGrandTotal(new InvoiceTotalsResponse.SummaryItem(
+                row.getGrandCount(),
+                row.getGrandAmount()
+        ));
+
+        return response;
     }
 
 }
-

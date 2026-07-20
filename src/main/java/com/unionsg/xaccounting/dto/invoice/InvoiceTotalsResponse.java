@@ -13,11 +13,20 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class InvoiceTotalsResponse {
 
-    private BigDecimal paidTotal = BigDecimal.ZERO;
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SummaryItem {
+        private Long count = 0L;
+        private BigDecimal amount = BigDecimal.ZERO;
+    }
 
-    private BigDecimal overdueTotal = BigDecimal.ZERO;
+    private SummaryItem paid;
 
-    private BigDecimal pendingTotal = BigDecimal.ZERO;
+    private SummaryItem overdue;
 
-    private BigDecimal grandTotal = BigDecimal.ZERO;
+    private SummaryItem pending;
+
+    private SummaryItem grandTotal;
 }

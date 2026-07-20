@@ -4,6 +4,8 @@ package com.unionsg.xaccounting.controller;
 import com.unionsg.xaccounting.dto.FileUploadRequestDto;
 import com.unionsg.xaccounting.dto.invoice.CreateInvoiceRequest;
 import com.unionsg.xaccounting.dto.invoice.InvoiceResponse;
+import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsResponse;
+
 import com.unionsg.xaccounting.service.FileService.FileService;
 import com.unionsg.xaccounting.service.invoice.InvoiceService;
 import lombok.RequiredArgsConstructor;
@@ -169,4 +171,15 @@ public class InvoiceController {
         );
     }
 
+    /*
+     =============================
+     Invoice Totals (Aggregations)
+     =============================
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<InvoiceTotalsResponse> summary() {
+        return ResponseEntity.ok(invoiceService.getInvoiceTotals());
+    }
+
 }
+

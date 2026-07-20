@@ -14,6 +14,8 @@ import com.unionsg.xaccounting.MapperLayer.InvoiceMapper;
 import com.unionsg.xaccounting.dto.FileUploadRequestDto;
 import com.unionsg.xaccounting.dto.invoice.CreateInvoiceRequest;
 import com.unionsg.xaccounting.dto.invoice.InvoiceResponse;
+import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsResponse;
+
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
@@ -271,5 +273,22 @@ public class InvoiceService {
         );
     }
 
+    /*
+     =============================
+     Invoice Totals (Aggregations)
+     =============================
+     */
+    @Transactional(readOnly = true)
+    public InvoiceTotalsResponse getInvoiceTotals() {
+        return invoiceRepository.getInvoiceTotals(
+                InvoiceStatus.PAID,
+                InvoiceStatus.OVERDUE,
+                java.util.List.of(
+                        InvoiceStatus.SENT,
+                        InvoiceStatus.DRAFT
+                )
+        );
+    }
 
 }
+

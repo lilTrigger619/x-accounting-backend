@@ -1,7 +1,6 @@
 package com.unionsg.xaccounting.exception;
 
 import com.unionsg.xaccounting.response.ApiResponse;
-import com.unionsg.xaccounting.service.reports.exception.InvalidReportDateException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,7 +28,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<Object>> handleBadRequest(BadRequestException ex) {
-//        ex.printStackTrace();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.builder()
                         .success(false)
@@ -48,6 +46,17 @@ public class GlobalExceptionHandler {
                         .content(null)
                         .build()
                 );
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Map<String, Object>> handleBusiness(BusinessException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", HttpStatus.CONFLICT.getReasonPhrase());
+        body.put("message", ex.getMessage());
+
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -98,52 +107,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.builder()
                         .success(false)
-                        .message("An unexpected error occurredd")
+                        .message("An unexpected error occurred")
                         .content(null)
                         .build()
                 );
     }
-
-//
-//    @ExceptionHandler(InvalidReportDateException.class)
-//    public ResponseEntity<?> handleInvalidReportDate(
-//            InvalidReportDateException ex
-//    ) {
-//
-//        return buildResponse(
-//                HttpStatus.BAD_REQUEST,
-//                ex.getMessage()
-//        );
-//    }
-//
-//
-//    @ExceptionHandler(Exception.class)
-//    public ResponseEntity<?> handleGenericException(
-//            Exception ex
-//    ) {
-//
-//        return buildResponse(
-//                HttpStatus.INTERNAL_SERVER_ERROR,
-//                "Something went wrong while generating report"
-//        );
-//    }
-//
-
-    private ResponseEntity<Map<String, Object>> buildResponse(
-            HttpStatus status,
-            String message
-    ) {
-
-        Map<String, Object> body = new HashMap<>();
-
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
-        body.put("message", message);
-
-        return new ResponseEntity<>(body, status);
-    }
-
-
 
 }

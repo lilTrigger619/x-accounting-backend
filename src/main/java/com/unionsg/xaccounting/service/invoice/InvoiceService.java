@@ -6,14 +6,14 @@ import com.unionsg.xaccounting.dto.invoice.CreateInvoiceRequest;
 import com.unionsg.xaccounting.dto.invoice.InvoiceResponse;
 import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsResponse;
 import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsRow;
-
+import com.unionsg.xaccounting.dto.invoice.UpdateInvoiceRequest;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
-import com.unionsg.xaccounting.entity.invoice.InvoiceItem;
 import com.unionsg.xaccounting.enums.DocumentModule;
 import com.unionsg.xaccounting.enums.EntityType;
 import com.unionsg.xaccounting.enums.InvoiceStatus;
+import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.CustomerPaymentTermsRepo;
 import com.unionsg.xaccounting.repository.CustomerRepository;
 import com.unionsg.xaccounting.repository.invoice.InvoiceRepository;
@@ -94,13 +94,17 @@ public class InvoiceService {
     @Transactional
     public InvoiceResponse updateInvoice(
             Long invoiceId,
-            CreateInvoiceRequest request
+            UpdateInvoiceRequest request
     ) {
 
         Invoice invoice =
                 invoiceRepository.findById(invoiceId)
                         .orElseThrow(() ->
                                 new RuntimeException("Invoice not found"));
+
+        if (invoice.getStatus() != InvoiceStatus.DRAFT) {
+            throw new BusinessException("Only draft invoices can be modified.");
+        }
 
         Customer customer =
                 customerRepository.findById(request.getCustomerId())
@@ -117,31 +121,9 @@ public class InvoiceService {
                                     new RuntimeException("Payment terms not found"));
         }
 
-        invoice.setCustomer(customer);
-        invoice.setIssueDate(request.getIssueDate());
-        invoice.setDueDate(request.getDueDate());
-        invoice.setReference(request.getReference());
-        invoice.setNotes(request.getNotes());
-        invoice.setTerms(request.getTerms());
-        invoice.setDiscountType(request.getDiscountType());
-        invoice.setDiscountValue(request.getDiscountValue());
-        invoice.setPaymentTerms(paymentTerms);
+        InvoiceMapper.applyUpdate(invoice, request, customer, paymentTerms);
 
-        invoice.getItems().clear();
-
-        request.getItems().forEach(item -> {
-
-            InvoiceItem entity =
-                    new InvoiceItem();
-
-            entity.setDescription(item.getDescription());
-            entity.setQuantity(item.getQuantity());
-            entity.setUnitPrice(item.getUnitPrice());
-            entity.setTaxRate(item.getTaxRate());
-            entity.setInvoice(invoice);
-
-            invoice.getItems().add(entity);
-        });
+        invoice.setUpdatedAt(LocalDateTime.now());
 
         calculationService.calculateInvoice(invoice);
 
@@ -174,6 +156,7 @@ public class InvoiceService {
     }
 
 
+    @Transactional
     public void deleteInvoice(Long id) {
 
         Invoice invoice =
@@ -181,7 +164,14 @@ public class InvoiceService {
                         .orElseThrow(() ->
                                 new RuntimeException("Invoice not found"));
 
-        invoiceRepository.delete(invoice);
+        if (invoice.getStatus() != InvoiceStatus.DRAFT) {
+            throw new BusinessException("Only draft invoices can be cancelled.");
+        }
+
+        invoice.setStatus(InvoiceStatus.CANCELLED);
+        invoice.setCancelledAt(LocalDateTime.now());
+
+        invoiceRepository.save(invoice);
     }
 
 
@@ -227,7 +217,12 @@ public class InvoiceService {
                         .orElseThrow(() ->
                                 new RuntimeException("Invoice not found"));
 
+        if (invoice.getStatus() != InvoiceStatus.DRAFT) {
+            throw new BusinessException("Only draft invoices can be cancelled.");
+        }
+
         invoice.setStatus(InvoiceStatus.CANCELLED);
+        invoice.setCancelledAt(LocalDateTime.now());
 
         return InvoiceMapper.toResponse(
                 invoiceRepository.save(invoice)
@@ -237,36 +232,46 @@ public class InvoiceService {
 
     @Transactional(readOnly = true)
     public InvoiceTotalsResponse getInvoiceTotals() {
-        InvoiceTotalsRow row = invoiceRepository.getInvoiceTotals(
-                InvoiceStatus.PAID,
-                InvoiceStatus.OVERDUE,
-                java.util.List.of(
-                        InvoiceStatus.SENT,
-                        InvoiceStatus.DRAFT
-                )
-        );
+
+        InvoiceTotalsRow row =
+                invoiceRepository.getInvoiceTotals(
+                        InvoiceStatus.PAID,
+                        InvoiceStatus.OVERDUE,
+                        java.util.List.of(
+                                InvoiceStatus.SENT,
+                                InvoiceStatus.DRAFT
+                        )
+                );
 
         InvoiceTotalsResponse response = new InvoiceTotalsResponse();
 
-        response.setPaid(new InvoiceTotalsResponse.SummaryItem(
-                row.getPaidCount(),
-                row.getPaidAmount()
-        ));
+        response.setPaid(
+                new InvoiceTotalsResponse.SummaryItem(
+                        row.getPaidCount(),
+                        row.getPaidAmount()
+                )
+        );
 
-        response.setOverdue(new InvoiceTotalsResponse.SummaryItem(
-                row.getOverdueCount(),
-                row.getOverdueAmount()
-        ));
+        response.setOverdue(
+                new InvoiceTotalsResponse.SummaryItem(
+                        row.getOverdueCount(),
+                        row.getOverdueAmount()
+                )
+        );
 
-        response.setPending(new InvoiceTotalsResponse.SummaryItem(
-                row.getPendingCount(),
-                row.getPendingAmount()
-        ));
+        response.setPending(
+                new InvoiceTotalsResponse.SummaryItem(
+                        row.getPendingCount(),
+                        row.getPendingAmount()
+                )
+        );
 
-        response.setGrandTotal(new InvoiceTotalsResponse.SummaryItem(
-                row.getGrandCount(),
-                row.getGrandAmount()
-        ));
+        response.setGrandTotal(
+                new InvoiceTotalsResponse.SummaryItem(
+                        row.getGrandCount(),
+                        row.getGrandAmount()
+                )
+        );
 
         return response;
     }

@@ -45,6 +45,33 @@ public class InvoiceMapper {
     }
 
 
+    public static void applyUpdate(
+            Invoice invoice,
+            UpdateInvoiceRequest request,
+            Customer customer,
+            PaymentTerms paymentTerms
+    ) {
+        invoice.setReference(request.getReference());
+        invoice.setIssueDate(request.getIssueDate());
+        invoice.setDueDate(request.getDueDate());
+        invoice.setCustomer(customer);
+        invoice.setPaymentTerms(paymentTerms);
+        invoice.setNotes(request.getNotes());
+        invoice.setTerms(request.getTerms());
+        invoice.setDiscountType(request.getDiscountType());
+        invoice.setDiscountValue(request.getDiscountValue());
+        invoice.setBillingInfo(mapUpdateBillingInfo(request));
+
+        invoice.getItems().clear();
+
+        if (request.getItems() != null) {
+            request.getItems().stream()
+                    .map(item -> toItemEntity(item, invoice))
+                    .forEach(item -> invoice.getItems().add(item));
+        }
+    }
+
+
     private static InvoiceItem toItemEntity(
             InvoiceItemRequest request,
             Invoice invoice
@@ -64,6 +91,30 @@ public class InvoiceMapper {
 
     private static InvoiceBillingInfo mapBillingInfo(
             CreateInvoiceRequest request
+    ) {
+
+        if (request.getBillingInfo() == null) {
+            return null;
+        }
+
+        InvoiceBillingInfo billing = new InvoiceBillingInfo();
+
+        billing.setBillingName(request.getBillingInfo().getBillingName());
+        billing.setBillingEmail(request.getBillingInfo().getBillingEmail());
+        billing.setBillingPhone(request.getBillingInfo().getBillingPhone());
+        billing.setAddressLine1(request.getBillingInfo().getAddressLine1());
+        billing.setAddressLine2(request.getBillingInfo().getAddressLine2());
+        billing.setCity(request.getBillingInfo().getCity());
+        billing.setState(request.getBillingInfo().getState());
+        billing.setPostalCode(request.getBillingInfo().getPostalCode());
+        billing.setCountry(request.getBillingInfo().getCountry());
+
+        return billing;
+    }
+
+
+    private static InvoiceBillingInfo mapUpdateBillingInfo(
+            UpdateInvoiceRequest request
     ) {
 
         if (request.getBillingInfo() == null) {

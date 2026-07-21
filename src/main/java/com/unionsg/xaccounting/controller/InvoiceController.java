@@ -5,9 +5,11 @@ import com.unionsg.xaccounting.dto.FileUploadRequestDto;
 import com.unionsg.xaccounting.dto.invoice.CreateInvoiceRequest;
 import com.unionsg.xaccounting.dto.invoice.InvoiceResponse;
 import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsResponse;
+import com.unionsg.xaccounting.dto.invoice.UpdateInvoiceRequest;
 
 import com.unionsg.xaccounting.service.FileService.FileService;
 import com.unionsg.xaccounting.service.invoice.InvoiceService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,15 +53,15 @@ public class InvoiceController {
      =============================
      */
 
-    @PutMapping("/{id}")
+    @PutMapping("/{invoiceId}")
     public ResponseEntity<InvoiceResponse> update(
 
-            @PathVariable Long id,
-            @RequestBody CreateInvoiceRequest request
+            @PathVariable Long invoiceId,
+            @Valid @RequestBody UpdateInvoiceRequest request
     ) {
 
         return ResponseEntity.ok(
-                invoiceService.updateInvoice(id, request)
+                invoiceService.updateInvoice(invoiceId, request)
         );
     }
 
@@ -182,4 +184,3 @@ public class InvoiceController {
     }
 
 }
-

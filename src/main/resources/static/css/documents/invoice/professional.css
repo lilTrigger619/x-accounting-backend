@@ -1,0 +1,118 @@
+/* =============================
+   Professional Invoice Layout
+   Structured, formal with clear sections
+   ============================= */
+
+.top-border {
+    padding-top: 20px;
+}
+
+.company-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.company-info {
+    width: 55%;
+}
+
+.company-details p {
+    font-size: 13px;
+    color: #555;
+    margin: 2px 0;
+}
+
+.invoice-identity {
+    width: 40%;
+    text-align: right;
+}
+
+.meta-table {
+    margin-left: auto;
+    border-collapse: collapse;
+}
+
+.meta-table td {
+    padding: 4px 6px;
+    font-size: 13px;
+}
+
+.meta-table .meta-label {
+    font-weight: 600;
+    color: #555;
+    text-align: right;
+}
+
+.meta-table .meta-value {
+    font-weight: 500;
+    color: #333;
+    text-align: right;
+}
+
+.section-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.addresses-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.address-box {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.address-box p {
+    font-size: 13px;
+    color: #333;
+    margin: 2px 0;
+}
+
+.items-table thead {
+    border-radius: 4px;
+}
+
+.items-table th:first-child {
+    border-radius: 4px 0 0 4px;
+}
+
+.items-table th:last-child {
+    border-radius: 0 4px 4px 0;
+}
+
+.bottom-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.payment-section p,
+.terms-section p {
+    font-size: 13px;
+    color: #555;
+}
+
+.notes-section {
+    margin-top: 20px;
+}
+
+.footer-line {
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
+
+.logo-section {
+    margin-bottom: 10px;
+}
+

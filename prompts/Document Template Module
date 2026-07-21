@@ -1,0 +1,603 @@
+This is the prompt I would give to a coding agent. It is written as an architectural specification rather than just a coding task, so the generated code stays aligned with the long-term direction of your accounting system.
+
+---
+
+# AI Prompt — Build Enterprise Document Template Module (Phase 1)
+
+We are building an enterprise accounting system in Java Spring Boot.
+
+The Invoice module already exists and is functional.
+
+We are **NOT** implementing PDF generation or email sending in this phase.
+
+This phase is only for implementing a reusable **Document Template Module** that will later be used by Invoices, Quotes, Credit Notes, Purchase Orders, Receipts, etc.
+
+The implementation must follow clean architecture and SOLID principles.
+
+---
+
+# Goal
+
+Create a new module called:
+
+```
+Document Template
+```
+
+This module will manage how business documents are rendered and emailed in the future.
+
+Initially it will support Invoice templates, but the design must support other document types without modification.
+
+---
+
+# Package Structure
+
+```
+documenttemplate
+
+    controller
+
+    service
+
+    repository
+
+    dto
+        request
+        response
+
+    mapper
+
+    domain
+
+    enums
+
+    exception
+```
+
+---
+
+# Entities
+
+Create the following entities.
+
+## 1. DocumentTemplate
+
+This is the master entity.
+
+Fields
+
+```
+id
+
+name
+
+documentType
+
+layout
+
+isDefault
+
+version
+
+status
+
+createdAt
+
+updatedAt
+```
+
+Relationships
+
+```
+OneToOne
+
+DocumentTemplateDesign
+
+OneToOne
+
+DocumentTemplateContent
+
+OneToMany
+
+DocumentTemplateEmail
+```
+
+---
+
+## 2. DocumentTemplateDesign
+
+Contains only visual settings.
+
+Fields
+
+```
+id
+
+template
+
+logoFileId
+
+logoPosition
+
+logoWidth
+
+logoHeight
+
+primaryColor
+
+secondaryColor
+
+fontFamily
+
+fontSize
+```
+
+Do NOT create foreign key relationships with the File Upload module.
+
+Store only
+
+```
+logoFileId
+```
+
+because the file module is already generic.
+
+---
+
+## 3. DocumentTemplateContent
+
+Contains only visibility settings.
+
+Do NOT duplicate company information.
+
+The Company Settings module is the source of truth.
+
+Fields
+
+```
+id
+
+template
+
+formTitle
+
+showCompanyName
+
+showPhone
+
+showEmail
+
+showWebsite
+
+showAddress
+
+showBillingAddress
+
+showShippingAddress
+
+showTerms
+
+showDueDate
+
+showPaymentMethod
+```
+
+---
+
+## 4. DocumentTemplateEmail
+
+Represents email templates.
+
+Fields
+
+```
+id
+
+template
+
+emailType
+
+subject
+
+useGreeting
+
+salutation
+
+nameFormat
+
+body
+```
+
+There should be two records for every template
+
+```
+STANDARD
+
+REMINDER
+```
+
+Do NOT create separate tables.
+
+---
+
+# Enums
+
+Create the following enums.
+
+---
+
+## DocumentType
+
+```
+INVOICE
+
+QUOTE
+
+PURCHASE_ORDER
+
+CREDIT_NOTE
+
+DELIVERY_NOTE
+
+RECEIPT
+```
+
+---
+
+## DocumentLayout
+
+The three layouts correspond to the three provided invoice designs.
+
+```
+CLASSIC
+
+MODERN
+
+PROFESSIONAL
+```
+
+---
+
+## EmailType
+
+```
+STANDARD
+
+REMINDER
+```
+
+---
+
+## TemplateStatus
+
+```
+ACTIVE
+
+INACTIVE
+```
+
+---
+
+# DTOs
+
+Create Request and Response DTOs.
+
+The DTOs should be grouped logically.
+
+Examples
+
+```
+CreateDocumentTemplateRequest
+
+UpdateDocumentTemplateRequest
+
+UpdateDesignRequest
+
+UpdateContentRequest
+
+UpdateEmailRequest
+
+DocumentTemplateResponse
+
+DocumentTemplateDesignResponse
+
+DocumentTemplateContentResponse
+
+DocumentTemplateEmailResponse
+```
+
+---
+
+# Mapper Layer
+
+Create a mapper that converts
+
+DTO
+
+↓
+
+Entity
+
+and
+
+Entity
+
+↓
+
+DTO
+
+Do not expose entities from controllers.
+
+---
+
+# Repository Layer
+
+Create repositories for
+
+```
+DocumentTemplate
+
+DocumentTemplateEmail
+```
+
+The Design and Content entities may be managed through cascading from the template.
+
+---
+
+# Service Layer
+
+Implement the following operations.
+
+---
+
+## Create Template
+
+```
+createTemplate()
+```
+
+Should
+
+* create master template
+* automatically create
+
+```
+Design
+
+Content
+
+Standard Email
+
+Reminder Email
+```
+
+with sensible defaults.
+
+---
+
+## Update Design
+
+```
+updateDesign()
+```
+
+Updates only the Design configuration.
+
+---
+
+## Update Content
+
+```
+updateContent()
+```
+
+Updates only Content settings.
+
+---
+
+## Update Standard Email
+
+```
+updateStandardEmail()
+```
+
+Updates only the STANDARD email record.
+
+---
+
+## Update Reminder Email
+
+```
+updateReminderEmail()
+```
+
+Updates only the REMINDER email record.
+
+---
+
+## Get Template
+
+Returns
+
+```
+Template
+
+Design
+
+Content
+
+Emails
+```
+
+in one response.
+
+---
+
+## List Templates
+
+Support pagination.
+
+---
+
+## Delete Template
+
+Do not allow deletion if
+
+```
+isDefault == true
+```
+
+Throw a business exception.
+
+---
+
+## Set Default Template
+
+Implement
+
+```
+setDefaultTemplate(Long templateId)
+```
+
+Rules
+
+Only one default template is allowed **per DocumentType**.
+
+When a template becomes default
+
+all other templates of the same type
+
+must automatically become
+
+```
+isDefault = false
+```
+
+---
+
+# Controller
+
+Implement REST endpoints.
+
+```
+GET
+
+/document-templates
+```
+
+```
+GET
+
+/document-templates/{id}
+```
+
+```
+POST
+
+/document-templates
+```
+
+```
+PUT
+
+/document-templates/{id}
+```
+
+```
+DELETE
+
+/document-templates/{id}
+```
+
+```
+PUT
+
+/document-templates/{id}/design
+```
+
+```
+PUT
+
+/document-templates/{id}/content
+```
+
+```
+PUT
+
+/document-templates/{id}/emails/standard
+```
+
+```
+PUT
+
+/document-templates/{id}/emails/reminder
+```
+
+```
+POST
+
+/document-templates/{id}/default
+```
+
+---
+
+# Validation Rules
+
+A template
+
+* must have a unique name within the same DocumentType
+* cannot have more than one default template for the same DocumentType
+* cannot be deleted if it is the default
+* cannot update non-existent email types
+
+Use BusinessException for validation failures.
+
+---
+
+# Future Compatibility (Do Not Implement Yet)
+
+Design the code so it can later support:
+
+* HTML rendering
+* PDF generation
+* Email sending
+* Variable replacement
+* Multiple renderer strategies
+* Version history
+* Template preview
+* Template cloning
+
+Do not implement these yet.
+
+---
+
+# Important Architecture Rules
+
+* Follow SOLID principles.
+* Keep controllers thin.
+* Put business rules in the service layer.
+* Use transactions where necessary.
+* Use mapper classes instead of exposing entities.
+* Use DTOs for all requests and responses.
+* Use cascading only where appropriate.
+* The module must be reusable by future document types (Invoices, Quotes, Purchase Orders, Credit Notes, Receipts, Delivery Notes).
+* Do not couple this module to the Invoice module.
+
+---
+
+# Deliverables
+
+Generate the complete implementation for:
+
+* Enums
+* Entities
+* Repositories
+* DTOs
+* Mapper
+* Service interfaces and implementations
+* Controllers
+* Validation logic
+* Exception handling
+* Necessary repository methods
+
+Do **not** implement PDF generation, HTML rendering, email sending, or template preview in this phase. Those will be implemented in Phase 2.

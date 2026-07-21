@@ -1,36 +1,58 @@
-# TODO - Report Template Validation Refactor
+# Document Template Module - Phase 2 Progress
 
-## Step 1: Repo understanding checkpoint
-- [x] Located current publish endpoint and validation logic inside `ReportTemplateLifecycleServiceImpl.validateInternal`.
+## ✅ Phase 1 Complete
+- Enums, Entities, Repositories, DTOs, Mapper, Service, Exception, Controller
 
-## Step 2: Add DTOs
-- [ ] Create `ReportTemplateValidationResponse`, `ValidationErrorDto`, `ValidationWarningDto` (records/classes) under `dto/reports`.
+## 🚧 Phase 2: Thymeleaf Document Rendering Engine + OpenHTMLToPDF
 
-## Step 3: Implement validation architecture
-- [ ] Add `validation` package with:
-  - [ ] `ValidationCoordinator`
-  - [ ] `StructureValidator`
-  - [ ] `AccountAssignmentValidator`
-  - [ ] `BusinessRuleValidator`
-  - [ ] (Reuse or wrap existing formula validation logic as needed)
+### Dependencies & Config
+- [ ] Update build.gradle (Thymeleaf, OpenHTMLToPDF)
+- [ ] Add GENERATED_DOCUMENT to EntityType enum
 
-## Step 4: Expose validate endpoint
-- [ ] Add `POST /api/v1/report-templates/{id}/validate` to controller returning the DTO.
-- [ ] Ensure endpoint never publishes and never creates versions.
+### Context Layer (`document/context/`)
+- [ ] CompanyInfo.java
+- [ ] DocumentContext.java
+- [ ] DocumentContextBuilder.java
+- [ ] CompanyInfoResolver.java
 
-## Step 5: Refactor publish workflow
-- [ ] Modify publish endpoint/service to call coordinator first.
-- [ ] If ANY errors => HTTP 400 + same DTO response.
-- [ ] If only warnings => publish proceeds.
+### DTOs (`document/dto/`)
+- [ ] DocumentGenerateRequest.java
+- [ ] DocumentGenerateResponse.java
+- [ ] DocumentPreviewRequest.java
 
-## Step 6: Implement SectionType rules
-- [ ] Update validation rules for GROUP/DETAIL/SUBTOTAL/TOTAL as specified.
-- [ ] Implement specified errors + warnings.
+### Renderer Layer (`document/renderer/`)
+- [ ] DocumentRenderer.java (interface)
+- [ ] ClassicInvoiceRenderer.java
+- [ ] ModernInvoiceRenderer.java
+- [ ] ProfessionalInvoiceRenderer.java
+- [ ] DocumentRendererFactory.java
 
-## Step 7: Wiring and cleanup
-- [ ] Remove/stop using the old exception-driven validation path for publish/validate.
-- [ ] Ensure no duplicated validation logic.
+### Thymeleaf Service (`document/template/`)
+- [ ] ThymeleafDocumentRenderer.java
 
-## Step 8: Build & tests
-- [ ] Run `./gradlew test` and fix any compilation/test failures.
+### PDF Service (`document/pdf/`)
+- [ ] PdfGenerationService.java (interface)
+- [ ] OpenHtmlPdfGenerationService.java
+
+### Generated Document Tracking
+- [ ] GeneratedDocument.java (entity)
+- [ ] GeneratedDocumentRepository.java
+
+### Service Layer (`document/service/`)
+- [ ] DocumentGenerationService.java
+- [ ] InvoiceDocumentService.java
+
+### Controller (`document/controller/`)
+- [ ] DocumentController.java
+
+### Thymeleaf Templates
+- [ ] templates/documents/invoice/classic.html
+- [ ] templates/documents/invoice/modern.html
+- [ ] templates/documents/invoice/professional.html
+
+### CSS Resources
+- [ ] static/css/documents/invoice/common.css
+- [ ] static/css/documents/invoice/classic.css
+- [ ] static/css/documents/invoice/modern.css
+- [ ] static/css/documents/invoice/professional.css
 

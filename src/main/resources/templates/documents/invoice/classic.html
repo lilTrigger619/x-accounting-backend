@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${content.formTitle} ?: 'Invoice'">Invoice</title>
+    <link rel="stylesheet" type="text/css" th:href="@{/css/documents/invoice/common.css}" />
+    <link rel="stylesheet" type="text/css" th:href="@{/css/documents/invoice/classic.css}" />
+    <style th:inline="css">
+        body {
+            font-family: [[${design.fontFamily}]];
+            font-size: [[${design.fontSize}]]px;
+        }
+        .header-bar {
+            background-color: [[${design.primaryColor}]];
+        }
+        .footer-bar {
+            background-color: [[${design.secondaryColor}]];
+        }
+    </style>
+</head>
+<body>
+<div class="invoice-container classic">
+    <!-- Header Bar -->
+    <div class="header-bar"></div>
+
+    <!-- Company & Invoice Header -->
+    <table class="header-table">
+        <tr>
+            <td class="company-section">
+                <div th:if="${company.logoUrl}" class="logo-section"
+                     th:style="${design.logoPosition == 'top-left'} ? 'text-align: left;' :
+                               (${design.logoPosition == 'top-right'} ? 'text-align: right;' : 'text-align: center;')">
+                    <img th:src="${company.logoUrl}"
+                         th:style="'max-width: ' + (${design.logoWidth} ?: 120) + 'px; max-height: ' + (${design.logoHeight} ?: 60) + 'px;'"
+                         alt="Company Logo"/>
+                </div>
+                <h1 class="company-name" th:if="${content.showCompanyName}" th:text="${company.name}">Company Name</h1>
+                <div class="company-details">
+                    <p th:if="${content.showPhone && company.phone}" th:text="'Phone: ' + ${company.phone}">Phone</p>
+                    <p th:if="${content.showEmail && company.email}" th:text="'Email: ' + ${company.email}">Email</p>
+                    <p th:if="${content.showWebsite && company.website}" th:text="'Web: ' + ${company.website}">Website</p>
+                    <p th:if="${content.showAddress && company.fullAddress}" th:text="${company.fullAddress}">Address</p>
+                </div>
+            </td>
+            <td class="invoice-title-section">
+                <h1 class="invoice-title" th:text="${content.formTitle} ?: 'INVOICE'">INVOICE</h1>
+                <table class="invoice-meta">
+                    <tr>
+                        <td class="meta-label">Invoice #:</td>
+                        <td class="meta-value" th:text="${invoice.invoiceNumber}">INV-001</td>
+                    </tr>
+                    <tr th:if="${content.showDueDate}">
+                        <td class="meta-label">Issue Date:</td>
+                        <td class="meta-value" th:text="${#temporals.format(invoice.issueDate, 'MMM dd, yyyy')}">Jan 01, 2024</td>
+                    </tr>
+                    <tr th:if="${content.showDueDate}">
+                        <td class="meta-label">Due Date:</td>
+                        <td class="meta-value" th:text="${#temporals.format(invoice.dueDate, 'MMM dd, yyyy')}">Jan 31, 2024</td>
+                    </tr>
+                    <tr th:if="${invoice.reference}">
+                        <td class="meta-label">Reference:</td>
+                        <td class="meta-value" th:text="${invoice.reference}">REF</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Bill To / Ship To -->
+    <table class="address-table">
+        <tr>
+            <td th:if="${content.showBillingAddress}" class="address-section">
+                <h3>Bill To</h3>
+                <p th:text="${invoice.customer.displayName}">Customer Name</p>
+                <p th:text="${invoice.billingInfo.addressLine1}">Address Line 1</p>
+                <p th:if="${invoice.billingInfo.addressLine2}" th:text="${invoice.billingInfo.addressLine2}">Address Line 2</p>
+                <p th:text="${invoice.billingInfo.city} + ', ' + ${invoice.billingInfo.state} + ' ' + ${invoice.billingInfo.postalCode}">City, State ZIP</p>
+                <p th:text="${invoice.billingInfo.country}">Country</p>
+            </td>
+            <td th:if="${content.showShippingAddress}" class="address-section">
+                <h3>Ship To</h3>
+                <p th:text="${invoice.customer.displayName}">Customer Name</p>
+                <p th:if="${invoice.customer.shippingAddress?.addressLine}" th:text="${invoice.customer.shippingAddress.addressLine}">Shipping Address</p>
+                <p th:if="${invoice.customer.shippingAddress?.city}" th:text="${invoice.customer.shippingAddress.city} + ', ' + (${invoice.customer.shippingAddress.state} ?: '')">Shipping City</p>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Line Items Table -->
+    <table class="items-table">
+        <thead>
+        <tr>
+            <th class="col-description">Description</th>
+            <th class="col-qty">Qty</th>
+            <th class="col-price">Unit Price</th>
+            <th class="col-tax">Tax</th>
+            <th class="col-total">Amount</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${invoice.items}">
+            <td class="col-description" th:text="${item.description}">Item description</td>
+            <td class="col-qty" th:text="${item.quantity}">1</td>
+            <td class="col-price" th:text="${{item.unitPrice}}">0.00</td>
+            <td class="col-tax" th:text="${item.taxRate} + '%'">0%</td>
+            <td class="col-total" th:text="${{item.lineTotal}}">0.00</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!-- Totals -->
+    <table class="totals-table">
+        <tr>
+            <td class="totals-label">Subtotal</td>
+            <td class="totals-value" th:text="${{invoice.subtotal}}">0.00</td>
+        </tr>
+        <tr>
+            <td class="totals-label">Tax Total</td>
+            <td class="totals-value" th:text="${{invoice.totalTax}}">0.00</td>
+        </tr>
+        <tr th:if="${invoice.discountType.name() != 'NONE' && invoice.discountAmount > 0}">
+            <td class="totals-label">Discount</td>
+            <td class="totals-value" th:text="'-' + ${{invoice.discountAmount}}">0.00</td>
+        </tr>
+        <tr class="total-row">
+            <td class="totals-label">Total</td>
+            <td class="totals-value" th:text="${{invoice.totalAmount}}">0.00</td>
+        </tr>
+        <tr th:if="${content.showDueDate}">
+            <td class="totals-label">Amount Due</td>
+            <td class="totals-value due-amount" th:text="${{invoice.totalDue}}">0.00</td>
+        </tr>
+    </table>
+
+    <!-- Payment Method -->
+    <div th:if="${content.showPaymentMethod}" class="payment-section">
+        <h3>Payment Method</h3>
+        <p>Bank Transfer / Check / Online Payment</p>
+    </div>
+
+    <!-- Notes & Terms -->
+    <div th:if="${content.showTerms && invoice.terms}" class="terms-section">
+        <h3>Terms & Conditions</h3>
+        <p th:text="${invoice.terms}">Terms go here.</p>
+    </div>
+
+    <div th:if="${invoice.notes}" class="notes-section">
+        <h3>Notes</h3>
+        <p th:text="${invoice.notes}">Notes go here.</p>
+    </div>
+
+    <!-- Footer Bar -->
+    <div class="footer-bar"></div>
+    <p class="footer-text" th:text="${company.name} + ' | Thank you for your business!'">Footer</p>
+</div>
+</body>
+</html>
+

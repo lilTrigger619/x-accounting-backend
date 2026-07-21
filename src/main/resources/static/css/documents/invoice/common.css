@@ -1,0 +1,203 @@
+/* =============================
+   Document Invoice - Common Styles
+   Shared across all invoice layouts
+   ============================= */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.invoice-container {
+    max-width: 800px;
+    margin: 20px auto;
+    background: #fff;
+    padding: 40px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Company */
+.company-name {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 5px;
+    color: #222;
+}
+
+.company-details p {
+    margin: 2px 0;
+    font-size: 13px;
+    color: #555;
+}
+
+/* Invoice Title */
+.invoice-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+/* Items Table */
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.items-table thead {
+    background-color: #1a73e8;
+    color: #fff;
+}
+
+.items-table th {
+    padding: 10px 8px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.items-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+
+.items-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.col-description {
+    width: 40%;
+}
+
+.col-qty {
+    width: 10%;
+    text-align: center;
+}
+
+.col-price {
+    width: 18%;
+    text-align: right;
+}
+
+.col-tax {
+    width: 12%;
+    text-align: center;
+}
+
+.col-total {
+    width: 18%;
+    text-align: right;
+    font-weight: 600;
+}
+
+/* Totals */
+.totals-table {
+    width: 100%;
+    max-width: 350px;
+    margin-left: auto;
+    border-collapse: collapse;
+}
+
+.totals-table td {
+    padding: 6px 10px;
+    font-size: 14px;
+}
+
+.totals-label {
+    text-align: left;
+    font-weight: 500;
+    color: #555;
+}
+
+.totals-value {
+    text-align: right;
+    font-weight: 600;
+}
+
+.total-row td {
+    font-size: 16px;
+    font-weight: 700;
+    padding-top: 10px;
+    border-top: 2px solid #333;
+}
+
+.due-row td {
+    font-size: 16px;
+    font-weight: 700;
+    color: #d93025;
+}
+
+.due-amount {
+    color: #d93025;
+    font-weight: 700;
+}
+
+/* Sections */
+.section-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.terms-section,
+.notes-section {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.terms-section p,
+.notes-section p {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.5;
+}
+
+.payment-section {
+    margin-top: 20px;
+}
+
+.payment-section p {
+    font-size: 13px;
+    color: #555;
+}
+
+/* Footer */
+.footer-text {
+    text-align: center;
+    font-size: 12px;
+    color: #999;
+    margin-top: 20px;
+    padding-top: 10px;
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background: #fff;
+    }
+
+    .invoice-container {
+        box-shadow: none;
+        margin: 0;
+        padding: 20px;
+        max-width: 100%;
+    }
+}
+

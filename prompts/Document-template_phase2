@@ -1,0 +1,826 @@
+Great. This prompt continues from **Phase 1 (Document Template Management)**. Give this to your coding agent after confirming the existing module structure.
+
+The important thing is that the agent understands: **we are not building an invoice PDF generator; we are building a reusable Thymeleaf-based document rendering engine.**
+
+---
+
+# AI Prompt — Phase 2: Thymeleaf Document Rendering Engine + OpenHTMLToPDF Integration
+
+We have completed Phase 1 of the Document Template module.
+
+The system now supports:
+
+* DocumentTemplate
+* DocumentTemplateDesign
+* DocumentTemplateContent
+* DocumentTemplateEmail
+* DocumentType
+* DocumentLayout
+* Template CRUD
+* Template configuration
+
+Now implement Phase 2:
+
+# Build a reusable Document Rendering Engine
+
+The purpose of this phase is to generate professional documents from templates.
+
+The first supported document is:
+
+```
+INVOICE
+```
+
+Future documents:
+
+```
+QUOTE
+
+PURCHASE_ORDER
+
+CREDIT_NOTE
+
+RECEIPT
+
+DELIVERY_NOTE
+```
+
+The implementation must be generic and must not tightly couple the rendering engine to invoices.
+
+---
+
+# Technology Requirements
+
+Use:
+
+## HTML Rendering
+
+```
+Thymeleaf
+```
+
+## PDF Generation
+
+```
+OpenHTMLToPDF
+```
+
+The flow should be:
+
+```
+Business Entity
+
+↓
+
+Document Context
+
+↓
+
+Thymeleaf Template
+
+↓
+
+HTML
+
+↓
+
+OpenHTMLToPDF
+
+↓
+
+PDF byte[]
+
+↓
+
+File Upload Module
+```
+
+---
+
+# Architecture
+
+Implement the following layers:
+
+```
+document
+
+    context
+
+    renderer
+
+    template
+
+    variable
+
+    pdf
+
+    service
+
+    factory
+
+    dto
+
+    exception
+```
+
+---
+
+# 1. Document Context
+
+Create a generic context object.
+
+Class:
+
+```
+DocumentContext
+```
+
+It should contain everything required by Thymeleaf.
+
+Fields:
+
+```
+Object document
+
+DocumentTemplate template
+
+DocumentTemplateDesign design
+
+DocumentTemplateContent content
+
+CompanyInformation company
+
+Map<String,Object> variables
+```
+
+The renderer should never query repositories.
+
+Everything required should already exist inside this context.
+
+---
+
+# 2. Document Context Builder
+
+Create:
+
+```
+DocumentContextBuilder
+```
+
+Responsibility:
+
+Build the rendering context.
+
+Example:
+
+For invoice generation:
+
+```
+Invoice
+
++
+
+Template
+
++
+
+Design
+
++
+
+Content
+
++
+
+Company Settings
+
+↓
+
+DocumentContext
+```
+
+Do not put business logic inside the renderer.
+
+---
+
+# 3. Document Renderer Interface
+
+Create:
+
+```java
+public interface DocumentRenderer {
+
+    String getTemplatePath();
+
+}
+```
+
+The renderer is responsible only for selecting the Thymeleaf template.
+
+It must NOT generate HTML manually.
+
+---
+
+# 4. Invoice Renderers
+
+Implement:
+
+```
+ClassicInvoiceRenderer
+
+ModernInvoiceRenderer
+
+ProfessionalInvoiceRenderer
+```
+
+Example:
+
+```java
+@Component
+public class ClassicInvoiceRenderer implements DocumentRenderer {
+
+    @Override
+    public String getTemplatePath() {
+        return "documents/invoice/classic";
+    }
+}
+```
+
+---
+
+# 5. Renderer Factory
+
+Do not use if/else statements.
+
+Implement a registry/factory.
+
+Example:
+
+```
+DocumentRendererFactory
+```
+
+Input:
+
+```
+DocumentLayout
+```
+
+Output:
+
+```
+DocumentRenderer
+```
+
+Example:
+
+```
+CLASSIC
+
+↓
+
+ClassicInvoiceRenderer
+```
+
+```
+MODERN
+
+↓
+
+ModernInvoiceRenderer
+```
+
+---
+
+# 6. Thymeleaf Rendering Service
+
+Create:
+
+```
+ThymeleafDocumentRenderer
+```
+
+Responsibilities:
+
+Receive:
+
+```
+DocumentRenderer
+
++
+
+DocumentContext
+```
+
+Then:
+
+1. Load template path.
+2. Populate Thymeleaf Context.
+3. Process template.
+4. Return generated HTML.
+
+Example variables available in templates:
+
+```
+invoice
+
+company
+
+design
+
+content
+
+variables
+```
+
+---
+
+# 7. Template Files
+
+Create:
+
+```
+src/main/resources/templates/documents/invoice/
+```
+
+with:
+
+```
+classic.html
+
+modern.html
+
+professional.html
+```
+
+These should represent the three invoice layouts.
+
+Use Thymeleaf syntax.
+
+Example:
+
+```html
+<h1 th:text="${company.name}">
+</h1>
+```
+
+---
+
+# 8. Template Rules
+
+The templates must support:
+
+## Company Information
+
+Dynamic:
+
+```
+Company Name
+
+Logo
+
+Phone
+
+Email
+
+Website
+
+Address
+```
+
+---
+
+## Invoice Information
+
+Dynamic:
+
+```
+Invoice Number
+
+Issue Date
+
+Due Date
+
+Customer
+
+Billing Address
+
+Shipping Address
+
+Payment Terms
+
+Notes
+```
+
+---
+
+## Invoice Items
+
+Use Thymeleaf iteration:
+
+Example:
+
+```html
+<tr th:each="item : ${invoice.items}">
+```
+
+Display:
+
+```
+Description
+
+Quantity
+
+Unit Price
+
+Tax
+
+Amount
+```
+
+---
+
+## Conditional Sections
+
+Respect DocumentTemplateContent settings.
+
+Example:
+
+Due date:
+
+```html
+<div th:if="${content.showDueDate}">
+```
+
+Payment method:
+
+```html
+<div th:if="${content.showPaymentMethod}">
+```
+
+Terms:
+
+```html
+<div th:if="${content.showTerms}">
+```
+
+---
+
+# 9. Styling
+
+Create:
+
+```
+resources/static/css/documents/invoice/
+```
+
+Files:
+
+```
+common.css
+
+classic.css
+
+modern.css
+
+professional.css
+```
+
+Support:
+
+From DocumentTemplateDesign:
+
+```
+primaryColor
+
+secondaryColor
+
+fontFamily
+
+fontSize
+
+logoPosition
+
+logoSize
+```
+
+---
+
+# 10. PDF Generation Service
+
+Create:
+
+Interface:
+
+```
+PdfGenerationService
+```
+
+Implementation:
+
+```
+OpenHtmlPdfGenerationService
+```
+
+Responsibilities:
+
+Input:
+
+```
+HTML String
+```
+
+Output:
+
+```
+byte[]
+```
+
+Use OpenHTMLToPDF.
+
+Do not mix PDF logic with Thymeleaf logic.
+
+---
+
+# 11. Generated Document Tracking
+
+Create entity:
+
+```
+GeneratedDocument
+```
+
+Purpose:
+
+Track generated files.
+
+Fields:
+
+```
+id
+
+documentType
+
+entityType
+
+entityId
+
+templateId
+
+templateVersion
+
+fileId
+
+generatedAt
+
+generatedBy
+```
+
+Remember:
+
+The File Upload module already exists.
+
+Do NOT create file storage logic.
+
+Only store:
+
+```
+fileId
+```
+
+---
+
+# 12. Document Generation Service
+
+Create:
+
+```
+DocumentGenerationService
+```
+
+Responsibilities:
+
+Coordinate the whole process.
+
+Flow:
+
+```
+Receive document request
+
+↓
+
+Load entity
+
+↓
+
+Resolve template
+
+↓
+
+Build DocumentContext
+
+↓
+
+Resolve renderer
+
+↓
+
+Generate HTML
+
+↓
+
+Generate PDF
+
+↓
+
+Store PDF using File Module
+
+↓
+
+Save GeneratedDocument
+
+↓
+
+Return result
+```
+
+---
+
+# 13. Invoice Integration
+
+Implement:
+
+```
+InvoiceDocumentService
+```
+
+This is the bridge between Invoice module and Document module.
+
+Responsibilities:
+
+```
+generateInvoicePdf(invoiceId)
+```
+
+It should:
+
+* load invoice
+* select invoice template
+* create context
+* generate PDF
+
+The Document module should not know InvoiceRepository exists.
+
+---
+
+# 14. Preview API
+
+Implement:
+
+```
+POST
+
+/api/document-templates/{id}/preview
+```
+
+Request:
+
+```json
+{
+ "documentType":"INVOICE",
+ "entityId":15
+}
+```
+
+Response:
+
+Return PDF directly.
+
+Important:
+
+Preview must NOT:
+
+* save GeneratedDocument
+* save File
+* modify invoice
+* modify template
+
+---
+
+# 15. Generate API
+
+Implement:
+
+```
+POST
+
+/api/documents/generate
+```
+
+Request:
+
+```json
+{
+ "documentType":"INVOICE",
+ "entityId":15
+}
+```
+
+Response:
+
+```json
+{
+ "fileId":123,
+ "documentType":"INVOICE",
+ "generatedAt":"..."
+}
+```
+
+---
+
+# 16. Dependencies
+
+Add required dependencies:
+
+Thymeleaf Spring Boot starter.
+
+OpenHTMLToPDF.
+
+Ensure configuration works with Spring Boot.
+
+---
+
+# 17. Important Design Rules
+
+Follow these rules:
+
+* No HTML strings inside Java.
+* No PDF logic inside Invoice module.
+* No repository calls inside Thymeleaf renderer.
+* No Invoice-specific logic inside generic DocumentGenerationService.
+* Use Strategy Pattern for layouts.
+* Use Factory/Registry for renderer selection.
+* Use DTOs for APIs.
+* Use services for business logic.
+* Keep modules loosely coupled.
+
+---
+
+# Future Compatibility
+
+Prepare the architecture for future additions:
+
+## Email Phase
+
+Later:
+
+```
+Generated PDF
+
+↓
+
+Email Template
+
+↓
+
+Mail Service
+```
+
+## Versioning Phase
+
+Later:
+
+```
+Invoice Template Version 1
+
+Invoice Template Version 2
+```
+
+Old invoices must always regenerate using their original template version.
+
+---
+
+# Deliverables
+
+Generate:
+
+* DocumentContext
+* DocumentContextBuilder
+* DocumentRenderer interface
+* Renderer implementations
+* Renderer Factory
+* Thymeleaf rendering service
+* Thymeleaf templates
+* CSS structure
+* PDF generation service using OpenHTMLToPDF
+* GeneratedDocument entity
+* InvoiceDocumentService
+* Preview API
+* Generate API
+* Tests for rendering flow
+
+Do not implement email sending yet.
+
+---
+
+This phase completes the **document generation foundation**. The next phase after this will be **Invoice Email Delivery + Reminder Engine**, where the Standard Email and Reminder Email configurations from Phase 1 become active.

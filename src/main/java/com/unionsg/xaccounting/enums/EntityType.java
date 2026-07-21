@@ -8,5 +8,6 @@ public enum EntityType {
     EXPENSE,
     PRODUCT,
     COMPANY,
-    USER
+    USER,
+    GENERATED_DOCUMENT
 }

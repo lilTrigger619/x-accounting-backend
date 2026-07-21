@@ -1,0 +1,87 @@
+/* =============================
+   Classic Invoice Layout
+   Traditional header-bar + table layout
+   ============================= */
+
+.header-bar {
+    height: 6px;
+    margin-bottom: 25px;
+    border-radius: 3px;
+}
+
+.footer-bar {
+    height: 4px;
+    margin-top: 20px;
+    border-radius: 2px;
+}
+
+.header-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.company-section {
+    width: 50%;
+    vertical-align: top;
+}
+
+.invoice-title-section {
+    width: 50%;
+    vertical-align: top;
+    text-align: right;
+}
+
+.invoice-meta {
+    margin-left: auto;
+    border-collapse: collapse;
+}
+
+.invoice-meta td {
+    padding: 3px 5px;
+    font-size: 13px;
+}
+
+.meta-label {
+    font-weight: 600;
+    color: #555;
+    text-align: right;
+}
+
+.meta-value {
+    text-align: right;
+    color: #333;
+}
+
+.address-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.address-section {
+    width: 50%;
+    vertical-align: top;
+    padding: 10px;
+    background: #f8f8f8;
+    border-radius: 4px;
+}
+
+.address-section h3 {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    color: #555;
+}
+
+.address-section p {
+    font-size: 13px;
+    color: #333;
+    margin: 2px 0;
+}
+
+.logo-section {
+    margin-bottom: 10px;
+}
+

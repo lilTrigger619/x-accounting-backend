@@ -18,6 +18,10 @@ repositories {
 	mavenCentral()
 }
 
+ext {
+    openhtmlVersion = '1.0.10'
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter'
 
@@ -58,6 +62,19 @@ dependencies {
     //MapStruct
     implementation 'org.mapstruct:mapstruct:1.5.5.Final'
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+
+    //thymeleafe
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+    //openhtmltopdf
+    implementation "com.openhtmltopdf:openhtmltopdf-core:$openhtmlVersion"
+    implementation "com.openhtmltopdf:openhtmltopdf-pdfbox:$openhtmlVersion"
+    // Optional: for Java2D image support
+    implementation "com.openhtmltopdf:openhtmltopdf-java2d:$openhtmlVersion"
+    //spring mail service
+        implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+
 }
 
 

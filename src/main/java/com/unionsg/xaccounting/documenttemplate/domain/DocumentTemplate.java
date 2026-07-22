@@ -15,7 +15,8 @@ import java.util.List;
 
 @Entity
 @Table(name = "document_templates", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"name", "document_type"})
+        @UniqueConstraint(columnNames = {"name", "document_type"}),
+        @UniqueConstraint(columnNames = {"template_code"})
 })
 @Getter
 @Setter
@@ -23,8 +24,14 @@ import java.util.List;
 @AllArgsConstructor
 public class DocumentTemplate extends BaseEntity {
 
+    @Column(name = "template_code", nullable = false, unique = true, length = 50)
+    private String templateCode;
+
     @Column(nullable = false, length = 200)
     private String name;
+
+    @Column(length = 500)
+    private String description;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -33,6 +40,9 @@ public class DocumentTemplate extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private DocumentLayout layout;
+
+    @Column(name = "is_system", nullable = false)
+    private boolean isSystem;
 
     @Column(name = "is_default", nullable = false)
     private boolean isDefault;

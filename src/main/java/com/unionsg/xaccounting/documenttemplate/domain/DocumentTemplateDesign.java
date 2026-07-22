@@ -38,10 +38,16 @@ public class DocumentTemplateDesign {
     @Column(name = "secondary_color", length = 20)
     private String secondaryColor;
 
+    @Column(name = "accent_color", length = 20)
+    private String accentColor;
+
     @Column(name = "font_family", length = 100)
     private String fontFamily;
 
     @Column(name = "font_size")
     private Integer fontSize;
+
+    @Column(name = "logo_size", length = 10)
+    private String logoSize;
 }
 

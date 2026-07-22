@@ -18,6 +18,8 @@ public interface DocumentTemplateRepository extends JpaRepository<DocumentTempla
 
     Optional<DocumentTemplate> findByDocumentTypeAndIsDefaultTrue(DocumentType documentType);
 
+    boolean existsByTemplateCode(String templateCode);
+
     boolean existsByNameAndDocumentType(String name, DocumentType documentType);
 
     List<DocumentTemplate> findByDocumentType(DocumentType documentType);

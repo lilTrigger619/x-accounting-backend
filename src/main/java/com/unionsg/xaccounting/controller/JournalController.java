@@ -6,11 +6,11 @@ import com.unionsg.xaccounting.dto.journal.ReverseJournalRequest;
 import com.unionsg.xaccounting.dto.journal.UpdateJournalRequest;
 import com.unionsg.xaccounting.service.journal.JournalService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-        import java.util.List;
 
 @RestController
 @RequestMapping("/api/journals")
@@ -94,10 +94,12 @@ public class JournalController {
     // =====================================================
 
     @GetMapping
-    public ResponseEntity<List<JournalResponse>> getAll() {
+    public ResponseEntity<Page<JournalResponse>> getAll(
+            Pageable pageable
+    ) {
 
-        List<JournalResponse> response =
-                journalService.getAll();
+        Page<JournalResponse> response =
+                journalService.getAll(pageable);
 
         return ResponseEntity.ok(response);
     }

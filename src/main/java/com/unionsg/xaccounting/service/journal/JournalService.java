@@ -1,11 +1,11 @@
 package com.unionsg.xaccounting.service.journal;
 
-
 import com.unionsg.xaccounting.dto.journal.CreateJournalRequest;
 import com.unionsg.xaccounting.dto.journal.JournalResponse;
 import com.unionsg.xaccounting.dto.journal.UpdateJournalRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 public interface JournalService {
     JournalResponse create(CreateJournalRequest request);
 
@@ -15,7 +15,7 @@ public interface JournalService {
 
     JournalResponse getByJournalNumber(String journalNumber);
 
-    List<JournalResponse> getAll();
+    Page<JournalResponse> getAll(Pageable pageable);
 
     void deleteDraft(Long id);
 

@@ -16,6 +16,8 @@ import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -117,12 +119,10 @@ public class JournalServiceImpl implements JournalService {
         return journalMapper.toResponse(journal);
     }
 
-    @Override
-    public List<JournalResponse> getAll() {
-        return journalRepository.findAll()
-                .stream()
-                .map(journalMapper::toResponse)
-                .toList();
+@Override
+    public Page<JournalResponse> getAll(Pageable pageable) {
+        return journalRepository.findAll(pageable)
+                .map(journalMapper::toResponse);
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.documenttemplate.service;
 
 import com.unionsg.xaccounting.documenttemplate.dto.request.*;
 import com.unionsg.xaccounting.documenttemplate.dto.response.DocumentTemplateResponse;
+import com.unionsg.xaccounting.documenttemplate.enums.DocumentType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -11,7 +12,7 @@ public interface DocumentTemplateService {
 
     DocumentTemplateResponse getTemplate(Long id);
 
-    Page<DocumentTemplateResponse> listTemplates(Pageable pageable);
+    Page<DocumentTemplateResponse> listTemplates(DocumentType type, Pageable pageable);
 
     DocumentTemplateResponse updateTemplate(Long id, UpdateDocumentTemplateRequest request);
 

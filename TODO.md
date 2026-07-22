@@ -1,58 +1,75 @@
-# Document Template Module - Phase 2 Progress
+# Document Template Module - Progress
 
-## ✅ Phase 1 Complete
+## ✅ Phase 1: Document Template CRUD Module
 - Enums, Entities, Repositories, DTOs, Mapper, Service, Exception, Controller
 
-## 🚧 Phase 2: Thymeleaf Document Rendering Engine + OpenHTMLToPDF
+## ✅ Phase 2: Thymeleaf Document Rendering + OpenHTMLToPDF
+- Context layer, renderers, PDF service, Thymeleaf templates, CSS, controllers
 
-### Dependencies & Config
-- [ ] Update build.gradle (Thymeleaf, OpenHTMLToPDF)
-- [ ] Add GENERATED_DOCUMENT to EntityType enum
+## ✅ Phase 3: Communication Module + Invoice Email Delivery
 
-### Context Layer (`document/context/`)
-- [ ] CompanyInfo.java
-- [ ] DocumentContext.java
-- [ ] DocumentContextBuilder.java
-- [ ] CompanyInfoResolver.java
+### Config
+- [x] AsyncConfig.java — @EnableAsync with emailTaskExecutor
+- [x] EncryptionService.java — AES encryption for SMTP passwords
 
-### DTOs (`document/dto/`)
-- [ ] DocumentGenerateRequest.java
-- [ ] DocumentGenerateResponse.java
-- [ ] DocumentPreviewRequest.java
+### Enums
+- [x] EmailProvider.java — SMTP, SENDGRID, AWS_SES, MAILGUN
+- [x] EmailStatus.java — PENDING, SENDING, SENT, FAILED
 
-### Renderer Layer (`document/renderer/`)
-- [ ] DocumentRenderer.java (interface)
-- [ ] ClassicInvoiceRenderer.java
-- [ ] ModernInvoiceRenderer.java
-- [ ] ProfessionalInvoiceRenderer.java
-- [ ] DocumentRendererFactory.java
+### Entities
+- [x] MailConfiguration.java — SMTP settings (host, port, username, encrypted password, from, TLS)
+- [x] EmailLog.java — tracks every outgoing email (entityType, entityId, recipient, status)
+- [x] EmailAttachment.java — links fileId to emailLog
 
-### Thymeleaf Service (`document/template/`)
-- [ ] ThymeleafDocumentRenderer.java
+### Repositories
+- [x] MailConfigurationRepository.java — findByActiveTrue()
+- [x] EmailLogRepository.java — pagination + filtering by entityType/status
+- [x] EmailAttachmentRepository.java — findByEmailLogId
 
-### PDF Service (`document/pdf/`)
-- [ ] PdfGenerationService.java (interface)
-- [ ] OpenHtmlPdfGenerationService.java
+### DTOs
+- [x] MailConfigurationRequest.java / MailConfigurationResponse.java
+- [x] EmailLogResponse.java
+- [x] EmailMessageRequest.java
+- [x] EmailSendResult.java
 
-### Generated Document Tracking
-- [ ] GeneratedDocument.java (entity)
-- [ ] GeneratedDocumentRepository.java
+### Mapper
+- [x] CommunicationMapper.java — static methods for entity↔DTO
 
-### Service Layer (`document/service/`)
-- [ ] DocumentGenerationService.java
-- [ ] InvoiceDocumentService.java
+### Mail Service
+- [x] MailService.java interface — send(EmailMessage) → EmailSendResult
+- [x] SmtpMailService.java — Spring Mail implementation with file attachments
+- [x] EmailMessage.java — internal DTO (to, subject, body, html, attachmentFileIds)
 
-### Controller (`document/controller/`)
-- [ ] DocumentController.java
+### Email Template
+- [x] EmailTemplateRenderer.java — Thymeleaf rendering + subject/salutation resolution
+- [x] EmailVariableResolver.java — variable replacement for {{invoiceNumber}}, {{customerName}}, {{total}}, etc.
 
-### Thymeleaf Templates
-- [ ] templates/documents/invoice/classic.html
-- [ ] templates/documents/invoice/modern.html
-- [ ] templates/documents/invoice/professional.html
+### Events (Invoice Integration)
+- [x] InvoiceEmailRequestedEvent.java — invoiceId, customerEmail, fileId
+- [x] InvoiceEmailRequestedEventListener.java — @Async listener: render → send → log
 
-### CSS Resources
-- [ ] static/css/documents/invoice/common.css
-- [ ] static/css/documents/invoice/classic.css
-- [ ] static/css/documents/invoice/modern.css
-- [ ] static/css/documents/invoice/professional.css
+### Services
+- [x] MailConfigurationService.java — CRUD for SMTP configs
+- [x] EmailLogService.java — create log, markSent, markFailed, addAttachment
+- [x] InvoiceEmailService.java — validates DRAFT, generates PDF, sets SENT, publishes event
+
+### Controllers
+- [x] MailConfigurationController.java — CRUD at /api/mail-configurations
+- [x] EmailLogController.java — list with pagination/filtering at /api/email-logs
+- [x] InvoiceController.send() — updated to use InvoiceEmailService
+
+### Email Templates
+- [x] templates/email/invoice-standard.html — professional HTML invoice email
+- [x] templates/email/invoice-reminder.html — payment reminder HTML email
+
+## Architecture Rules Followed
+- ✅ Invoice module does NOT know JavaMailSender exists
+- ✅ Communication module does NOT know Invoice entity internals
+- ✅ Events used between modules (InvoiceEmailRequestedEvent)
+- ✅ Thymeleaf used for email templates
+- ✅ Spring Mail for SMTP delivery
+- ✅ EmailLog for audit trail
+- ✅ File Service for attachments
+- ✅ Async email sending (doesn't block HTTP request)
+- ✅ AES encryption for SMTP passwords
 

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Reminder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .email-header {
+            background: #d93025;
+            color: #ffffff;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        .email-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .email-body {
+            padding: 30px 40px;
+            color: #333333;
+        }
+        .email-body p {
+            line-height: 1.6;
+            margin: 0 0 15px 0;
+            font-size: 14px;
+        }
+        .greeting {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .invoice-details {
+            background: #fff5f5;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #fcc;
+        }
+        .invoice-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .invoice-details td {
+            padding: 6px 0;
+            font-size: 14px;
+        }
+        .invoice-details .label {
+            font-weight: 600;
+            color: #555555;
+        }
+        .invoice-details .value {
+            text-align: right;
+            font-weight: 600;
+        }
+        .total-amount {
+            font-size: 18px;
+            font-weight: 700;
+            color: #d93025;
+        }
+        .due-date {
+            color: #d93025;
+            font-weight: 700;
+        }
+        .email-footer {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+        }
+        .email-footer p {
+            margin: 5px 0;
+            font-size: 12px;
+            color: #888888;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 24px;
+            background: #d93025;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <div class="email-header">
+        <h1>Payment Reminder</h1>
+    </div>
+    <div class="email-body">
+        <p class="greeting" th:if="${salutation}" th:text="${salutation}">Dear Customer,</p>
+        <p class="greeting" th:unless="${salutation}">Dear Customer,</p>
+
+        <p>This is a friendly reminder that the following invoice is due for payment.</p>
+
+        <div class="invoice-details">
+            <table>
+                <tr>
+                    <td class="label">Invoice Number</td>
+                    <td class="value" th:text="${invoiceNumber}">INV-001</td>
+                </tr>
+                <tr>
+                    <td class="label">Invoice Date</td>
+                    <td class="value" th:text="${invoiceDate}">Jan 01, 2026</td>
+                </tr>
+                <tr>
+                    <td class="label">Due Date</td>
+                    <td class="value due-date" th:text="${dueDate}">Jan 31, 2026</td>
+                </tr>
+                <tr>
+                    <td class="label">Amount Due</td>
+                    <td class="value total-amount" th:text="${balanceDue ?: total}">$1,000.00</td>
+                </tr>
+            </table>
+        </div>
+
+        <p>Please arrange payment at your earliest convenience to avoid any late fees.</p>
+        <p>If you have already made the payment, please disregard this reminder.</p>
+    </div>
+    <div class="email-footer">
+        <p th:text="${companyName}">Your Company</p>
+        <p>Thank you for your prompt attention to this matter.</p>
+    </div>
+</div>
+</body>
+</html>
+

@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.documenttemplate.controller;
 
 import com.unionsg.xaccounting.documenttemplate.dto.request.*;
 import com.unionsg.xaccounting.documenttemplate.dto.response.DocumentTemplateResponse;
+import com.unionsg.xaccounting.documenttemplate.enums.DocumentType;
 import com.unionsg.xaccounting.documenttemplate.service.DocumentTemplateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,9 +48,10 @@ public class DocumentTemplateController {
 
     @GetMapping
     public ResponseEntity<Page<DocumentTemplateResponse>> listTemplates(
+            @RequestParam(name = "type", required = false) DocumentType type,
             Pageable pageable
     ) {
-        return ResponseEntity.ok(documentTemplateService.listTemplates(pageable));
+        return ResponseEntity.ok(documentTemplateService.listTemplates(type, pageable));
     }
 
     // =============================

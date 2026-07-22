@@ -1,0 +1,889 @@
+Excellent. This is **Phase 3: Communication Module + Invoice Email Delivery**.
+
+This phase assumes:
+
+✅ Invoice module exists
+✅ Document Template module exists
+✅ Thymeleaf rendering exists
+✅ OpenHTMLToPDF generation exists
+✅ File Upload module exists
+
+Now we connect everything together.
+
+The goal is **not just "send an email"**. We are building an enterprise communication layer that will later support:
+
+* Invoice emails
+* Payment reminders
+* Statements
+* Receipts
+* Notifications
+* SMS (future)
+
+---
+
+# AI Prompt — Phase 3: Communication Module + Invoice Email Delivery
+
+We are building an enterprise accounting system using Java Spring Boot.
+
+The Document Rendering Engine is complete.
+
+Now implement a reusable **Communication Module** responsible for sending emails, tracking delivery, managing email configuration, and integrating with Invoice workflows.
+
+Do NOT put email logic inside the Invoice module.
+
+---
+
+# Architecture
+
+The final flow should be:
+
+```
+Invoice Module
+
+      |
+      |
+      | send invoice request
+      |
+      ▼
+
+InvoiceEmailService
+
+      |
+      |
+      ▼
+
+DocumentGenerationService
+
+      |
+      |
+      ▼
+
+Generated Invoice PDF
+
+      |
+      |
+      ▼
+
+Communication Module
+
+      |
+      |
+      ▼
+
+MailService
+
+      |
+      |
+      ▼
+
+SMTP Provider
+```
+
+---
+
+# Technology Requirements
+
+Use:
+
+## Email Sending
+
+Spring Mail:
+
+```xml
+spring-boot-starter-mail
+```
+
+Uses:
+
+```
+Spring Mail
+      |
+      |
+Jakarta Mail
+      |
+      |
+SMTP
+```
+
+---
+
+## Email Templates
+
+Use:
+
+```
+Thymeleaf
+```
+
+for HTML email templates.
+
+---
+
+## Async Sending
+
+Email sending should not block the HTTP request.
+
+Use:
+
+```
+Spring Events
++
+@Async
+```
+
+Do not introduce RabbitMQ/Kafka yet.
+
+Keep the architecture ready for future migration.
+
+---
+
+# Module Structure
+
+Create:
+
+```
+communication
+
+    controller
+
+    service
+
+    repository
+
+    domain
+
+    dto
+
+    mapper
+
+    email
+
+        MailService
+
+        SmtpMailService
+
+    template
+
+    event
+
+    exception
+```
+
+---
+
+# Entities
+
+## 1. MailConfiguration
+
+Purpose:
+
+Store SMTP configuration per business/company.
+
+Fields:
+
+```
+id
+
+companyId
+
+provider
+
+smtpHost
+
+smtpPort
+
+username
+
+encryptedPassword
+
+fromEmail
+
+fromName
+
+useTls
+
+active
+
+createdAt
+
+updatedAt
+```
+
+---
+
+Provider enum:
+
+```
+SMTP
+
+SENDGRID
+
+AWS_SES
+
+MAILGUN
+```
+
+Do not hardcode providers in services.
+
+---
+
+# 2. EmailLog
+
+Every outgoing email must be recorded.
+
+Fields:
+
+```
+id
+
+companyId
+
+entityType
+
+entityId
+
+recipient
+
+subject
+
+status
+
+providerMessageId
+
+sentAt
+
+failedReason
+
+createdAt
+```
+
+---
+
+Status:
+
+```
+PENDING
+
+SENDING
+
+SENT
+
+FAILED
+```
+
+---
+
+Example:
+
+```
+entityType:
+
+INVOICE
+
+
+entityId:
+
+100
+
+
+recipient:
+
+customer@gmail.com
+
+
+status:
+
+SENT
+```
+
+---
+
+# 3. EmailAttachment
+
+Do NOT create a database relationship with the File module.
+
+The File module already exists.
+
+Only store:
+
+```
+id
+
+emailLogId
+
+fileId
+```
+
+Example:
+
+```
+fileId = 500
+
+Invoice_INV001.pdf
+```
+
+---
+
+# DTOs
+
+Create:
+
+```
+EmailMessageRequest
+
+EmailResponse
+
+MailConfigurationRequest
+
+MailConfigurationResponse
+
+EmailLogResponse
+```
+
+---
+
+# Mail Service Abstraction
+
+Create interface:
+
+```java
+public interface MailService {
+
+    EmailSendResult send(EmailMessage message);
+
+}
+```
+
+---
+
+Implementation:
+
+```
+SmtpMailService
+```
+
+Uses:
+
+```java
+JavaMailSender
+```
+
+---
+
+# EmailMessage
+
+Create internal DTO:
+
+```
+EmailMessage
+
+to
+
+subject
+
+body
+
+html
+
+attachmentIds
+```
+
+Important:
+
+Attachments are file IDs.
+
+The MailService should retrieve file content from the File module.
+
+---
+
+# Email Template Rendering
+
+Create:
+
+```
+EmailTemplateRenderer
+```
+
+using Thymeleaf.
+
+Responsibilities:
+
+Input:
+
+```
+Email Template
+
++
+Variables
+```
+
+Output:
+
+```
+HTML Email Body
+```
+
+---
+
+Templates:
+
+```
+resources/templates/email/
+
+
+invoice-standard.html
+
+invoice-reminder.html
+```
+
+---
+
+# Variable Replacement
+
+Implement:
+
+```
+EmailVariableResolver
+```
+
+Supported variables:
+
+```
+{{invoiceNumber}}
+
+{{invoiceDate}}
+
+{{dueDate}}
+
+{{customerName}}
+
+{{customerFirstName}}
+
+{{customerLastName}}
+
+{{companyName}}
+
+{{total}}
+
+{{balanceDue}}
+
+{{paymentTerms}}
+```
+
+Example:
+
+Subject:
+
+```
+Invoice {{invoiceNumber}}
+```
+
+becomes:
+
+```
+Invoice INV-2026-001
+```
+
+---
+
+# Invoice Email Service
+
+Create this in the Invoice module:
+
+```
+InvoiceEmailService
+```
+
+Responsibilities:
+
+It coordinates invoice sending.
+
+It should NOT send emails directly.
+
+---
+
+Method:
+
+```java
+sendInvoice(Long invoiceId)
+```
+
+Flow:
+
+```
+Load Invoice
+
+↓
+
+Validate invoice
+
+↓
+
+Ensure invoice can be sent
+
+(status must be DRAFT)
+
+↓
+
+Generate PDF
+
+↓
+
+Create EmailMessage
+
+↓
+
+Publish Email Event
+
+↓
+
+Return response
+```
+
+---
+
+# Email Event
+
+Create:
+
+```
+InvoiceEmailRequestedEvent
+```
+
+Contains:
+
+```
+invoiceId
+
+customerEmail
+
+fileId
+
+templateId
+```
+
+---
+
+The listener handles:
+
+```
+InvoiceEmailRequestedEventListener
+```
+
+Flow:
+
+```
+Receive Event
+
+↓
+
+Load Email Template
+
+↓
+
+Resolve Variables
+
+↓
+
+Generate HTML Email
+
+↓
+
+Attach PDF
+
+↓
+
+Send Email
+
+↓
+
+Create EmailLog
+
+↓
+
+Update Status
+```
+
+---
+
+# Invoice Status Handling
+
+Sending email should transition:
+
+```
+DRAFT
+
+    |
+    |
+    send invoice
+
+    ▼
+
+SENT
+```
+
+But:
+
+Email delivery status is separate.
+
+Example:
+
+```
+Invoice:
+
+SENT
+
+
+Email:
+
+FAILED
+```
+
+The invoice was still issued.
+
+---
+
+# REST Endpoints
+
+## Send Invoice
+
+```
+POST
+
+/api/invoices/{invoiceId}/send
+```
+
+Response:
+
+```json
+{
+ "message":"Invoice queued for delivery",
+ "invoiceId":100
+}
+```
+
+Do not wait for SMTP.
+
+---
+
+# Mail Configuration APIs
+
+Create:
+
+```
+GET
+
+/api/mail-configurations
+```
+
+```
+POST
+
+/api/mail-configurations
+```
+
+```
+PUT
+
+/api/mail-configurations/{id}
+```
+
+```
+DELETE
+
+/api/mail-configurations/{id}
+```
+
+---
+
+# Email Logs APIs
+
+Create:
+
+```
+GET
+
+/api/email-logs
+```
+
+Support:
+
+* pagination
+* filtering by entityType
+* filtering by status
+
+Example:
+
+```
+GET /api/email-logs?entityType=INVOICE
+```
+
+---
+
+# Security Requirements
+
+Passwords must never be stored plain text.
+
+Implement:
+
+```
+Password encryption service
+```
+
+using:
+
+```
+AES encryption
+```
+
+---
+
+# Error Handling
+
+Examples:
+
+SMTP failure:
+
+```
+EmailLog.status = FAILED
+
+failedReason = error message
+```
+
+Do not throw errors back to the user after async processing.
+
+---
+
+# Future Reminder Support
+
+Prepare the design for:
+
+```
+InvoiceReminderService
+```
+
+which will later:
+
+* find overdue invoices
+* load REMINDER email template
+* send reminders automatically
+
+Do not implement the scheduler yet.
+
+---
+
+# Important Architecture Rules
+
+Follow these rules:
+
+* Invoice module does not know JavaMailSender exists.
+* Communication module does not know Invoice entity internals.
+* Use events between modules.
+* Use Thymeleaf for email templates.
+* Use Spring Mail for delivery.
+* Use EmailLog for audit history.
+* Use File Module for attachments.
+* Use DTOs.
+* Use services.
+* Keep controllers thin.
+* Keep email sending asynchronous.
+
+---
+
+# Deliverables
+
+Generate:
+
+### Communication Module
+
+* Entities
+* Repositories
+* DTOs
+* Mappers
+* Services
+* MailService abstraction
+* SMTP implementation
+* Thymeleaf email renderer
+* Email variable resolver
+* Email logging
+
+### Invoice Integration
+
+* InvoiceEmailService
+* InvoiceEmailRequestedEvent
+* Event listener
+* Send invoice endpoint
+
+### Configuration
+
+* Spring Mail configuration
+* Async configuration
+
+### Templates
+
+Create:
+
+```
+invoice-standard.html
+
+invoice-reminder.html
+```
+
+### Tests
+
+Include tests for:
+
+* email creation
+* template rendering
+* failed delivery
+* email logging
+* async event flow
+
+---
+
+# Do Not Implement Yet
+
+Do not implement:
+
+* Reminder Scheduler
+* Payment Receipt Emails
+* SMS
+* WhatsApp
+* Push Notifications
+* RabbitMQ/Kafka
+
+Those will be separate phases.
+
+---
+
+This completes the Invoice → PDF → Email pipeline:
+
+```
+Draft Invoice
+
+        |
+        |
+        Send
+
+        ▼
+
+Generate PDF
+
+        ▼
+
+Store File
+
+        ▼
+
+Render Email
+
+        ▼
+
+Send SMTP
+
+        ▼
+
+Log Delivery
+```
+
+This gives the accounting system a proper enterprise-grade communication foundation.

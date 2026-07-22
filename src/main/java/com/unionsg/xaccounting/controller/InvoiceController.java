@@ -8,6 +8,7 @@ import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsResponse;
 import com.unionsg.xaccounting.dto.invoice.UpdateInvoiceRequest;
 
 import com.unionsg.xaccounting.service.FileService.FileService;
+import com.unionsg.xaccounting.service.invoice.InvoiceEmailService;
 import com.unionsg.xaccounting.service.invoice.InvoiceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class InvoiceController {
 
     private final InvoiceService invoiceService;
+    private final InvoiceEmailService invoiceEmailService;
 
 
     /*
@@ -127,14 +129,14 @@ public class InvoiceController {
      */
 
     @PostMapping("/{id}/send")
-    public ResponseEntity<InvoiceResponse> send(
+    public ResponseEntity<Void> send(
 
             @PathVariable Long id
     ) {
 
-        return ResponseEntity.ok(
-                invoiceService.sendInvoice(id)
-        );
+        invoiceEmailService.sendInvoice(id);
+
+        return ResponseEntity.ok().build();
     }
 
 

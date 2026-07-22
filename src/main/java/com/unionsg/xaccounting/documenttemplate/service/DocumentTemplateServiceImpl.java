@@ -4,6 +4,7 @@ import com.unionsg.xaccounting.documenttemplate.domain.DocumentTemplate;
 import com.unionsg.xaccounting.documenttemplate.domain.DocumentTemplateEmail;
 import com.unionsg.xaccounting.documenttemplate.dto.request.*;
 import com.unionsg.xaccounting.documenttemplate.dto.response.DocumentTemplateResponse;
+import com.unionsg.xaccounting.documenttemplate.enums.DocumentType;
 import com.unionsg.xaccounting.documenttemplate.enums.EmailType;
 import com.unionsg.xaccounting.documenttemplate.exception.DocumentTemplateException;
 import com.unionsg.xaccounting.documenttemplate.mapper.DocumentTemplateMapper;
@@ -66,7 +67,11 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<DocumentTemplateResponse> listTemplates(Pageable pageable) {
+    public Page<DocumentTemplateResponse> listTemplates(DocumentType type, Pageable pageable) {
+        if (type != null) {
+            return templateRepository.findByDocumentType(type, pageable)
+                    .map(DocumentTemplateMapper::toResponse);
+        }
         return templateRepository.findAll(pageable)
                 .map(DocumentTemplateMapper::toResponse);
     }

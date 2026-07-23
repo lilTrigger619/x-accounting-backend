@@ -98,6 +98,7 @@ public class InvoiceService {
     @Transactional
     public InvoiceResponse updateInvoice(
             Long invoiceId,
+            MultipartFile[] files,
             UpdateInvoiceRequest request
     ) {
 
@@ -131,9 +132,19 @@ public class InvoiceService {
 
         calculationService.calculateInvoice(invoice);
 
-        return InvoiceMapper.toResponse(
-                invoiceRepository.save(invoice)
-        );
+        Invoice saved = invoiceRepository.save(invoice);
+
+        if (files != null && files.length > 0) {
+            FileUploadRequestDto fileUploadMetaDto = new FileUploadRequestDto();
+            fileUploadMetaDto.setEntityType(EntityType.INVOICE);
+            fileUploadMetaDto.setEntityId(saved.getId().toString());
+            fileUploadMetaDto.setDescription("Invoice update document upload");
+            UUID currentUserId = SecurityUtils.getCurrentUser().getId();
+            fileUploadMetaDto.setUploadedBy(currentUserId);
+            fileService.uploadFile(files, fileUploadMetaDto);
+        }
+
+        return InvoiceMapper.toResponse(saved);
     }
 
 

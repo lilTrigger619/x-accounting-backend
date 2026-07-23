@@ -55,15 +55,16 @@ public class InvoiceController {
      =============================
      */
 
-    @PutMapping("/{invoiceId}")
+    @PutMapping(value = "/{invoiceId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<InvoiceResponse> update(
 
             @PathVariable Long invoiceId,
-            @Valid @RequestBody UpdateInvoiceRequest request
+            @RequestPart(value = "files", required = false) MultipartFile[] files,
+            @Valid @RequestPart UpdateInvoiceRequest request
     ) {
 
         return ResponseEntity.ok(
-                invoiceService.updateInvoice(invoiceId, request)
+                invoiceService.updateInvoice(invoiceId, files, request)
         );
     }
 

@@ -1,0 +1,278 @@
+Implement Phase 4 of the Payment Module.
+
+Tech Stack
+
+- Java 21
+- Spring Boot
+- Spring Data JPA
+- Transaction Management
+
+Project Structure
+
+The project is organized by layer.
+
+Create only the service layer.
+
+Folders
+
+service/
+
+Do NOT create
+
+Controllers
+
+Repositories
+
+Entities
+
+DTOs
+
+These already exist.
+
+=========================================
+OBJECTIVE
+=========================================
+
+Implement the core PaymentService.
+
+This phase manages payment records only.
+
+DO NOT
+
+allocate invoices
+
+update invoice balances
+
+create journal entries
+
+send emails
+
+generate PDFs
+
+Those belong to later phases.
+
+=========================================
+CREATE
+=========================================
+
+Implement
+
+createPayment()
+
+Responsibilities
+
+Validate request
+
+Generate receipt number
+
+Create PaymentEntity
+
+Initialize
+
+allocatedAmount = 0
+
+unallocatedAmount = amountReceived
+
+fullyAllocated = false
+
+Status
+
+RECEIVED
+
+Save payment
+
+Return CreatePaymentResponse
+
+=========================================
+SAVE DRAFT
+=========================================
+
+Implement
+
+saveDraft()
+
+Status
+
+DRAFT
+
+No accounting
+
+No allocations
+
+No journals
+
+=========================================
+UPDATE DRAFT
+=========================================
+
+Implement
+
+updateDraft()
+
+Rules
+
+Only DRAFT payments can be edited.
+
+Throw BusinessException otherwise.
+
+Receipt number cannot change.
+
+=========================================
+DELETE DRAFT
+=========================================
+
+Implement
+
+deleteDraft()
+
+Rules
+
+Only DRAFT can be deleted.
+
+Soft delete if your project already uses soft delete.
+
+=========================================
+GET PAYMENT
+=========================================
+
+Implement
+
+getPaymentById()
+
+Return
+
+PaymentDetailsResponse
+
+=========================================
+LIST PAYMENTS
+=========================================
+
+Implement
+
+getPayments()
+
+Support
+
+Search
+
+Customer
+
+Status
+
+Payment Method
+
+Bank Account
+
+Date Range
+
+Pagination
+
+Sorting
+
+Return Page<PaymentListItemResponse>
+
+=========================================
+CHANGE STATUS
+=========================================
+
+Implement
+
+changeStatus()
+
+Allow
+
+DRAFT
+
+↓
+
+RECEIVED
+
+↓
+
+PARTIALLY_ALLOCATED
+
+↓
+
+ALLOCATED
+
+↓
+
+REFUNDED
+
+CANCELLED
+
+Reject invalid transitions.
+
+=========================================
+COMMON PRIVATE METHODS
+=========================================
+
+Create reusable private methods
+
+loadPayment()
+
+initializePayment()
+
+applyDraftUpdates()
+
+buildSearchSpecification()
+
+validateStatusTransition()
+
+=========================================
+TRANSACTIONS
+=========================================
+
+Use
+
+@Transactional
+
+for write operations.
+
+Use
+
+@Transactional(readOnly = true)
+
+for read operations.
+
+=========================================
+ERROR HANDLING
+=========================================
+
+Use the project's BusinessException.
+
+Meaningful messages.
+
+Examples
+
+Payment not found.
+
+Draft payment not found.
+
+Only draft payments can be edited.
+
+Only draft payments can be deleted.
+
+Invalid payment status transition.
+
+=========================================
+OUTPUT
+=========================================
+
+Generate
+
+PaymentService
+
+PaymentServiceImpl
+
+Include interfaces if the project already follows that pattern.
+
+No allocation logic.
+
+No invoice updates.
+
+No journal posting.
+
+No receipt generation.
+
+Only payment lifecycle management.

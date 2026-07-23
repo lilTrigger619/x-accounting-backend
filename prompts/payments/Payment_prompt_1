@@ -1,0 +1,248 @@
+Implement Phase 1 of the Payment Module for an enterprise accounting system.
+
+Tech Stack
+
+- Java 21
+- Spring Boot
+- Spring Data JPA
+- Hibernate
+- Jakarta Validation
+- PostgreSQL
+
+Project Architecture
+
+The project is organized by layer, NOT by feature.
+
+Folders already exist:
+
+entity/
+repository/
+enums/
+
+Use the project's existing BaseEntity for all entities.
+
+=========================================
+OBJECTIVE
+=========================================
+
+Create the persistence layer only.
+
+DO NOT create:
+
+- Services
+- Controllers
+- DTOs
+- Mappers
+- Validators
+
+Only implement:
+
+- Entities
+- Enums
+- Repositories
+
+=========================================
+PAYMENT ENTITY
+=========================================
+
+Create PaymentEntity.
+
+Fields
+
+id (inherit from BaseEntity)
+
+receiptNumber (unique)
+
+customer (ManyToOne CustomerEntity)
+
+paymentDate
+
+receiptDate
+
+paymentMethod (Enum)
+
+bankAccount (ManyToOne ChartOfAccountEntity)
+
+currency
+
+exchangeRate
+
+amountReceived
+
+allocatedAmount
+
+unallocatedAmount
+
+referenceNumber
+
+memo
+
+status (Enum)
+
+attachments
+
+Store attachment IDs as a List<Long> (matching the existing File Upload module used by invoices).
+
+Relationships
+
+One payment belongs to one customer.
+
+One payment has many allocations.
+
+One payment may have many refunds.
+
+=========================================
+PAYMENT ALLOCATION ENTITY
+=========================================
+
+Create PaymentAllocationEntity.
+
+Fields
+
+id
+
+payment (ManyToOne PaymentEntity)
+
+invoice (ManyToOne InvoiceEntity)
+
+allocatedAmount
+
+notes
+
+Each allocation links exactly one payment to one invoice.
+
+=========================================
+PAYMENT REFUND ENTITY
+=========================================
+
+Fields
+
+id
+
+payment
+
+refundDate
+
+amount
+
+reason
+
+journalEntry (ManyToOne JournalEntity)
+
+referenceNumber
+
+memo
+
+status
+
+=========================================
+ENUMS
+=========================================
+
+PaymentStatus
+
+DRAFT
+
+RECEIVED
+
+PARTIALLY_ALLOCATED
+
+ALLOCATED
+
+REFUNDED
+
+CANCELLED
+
+-----------------------------------------
+
+PaymentMethod
+
+CASH
+
+BANK_TRANSFER
+
+CHEQUE
+
+CARD
+
+MOBILE_MONEY
+
+OTHER
+
+-----------------------------------------
+
+RefundStatus
+
+PENDING
+
+COMPLETED
+
+CANCELLED
+
+=========================================
+JPA REQUIREMENTS
+=========================================
+
+Use proper cascade rules.
+
+Use FetchType.LAZY where appropriate.
+
+Use orphanRemoval where appropriate.
+
+Use BigDecimal for all monetary values.
+
+Use LocalDate for dates.
+
+Use LocalDateTime where timestamps are needed.
+
+Add indexes for
+
+receiptNumber
+
+paymentDate
+
+customer
+
+status
+
+=========================================
+REPOSITORIES
+=========================================
+
+Create
+
+PaymentRepository
+
+PaymentAllocationRepository
+
+PaymentRefundRepository
+
+Each extends JpaRepository.
+
+Do not add custom queries yet.
+
+=========================================
+OUTPUT
+=========================================
+
+Generate complete production-ready Java code for
+
+PaymentEntity
+
+PaymentAllocationEntity
+
+PaymentRefundEntity
+
+PaymentStatus
+
+PaymentMethod
+
+RefundStatus
+
+PaymentRepository
+
+PaymentAllocationRepository
+
+PaymentRefundRepository
+
+Do not implement anything outside Phase 1.

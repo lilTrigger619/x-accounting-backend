@@ -1,0 +1,215 @@
+Implement Phase 3 of the Payment Module.
+
+Tech Stack
+
+- Java 21
+- Spring Boot
+- Spring Validation
+- Spring Data JPA
+
+Project Structure
+
+The project is organized by layer.
+
+Use the existing folders:
+
+mapper/
+validator/
+util/
+
+DO NOT create
+
+- Controllers
+- Services
+- DTOs
+- Repositories
+- Entities
+
+Only implement
+
+- Receipt Number Generator
+- Mapper
+- Validator
+- Utility Classes
+
+=========================================
+OBJECTIVE
+=========================================
+
+Build all reusable components that will support the Payment Service.
+
+No business transactions should occur here.
+
+=========================================
+IMPORTANT CHANGE
+=========================================
+
+Update PaymentEntity by adding:
+
+private Boolean fullyAllocated = false;
+
+Business Rules
+
+fullyAllocated = true
+
+when
+
+allocatedAmount equals amountReceived
+
+Otherwise
+
+fullyAllocated = false
+
+This value will be maintained by the PaymentCalculationUtil and PaymentAllocationService.
+
+=========================================
+RECEIPT NUMBER GENERATOR
+=========================================
+
+Create
+
+ReceiptNumberGenerator
+
+Generate receipt numbers using the enterprise format already used in the Invoice module.
+
+Example
+
+RCP-202607-000001
+
+Requirements
+
+• Thread-safe
+• Uses existing numbering configuration if available
+• No duplicate numbers
+• Reusable service/component
+
+=========================================
+PAYMENT MAPPER
+=========================================
+
+Create PaymentMapper.
+
+Include methods for mapping between
+
+CreatePaymentRequest
+
+PaymentEntity
+
+PaymentDetailsResponse
+
+PaymentListItemResponse
+
+CreatePaymentResponse
+
+UpdateDraftPaymentRequest
+
+RefundPaymentRequest
+
+Do not implement business logic inside the mapper.
+
+=========================================
+PAYMENT VALIDATOR
+=========================================
+
+Create PaymentValidator.
+
+Include reusable validation methods.
+
+Examples
+
+validateCustomerExists()
+
+validateInvoicesBelongToCustomer()
+
+validateBankAccount()
+
+validatePositiveAmount()
+
+validateCurrency()
+
+validateExchangeRate()
+
+validatePaymentStatus()
+
+validateDraftPayment()
+
+validateReceiptNumber()
+
+validateRefund()
+
+Throw the project's existing BusinessException or ValidationException.
+
+Do not return booleans.
+
+=========================================
+PAYMENT CALCULATION UTIL
+=========================================
+
+Create PaymentCalculationUtil.
+
+Responsibilities
+
+calculateAllocatedAmount()
+
+calculateUnallocatedAmount()
+
+calculateCustomerCredit()
+
+isFullyAllocated()
+
+updateAllocationTotals()
+
+calculateRemainingBalance()
+
+updateInvoiceOutstanding()
+
+Business Rule
+
+allocatedAmount =
+sum(all allocations)
+
+unallocatedAmount =
+amountReceived - allocatedAmount
+
+fullyAllocated =
+allocatedAmount.compareTo(amountReceived) == 0
+
+All monetary calculations must use BigDecimal.
+
+Never use double or float.
+
+=========================================
+PAYMENT CONSTANTS
+=========================================
+
+Create a constants class containing
+
+Receipt prefix
+
+Maximum memo length
+
+Default currency
+
+Maximum reference length
+
+=========================================
+OUTPUT
+=========================================
+
+Generate complete production-ready Java code for
+
+ReceiptNumberGenerator
+
+PaymentMapper
+
+PaymentValidator
+
+PaymentCalculationUtil
+
+PaymentConstants
+
+Update PaymentEntity to include
+
+Boolean fullyAllocated
+
+Do not implement services or controllers.

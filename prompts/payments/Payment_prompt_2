@@ -1,0 +1,316 @@
+Implement Phase 2 of the Payment Module.
+
+Tech Stack
+
+- Java 21
+- Spring Boot
+
+Project Structure
+
+dto/request/
+dto/response/
+
+Only create DTOs.
+
+Do NOT create
+
+- Services
+- Controllers
+- Repositories
+- Entities
+
+=========================================
+CREATE PAYMENT
+=========================================
+
+CreatePaymentRequest
+
+customerId
+
+paymentDate
+
+paymentMethod
+
+bankAccountId
+
+currency
+
+exchangeRate
+
+amountReceived
+
+referenceNumber
+
+memo
+
+attachmentIds
+
+allocations
+
+-----------------------------------------
+
+PaymentAllocationRequest
+
+invoiceId
+
+allocatedAmount
+
+=========================================
+SAVE DRAFT
+=========================================
+
+CreateDraftPaymentRequest
+
+Same fields as CreatePaymentRequest.
+
+=========================================
+UPDATE DRAFT
+=========================================
+
+UpdateDraftPaymentRequest
+
+Same fields as CreatePaymentRequest.
+
+=========================================
+ALLOCATE PAYMENT
+=========================================
+
+AllocatePaymentRequest
+
+List<PaymentAllocationRequest>
+
+=========================================
+REFUND
+=========================================
+
+RefundPaymentRequest
+
+refundDate
+
+amount
+
+reason
+
+referenceNumber
+
+memo
+
+=========================================
+FILTER DTO
+=========================================
+
+PaymentFilterRequest
+
+search
+
+customerId
+
+paymentMethod
+
+status
+
+bankAccountId
+
+fromDate
+
+toDate
+
+page
+
+size
+
+sortBy
+
+sortDirection
+
+=========================================
+SUMMARY DTO
+=========================================
+
+PaymentSummaryResponse
+
+amountReceived
+
+allocatedAmount
+
+unallocatedAmount
+
+customerCreditAfterAllocation
+
+=========================================
+PAYMENT LIST RESPONSE
+=========================================
+
+PaymentListItemResponse
+
+id
+
+receiptNumber
+
+customerId
+
+customerName
+
+paymentDate
+
+paymentMethod
+
+bankAccountName
+
+amountReceived
+
+allocatedAmount
+
+unallocatedAmount
+
+status
+
+=========================================
+PAYMENT DETAILS RESPONSE
+=========================================
+
+PaymentDetailsResponse
+
+id
+
+receiptNumber
+
+customerId
+
+customerName
+
+customerCode
+
+customerPhone
+
+customerEmail
+
+paymentDate
+
+receiptDate
+
+paymentMethod
+
+bankAccountId
+
+bankAccountName
+
+currency
+
+exchangeRate
+
+amountReceived
+
+allocatedAmount
+
+unallocatedAmount
+
+referenceNumber
+
+memo
+
+status
+
+attachmentIds
+
+createdBy
+
+createdDate
+
+lastModifiedBy
+
+lastModifiedDate
+
+allocations
+
+refunds
+
+=========================================
+PAYMENT ALLOCATION RESPONSE
+=========================================
+
+PaymentAllocationResponse
+
+allocationId
+
+invoiceId
+
+invoiceNumber
+
+invoiceDate
+
+invoiceTotal
+
+outstandingBefore
+
+allocatedAmount
+
+outstandingAfter
+
+=========================================
+REFUND RESPONSE
+=========================================
+
+PaymentRefundResponse
+
+refundId
+
+refundDate
+
+amount
+
+reason
+
+referenceNumber
+
+status
+
+=========================================
+CREATE PAYMENT RESPONSE
+=========================================
+
+CreatePaymentResponse
+
+paymentId
+
+receiptNumber
+
+status
+
+message
+
+=========================================
+VALIDATION
+=========================================
+
+Use Jakarta Validation annotations.
+
+Examples
+
+@NotNull
+
+@NotBlank
+
+@Positive
+
+@PositiveOrZero
+
+@Size
+
+Use BigDecimal for money.
+
+Use LocalDate for dates.
+
+=========================================
+OUTPUT
+=========================================
+
+Generate complete production-ready DTO classes with validation annotations.
+
+No business logic.
+
+No mapping.
+
+No services.
+
+No controllers.

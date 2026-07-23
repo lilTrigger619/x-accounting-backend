@@ -71,20 +71,24 @@ public class InvoiceService {
                 );
 
         invoice.setCreatedAt(LocalDateTime.now());
-        invoice.setInvoiceNumber(generator.generate(DocumentModule.INVOICE));
+        String generatedNumber = generator.generate(DocumentModule.INVOICE);
+        System.out.println("generated Number "+ generatedNumber);
+        invoice.setInvoiceNumber(generatedNumber);
 
         calculationService.calculateInvoice(invoice);
 
         Invoice saved =
                 invoiceRepository.save(invoice);
 
-        FileUploadRequestDto fileUploadMetaDto = new FileUploadRequestDto();
-        fileUploadMetaDto.setEntityType(EntityType.INVOICE);
-        fileUploadMetaDto.setEntityId(saved.getId().toString());
-        fileUploadMetaDto.setDescription("Invoice creation document upload");
-        UUID currentUserId = SecurityUtils.getCurrentUser().getId();
-        fileUploadMetaDto.setUploadedBy(currentUserId);
-        fileService.uploadFile(files, fileUploadMetaDto);
+        if (files != null && files.length > 0) {
+            FileUploadRequestDto fileUploadMetaDto = new FileUploadRequestDto();
+            fileUploadMetaDto.setEntityType(EntityType.INVOICE);
+            fileUploadMetaDto.setEntityId(saved.getId().toString());
+            fileUploadMetaDto.setDescription("Invoice creation document upload");
+            UUID currentUserId = SecurityUtils.getCurrentUser().getId();
+            fileUploadMetaDto.setUploadedBy(currentUserId);
+            fileService.uploadFile(files, fileUploadMetaDto);
+        }
         return InvoiceMapper.toResponse(saved);
     }
 

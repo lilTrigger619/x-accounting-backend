@@ -37,7 +37,7 @@ public class InvoiceController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<InvoiceResponse> create(
 
-            @RequestPart("files") MultipartFile[] files,
+            @RequestPart(value = "files", required = false) MultipartFile[] files,
             @RequestPart
             CreateInvoiceRequest request
     ) {

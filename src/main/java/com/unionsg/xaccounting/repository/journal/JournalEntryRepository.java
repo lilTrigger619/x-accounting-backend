@@ -16,4 +16,8 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
     long countByJournalDateBetween(LocalDate start, LocalDate end);
 
     long countByStatus(JournalStatus status);
+
+    Optional<JournalEntry> findBySourceModuleAndSourceEntityIdAndStatus(
+            String sourceModule, Long sourceEntityId, JournalStatus status
+    );
 }

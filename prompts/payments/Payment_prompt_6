@@ -1,0 +1,220 @@
+Implement Phase 6 of the Payment Module.
+
+Tech Stack
+
+- Java 21
+- Spring Boot
+
+The project already contains
+
+Journal Module
+
+Journal Service
+
+Journal Entry
+
+Journal Posting
+
+Chart of Accounts
+
+Reuse all existing accounting infrastructure.
+
+Do NOT duplicate journal logic.
+
+=========================================
+OBJECTIVE
+=========================================
+
+Integrate the Payment Module with the accounting engine.
+
+This service creates accounting journals whenever payment transactions affect the General Ledger.
+
+=========================================
+CREATE
+=========================================
+
+PaymentJournalService
+
+PaymentJournalServiceImpl
+
+=========================================
+PAYMENT RECEIVED
+=========================================
+
+Method
+
+postPaymentJournal()
+
+Input
+
+PaymentEntity
+
+Business Rules
+
+Use the payment's bank account as the debit account.
+
+Credit the customer's Accounts Receivable control account.
+
+Journal
+
+Debit
+
+Bank
+
+amountReceived
+
+Credit
+
+Accounts Receivable
+
+allocatedAmount
+
+If the payment contains an unallocated balance, credit the Customer Advances (Customer Credit / Unearned Revenue) liability account for the remaining amount.
+
+Example
+
+Payment Received = 6,000
+
+Allocated = 5,000
+
+Unallocated = 1,000
+
+Journal
+
+Debit Bank                    6,000
+
+Credit Accounts Receivable    5,000
+
+Credit Customer Advances      1,000
+
+=========================================
+ADDITIONAL ALLOCATION
+=========================================
+
+When an existing unallocated payment is allocated later
+
+move the balance
+
+Debit Customer Advances
+
+Credit Accounts Receivable
+
+Only for the newly allocated amount.
+
+=========================================
+REMOVE ALLOCATION
+=========================================
+
+If an allocation is removed
+
+Reverse
+
+Debit Accounts Receivable
+
+Credit Customer Advances
+
+Only for the amount removed.
+
+=========================================
+REFUND
+=========================================
+
+Method
+
+postRefundJournal()
+
+Journal
+
+Debit Accounts Receivable (or Customer Advances if refunding unapplied cash)
+
+Credit Bank
+
+Create reversing journal entries using the existing Journal module.
+
+Do not manually update account balances.
+
+Allow the Journal module to handle posting.
+
+=========================================
+CANCEL PAYMENT
+=========================================
+
+If the business allows cancellation
+
+Create a reversing journal.
+
+Do not delete journals.
+
+=========================================
+JOURNAL REFERENCES
+=========================================
+
+Every journal must include
+
+Payment ID
+
+Receipt Number
+
+Reference Number
+
+Customer
+
+Description
+
+Example
+
+Receipt RCP-202607-000012 received from ABC Trading.
+
+=========================================
+IDEMPOTENCY
+=========================================
+
+Prevent duplicate journals.
+
+If a payment already has a posted journal
+
+do not post another one.
+
+=========================================
+TRANSACTIONS
+=========================================
+
+Wrap every journal creation
+
+inside @Transactional.
+
+=========================================
+ERROR HANDLING
+=========================================
+
+Throw BusinessException
+
+Examples
+
+Journal already exists.
+
+Payment already refunded.
+
+Bank account missing.
+
+Accounts Receivable control account not configured.
+
+Customer Advances account not configured.
+
+=========================================
+OUTPUT
+=========================================
+
+Generate
+
+PaymentJournalService
+
+PaymentJournalServiceImpl
+
+Reuse the existing JournalService.
+
+Do not create a new accounting engine.
+
+Follow double-entry accounting principles.
+
+Integrate cleanly with the existing Journal module.

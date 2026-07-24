@@ -90,6 +90,9 @@ public class PaymentEntity extends BaseEntity {
     @Builder.Default
     private Boolean fullyAllocated = false;
 
+    @Column(name = "journal_entry_id")
+    private Long journalEntryId;
+
     @ElementCollection
     @CollectionTable(
             name = "payment_attachments",

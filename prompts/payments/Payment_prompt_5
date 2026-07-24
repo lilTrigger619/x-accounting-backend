@@ -1,0 +1,322 @@
+Implement Phase 5 of the Payment Module.
+
+Tech Stack
+
+- Java 21
+- Spring Boot
+- Spring Data JPA
+- Hibernate
+
+Project Structure
+
+The project follows a layered architecture.
+
+Create only
+
+service/
+
+Do NOT create
+
+Controllers
+
+DTOs
+
+Repositories
+
+Entities
+
+=========================================
+OBJECTIVE
+=========================================
+
+Implement the complete Payment Allocation Engine.
+
+This service is responsible for allocating payments to invoices.
+
+This phase owns ALL invoice allocation logic.
+
+No journal entries should be created here.
+
+=========================================
+CREATE
+=========================================
+
+Create
+
+PaymentAllocationService
+
+PaymentAllocationServiceImpl
+
+=========================================
+PUBLIC METHODS
+=========================================
+
+allocatePayment()
+
+removeAllocation()
+
+reallocatePayment()
+
+autoAllocateOldest()
+
+autoAllocateLargest()
+
+clearAllocations()
+
+getPaymentAllocations()
+
+=========================================
+ALLOCATE PAYMENT
+=========================================
+
+Input
+
+paymentId
+
+AllocatePaymentRequest
+
+Business Rules
+
+Load payment.
+
+Payment must exist.
+
+Payment cannot be Draft.
+
+Payment cannot be Refunded.
+
+Payment cannot be Cancelled.
+
+Load invoices.
+
+Each invoice
+
+must exist
+
+must belong to the payment customer
+
+must not be void
+
+must not be fully paid
+
+Allocation amount
+
+must be greater than zero
+
+must not exceed invoice outstanding balance
+
+Total allocation
+
+must never exceed payment amount
+
+Create PaymentAllocationEntity rows.
+
+=========================================
+UPDATE PAYMENT TOTALS
+=========================================
+
+After allocation
+
+calculate
+
+allocatedAmount
+
+unallocatedAmount
+
+fullyAllocated
+
+Rules
+
+allocatedAmount
+
+=
+
+sum(all allocations)
+
+-----------------------------------------
+
+unallocatedAmount
+
+=
+
+amountReceived - allocatedAmount
+
+-----------------------------------------
+
+fullyAllocated
+
+=
+
+allocatedAmount.compareTo(amountReceived) == 0
+
+=========================================
+UPDATE INVOICE
+=========================================
+
+After every allocation
+
+Update
+
+amountPaid
+
+balance
+
+status
+
+Invoice Status Rules
+
+balance == invoice total
+
+↓
+
+SENT
+
+-----------------------------------------
+
+balance > 0
+
+↓
+
+PARTIALLY_PAID
+
+-----------------------------------------
+
+balance == 0
+
+↓
+
+PAID
+
+=========================================
+REMOVE ALLOCATION
+=========================================
+
+Delete allocation.
+
+Recalculate
+
+Invoice
+
+Payment
+
+=========================================
+REALLOCATE PAYMENT
+=========================================
+
+Support changing allocation
+
+Invoice A
+
+↓
+
+Invoice B
+
+without creating another payment.
+
+=========================================
+AUTO ALLOCATE
+=========================================
+
+Implement
+
+Auto Allocate Oldest
+
+Sort invoices by
+
+Invoice Date ASC
+
+Allocate until payment exhausted.
+
+-----------------------------------------
+
+Auto Allocate Largest
+
+Sort invoices by
+
+Outstanding DESC
+
+Allocate until payment exhausted.
+
+=========================================
+CLEAR ALLOCATION
+=========================================
+
+Remove every allocation.
+
+Reset
+
+allocatedAmount
+
+unallocatedAmount
+
+fullyAllocated
+
+Restore invoice balances.
+
+=========================================
+PAYMENT STATUS
+=========================================
+
+Update payment status automatically
+
+No allocations
+
+↓
+
+RECEIVED
+
+-----------------------------------------
+
+Some allocations
+
+↓
+
+PARTIALLY_ALLOCATED
+
+-----------------------------------------
+
+fullyAllocated == true
+
+↓
+
+ALLOCATED
+
+=========================================
+VALIDATION
+=========================================
+
+Throw BusinessException
+
+Examples
+
+Invoice belongs to another customer.
+
+Invoice already fully paid.
+
+Allocation exceeds outstanding balance.
+
+Allocation exceeds payment amount.
+
+Payment cannot be modified.
+
+=========================================
+TRANSACTION
+=========================================
+
+Every allocation operation
+
+must be @Transactional.
+
+=========================================
+OUTPUT
+=========================================
+
+Generate
+
+PaymentAllocationService
+
+PaymentAllocationServiceImpl
+
+Production quality.
+
+No journal logic.

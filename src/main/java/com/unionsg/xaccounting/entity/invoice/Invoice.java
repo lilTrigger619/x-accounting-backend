@@ -81,6 +81,10 @@ public class Invoice {
 
     private BigDecimal totalDue = BigDecimal.ZERO;
 
+    private BigDecimal amountPaid = BigDecimal.ZERO;
+
+    private BigDecimal balance = BigDecimal.ZERO;
+
     /*
      * Line Items
      */

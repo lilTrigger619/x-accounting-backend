@@ -33,6 +33,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             Pageable pageable
     );
 
+    List<Invoice> findByCustomerId(Long customerId);
+
     @Query("""
             SELECT new com.unionsg.xaccounting.dto.invoice.InvoiceTotalsRow(
                 COALESCE(SUM(CASE WHEN i.status = :paidStatus THEN i.totalAmount ELSE 0 END), 0),

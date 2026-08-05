@@ -37,6 +37,7 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
             );
         }
 
+
         DocumentTemplate template = DocumentTemplateMapper.toEntity(request);
 
         // Create default Design, Content, and Email records

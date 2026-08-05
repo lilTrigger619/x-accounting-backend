@@ -111,7 +111,7 @@ public class PaymentMapper {
         refund.setReason(request.getReason());
         refund.setReferenceNumber(request.getReferenceNumber());
         refund.setMemo(request.getMemo());
-        refund.setJournalEntry(journalEntry);
+        refund.setRefundJournal(journalEntry);
 
         return refund;
     }

@@ -39,8 +39,8 @@ public class PaymentRefundEntity extends BaseEntity {
     private String reason;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "journal_entry_id")
-    private JournalEntry journalEntry;
+    @JoinColumn(name = "refund_journal_id")
+    private JournalEntry refundJournal;
 
     @Column(name = "reference_number", length = 100)
     private String referenceNumber;
@@ -53,4 +53,3 @@ public class PaymentRefundEntity extends BaseEntity {
     @Builder.Default
     private RefundStatus status = RefundStatus.PENDING;
 }
-

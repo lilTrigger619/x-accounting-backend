@@ -1,0 +1,480 @@
+Implement Phase 8 of the Payment Module.
+
+Tech Stack
+
+- Java 21
+- Spring Boot
+- Spring MVC
+- Spring Validation
+
+Project Architecture
+
+The project follows a layered architecture.
+
+Folders already exist
+
+controller/
+
+Do NOT create
+
+Entities
+
+Repositories
+
+DTOs
+
+Services
+
+Validators
+
+Utilities
+
+Those have already been implemented.
+
+=========================================
+OBJECTIVE
+=========================================
+
+Implement the REST API layer for the Payment Module.
+
+Controllers must remain thin.
+
+They should
+
+• Validate requests
+• Call the appropriate service
+• Return standardized API responses
+• Never contain business logic
+
+Reuse the project's existing
+
+• ApiResponse
+• Exception handling
+• Validation framework
+• Security configuration
+
+=========================================
+CREATE
+=========================================
+
+Create
+
+PaymentController
+
+=========================================
+BASE URL
+=========================================
+
+/api/payments
+
+=========================================
+ENDPOINTS
+=========================================
+
+-----------------------------------------
+Create Payment
+-----------------------------------------
+
+POST /
+
+Request
+
+CreatePaymentRequest
+
+Response
+
+CreatePaymentResponse
+
+HTTP
+
+201 Created
+
+-----------------------------------------
+Save Draft
+-----------------------------------------
+
+POST /draft
+
+Request
+
+CreateDraftPaymentRequest
+
+Response
+
+CreatePaymentResponse
+
+-----------------------------------------
+Update Draft
+-----------------------------------------
+
+PUT /{paymentId}
+
+Request
+
+UpdateDraftPaymentRequest
+
+Response
+
+PaymentDetailsResponse
+
+Only draft payments may be updated.
+
+-----------------------------------------
+Delete Draft
+-----------------------------------------
+
+DELETE /{paymentId}
+
+Response
+
+204 No Content
+
+Only draft payments may be deleted.
+
+-----------------------------------------
+Get Payment Details
+-----------------------------------------
+
+GET /{paymentId}
+
+Response
+
+PaymentDetailsResponse
+
+-----------------------------------------
+List Payments
+-----------------------------------------
+
+GET /
+
+Support query parameters
+
+search
+
+customerId
+
+paymentMethod
+
+status
+
+bankAccountId
+
+fromDate
+
+toDate
+
+page
+
+size
+
+sortBy
+
+sortDirection
+
+Response
+
+Page<PaymentListItemResponse>
+
+-----------------------------------------
+Allocate Payment
+-----------------------------------------
+
+POST /{paymentId}/allocate
+
+Request
+
+AllocatePaymentRequest
+
+Response
+
+PaymentDetailsResponse
+
+-----------------------------------------
+Remove Allocation
+-----------------------------------------
+
+DELETE
+
+/{paymentId}/allocation/{allocationId}
+
+Response
+
+PaymentDetailsResponse
+
+-----------------------------------------
+Auto Allocate Oldest
+-----------------------------------------
+
+POST
+
+/{paymentId}/allocate/oldest
+
+Response
+
+PaymentDetailsResponse
+
+-----------------------------------------
+Auto Allocate Largest
+-----------------------------------------
+
+POST
+
+/{paymentId}/allocate/largest
+
+Response
+
+PaymentDetailsResponse
+
+-----------------------------------------
+Clear Allocation
+-----------------------------------------
+
+DELETE
+
+/{paymentId}/allocation
+
+Response
+
+PaymentDetailsResponse
+
+-----------------------------------------
+Refund Payment
+-----------------------------------------
+
+POST
+
+/{paymentId}/refund
+
+Request
+
+RefundPaymentRequest
+
+Response
+
+PaymentDetailsResponse
+
+-----------------------------------------
+Generate Receipt
+-----------------------------------------
+
+GET
+
+/{paymentId}/receipt
+
+Return
+
+application/pdf
+
+-----------------------------------------
+Preview Receipt
+-----------------------------------------
+
+GET
+
+/{paymentId}/receipt/preview
+
+Return
+
+application/pdf
+
+-----------------------------------------
+Download Receipt
+-----------------------------------------
+
+GET
+
+/{paymentId}/receipt/download
+
+Return
+
+application/pdf
+
+-----------------------------------------
+Email Receipt
+-----------------------------------------
+
+POST
+
+/{paymentId}/email
+
+Request
+
+ReceiptEmailRequest
+
+Response
+
+Success message
+
+-----------------------------------------
+Upload Attachments
+-----------------------------------------
+
+POST
+
+/{paymentId}/attachments
+
+Request
+
+List<Long> attachmentIds
+
+Response
+
+PaymentDetailsResponse
+
+Reuse the existing File Upload module.
+
+-----------------------------------------
+Remove Attachment
+-----------------------------------------
+
+DELETE
+
+/{paymentId}/attachments/{attachmentId}
+
+Response
+
+PaymentDetailsResponse
+
+-----------------------------------------
+Get Attachments
+-----------------------------------------
+
+GET
+
+/{paymentId}/attachments
+
+Response
+
+List<FileUploadResponse>
+
+Reuse the existing File Upload service.
+
+-----------------------------------------
+Activity Timeline
+-----------------------------------------
+
+GET
+
+/{paymentId}/activities
+
+Response
+
+List<ActivityResponse>
+
+-----------------------------------------
+Email History
+-----------------------------------------
+
+GET
+
+/{paymentId}/emails
+
+Response
+
+List<EmailHistoryResponse>
+
+=========================================
+VALIDATION
+=========================================
+
+Use
+
+@Valid
+
+@PathVariable
+
+@RequestParam
+
+@RequestBody
+
+Use Jakarta Validation.
+
+=========================================
+SECURITY
+=========================================
+
+Reuse existing Spring Security configuration.
+
+Apply authorization annotations if the project already uses them.
+
+Examples
+
+@PreAuthorize(...)
+
+Do not create new security infrastructure.
+
+=========================================
+OPENAPI
+=========================================
+
+Annotate endpoints using
+
+@Operation
+
+@Tag
+
+@ApiResponses
+
+Provide meaningful summaries and descriptions.
+
+=========================================
+HTTP STATUS CODES
+=========================================
+
+POST
+
+201 Created
+
+GET
+
+200 OK
+
+PUT
+
+200 OK
+
+DELETE
+
+204 No Content
+
+Validation Errors
+
+400 Bad Request
+
+Resource Not Found
+
+404
+
+Business Validation
+
+422 Unprocessable Entity
+
+Unexpected Errors
+
+500
+
+=========================================
+API RESPONSE FORMAT
+=========================================
+
+Reuse the project's existing response wrapper.
+
+Do not create another response structure.
+
+=========================================
+OUTPUT
+=========================================
+
+Generate a production-ready PaymentController.
+
+The controller must only delegate to the service layer.
+
+No business logic.
+
+No calculations.
+
+No database access.
+
+No accounting logic.
+
+Follow REST best practices and the existing conventions used throughout the project.

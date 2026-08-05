@@ -92,7 +92,8 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
                         + ".");
 
         // Track the journal on the payment
-        payment.setJournalEntryId(journalResponse.getId());
+        payment.setJournal(journalEntryRepository.findById(journalResponse.getId())
+                .orElseThrow(() -> new BusinessException("Journal not found after posting")));
         paymentRepository.save(payment);
 
         log.info("Payment journal posted for receipt: {}", payment.getReceiptNumber());
@@ -239,10 +240,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     public void postCancellationJournal(PaymentEntity payment) {
         checkPaymentHasJournal(payment);
 
-        JournalEntry journal = journalEntryRepository
-                .findById(payment.getJournalEntryId())
-                .orElseThrow(() -> new BusinessException(
-                        "Journal not found for payment: " + payment.getReceiptNumber()));
+        JournalEntry journal = payment.getJournal();
 
         // Use the existing JournalService.reverse() to create a reversing entry
         String reason = "Cancellation of payment " + payment.getReceiptNumber() + ".";
@@ -256,7 +254,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     // ========================================================================
 
     private void checkNoExistingJournal(PaymentEntity payment) {
-        if (payment.getJournalEntryId() != null) {
+        if (payment.getJournal() != null) {
             boolean journalExists = journalEntryRepository
                     .findBySourceModuleAndSourceEntityIdAndStatus(
                             "PAYMENT", payment.getId(), JournalStatus.POSTED)
@@ -269,7 +267,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     }
 
     private void checkPaymentHasJournal(PaymentEntity payment) {
-        if (payment.getJournalEntryId() == null) {
+        if (payment.getJournal() == null) {
             throw new BusinessException(
                     "No journal found for payment. Post the payment journal first.");
         }

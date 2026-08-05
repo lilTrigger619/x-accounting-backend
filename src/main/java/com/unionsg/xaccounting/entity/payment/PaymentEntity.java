@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.entity.payment;
 
 import com.unionsg.xaccounting.entity.BaseEntity;
 import com.unionsg.xaccounting.entity.ChartOfAccount;
+import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentMethod;
@@ -90,8 +91,9 @@ public class PaymentEntity extends BaseEntity {
     @Builder.Default
     private Boolean fullyAllocated = false;
 
-    @Column(name = "journal_entry_id")
-    private Long journalEntryId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "journal_id")
+    private JournalEntry journal;
 
     @ElementCollection
     @CollectionTable(

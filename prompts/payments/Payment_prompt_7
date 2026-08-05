@@ -1,0 +1,363 @@
+Implement Phase 7 of the Payment Module.
+
+Tech Stack
+
+- Java 21
+- Spring Boot
+- Thymeleaf
+- OpenHTMLToPDF
+- Spring Mail
+
+Project Architecture
+
+The project follows a layered architecture.
+
+Use existing infrastructure already available in the project.
+
+Reuse existing
+
+• File Upload Module
+• Invoice PDF Engine
+• Email Service
+• Activity Log
+• Audit Framework
+• Journal Module
+
+Do NOT recreate any existing functionality.
+
+=========================================
+OBJECTIVE
+=========================================
+
+Implement every user-facing feature after a payment has been successfully received.
+
+This phase includes
+
+• Receipt PDF
+• Email Receipt
+• Attachments
+• Activity Timeline
+• Audit Information
+• Journal References
+
+=========================================
+IMPORTANT ENHANCEMENT
+=========================================
+
+Update PaymentEntity by adding
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "journal_id")
+private JournalEntity journal;
+
+Purpose
+
+Store the accounting journal created when the payment is posted.
+
+-----------------------------------------
+
+Update PaymentRefundEntity by adding
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "refund_journal_id")
+private JournalEntity refundJournal;
+
+Purpose
+
+Store the journal created when a refund is posted.
+
+Business Rules
+
+A payment should always reference the journal that created its accounting transaction.
+
+A refund should always reference the journal that reversed the transaction.
+
+These references will be used for
+
+• Audit Trail
+
+• General Ledger Drill-down
+
+• Payment Details screen
+
+• Journal navigation
+
+• Duplicate journal prevention
+
+=========================================
+PAYMENT RECEIPT SERVICE
+=========================================
+
+Create
+
+PaymentReceiptService
+
+PaymentReceiptServiceImpl
+
+Responsibilities
+
+Generate receipt PDF.
+
+Reuse the existing Invoice PDF engine.
+
+Use Thymeleaf templates.
+
+Generate
+
+Receipt Number
+
+Customer
+
+Payment Date
+
+Payment Method
+
+Bank Account
+
+Currency
+
+Reference Number
+
+Memo
+
+Allocated Invoices
+
+Payment Summary
+
+Company Information
+
+QR Code placeholder
+
+=========================================
+EMAIL RECEIPT
+=========================================
+
+Implement
+
+sendReceipt()
+
+Reuse existing Spring Mail configuration.
+
+Attach generated receipt PDF.
+
+Support
+
+Subject
+
+Body
+
+Recipient
+
+CC
+
+BCC
+
+Record email history.
+
+=========================================
+ATTACHMENTS
+=========================================
+
+Reuse the existing File Upload module.
+
+Do not create a new attachment table.
+
+Store uploaded file IDs inside PaymentEntity.
+
+Implement
+
+attachFiles()
+
+removeAttachment()
+
+getAttachments()
+
+=========================================
+PAYMENT ACTIVITY
+=========================================
+
+Create activity records.
+
+Examples
+
+Payment Created
+
+Draft Saved
+
+Payment Received
+
+Allocation Added
+
+Allocation Removed
+
+Allocation Updated
+
+Payment Refunded
+
+Receipt Printed
+
+Receipt Downloaded
+
+Receipt Emailed
+
+Attachment Uploaded
+
+Attachment Removed
+
+Status Changed
+
+=========================================
+AUDIT INFORMATION
+=========================================
+
+Return audit information inside
+
+PaymentDetailsResponse
+
+Created By
+
+Created Date
+
+Last Modified By
+
+Last Modified Date
+
+Journal Number
+
+Journal Status
+
+Refund Journal Number
+
+=========================================
+PAYMENT DETAILS
+=========================================
+
+Enhance PaymentDetailsResponse
+
+Include
+
+Journal Reference
+
+Journal Number
+
+Journal Status
+
+Receipt URL
+
+Email History
+
+Activity Timeline
+
+Attachments
+
+Allocation History
+
+Refund History
+
+=========================================
+PRINT RECEIPT
+=========================================
+
+Implement
+
+generateReceipt()
+
+downloadReceipt()
+
+previewReceipt()
+
+Return PDF.
+
+=========================================
+EMAIL HISTORY
+=========================================
+
+Implement
+
+getEmailHistory()
+
+Store
+
+Recipient
+
+Date
+
+Subject
+
+Delivery Status
+
+=========================================
+PAYMENT TIMELINE
+=========================================
+
+Implement
+
+getActivityTimeline()
+
+Return activities ordered
+
+Newest First.
+
+=========================================
+SERVICE METHODS
+=========================================
+
+PaymentReceiptService
+
+generateReceipt()
+
+previewReceipt()
+
+downloadReceipt()
+
+sendReceipt()
+
+attachFiles()
+
+removeAttachment()
+
+getAttachments()
+
+getEmailHistory()
+
+getActivityTimeline()
+
+=========================================
+ERROR HANDLING
+=========================================
+
+Throw BusinessException
+
+Examples
+
+Receipt not found.
+
+Unable to generate PDF.
+
+Payment has no journal.
+
+Attachment not found.
+
+Email sending failed.
+
+=========================================
+OUTPUT
+=========================================
+
+Generate
+
+PaymentReceiptService
+
+PaymentReceiptServiceImpl
+
+Update
+
+PaymentEntity
+
+PaymentRefundEntity
+
+PaymentDetailsResponse
+
+Reuse every existing infrastructure already available.
+
+Do not duplicate PDF generation, email logic, file uploads, activity logging or journal functionality.

@@ -17,5 +17,7 @@ public class CreateDocumentTemplateRequest {
 
     @NotNull(message = "Layout is required")
     private DocumentLayout layout;
+
+    private String description;
 }
 

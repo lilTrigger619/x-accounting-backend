@@ -122,6 +122,7 @@ public class DocumentTemplateMapper {
     public static DocumentTemplate toEntity(CreateDocumentTemplateRequest request) {
         DocumentTemplate template = new DocumentTemplate();
         template.setName(request.getName());
+        template.setDescription(request.getDescription());
         template.setDocumentType(request.getDocumentType());
         template.setLayout(request.getLayout());
         template.setDefault(false);

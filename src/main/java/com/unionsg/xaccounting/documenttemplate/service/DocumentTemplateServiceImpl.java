@@ -10,6 +10,8 @@ import com.unionsg.xaccounting.documenttemplate.exception.DocumentTemplateExcept
 import com.unionsg.xaccounting.documenttemplate.mapper.DocumentTemplateMapper;
 import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateEmailRepository;
 import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateRepository;
+import com.unionsg.xaccounting.enums.DocumentModule;
+import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +24,7 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
 
     private final DocumentTemplateRepository templateRepository;
     private final DocumentTemplateEmailRepository emailRepository;
+    private final DocumentNumberGeneratorService documentNumberGeneratorService;
 
     // =============================
     // Create Template
@@ -37,8 +40,12 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
             );
         }
 
-
         DocumentTemplate template = DocumentTemplateMapper.toEntity(request);
+
+        // Generate a unique sequential template code for this document type
+        template.setTemplateCode(
+                documentNumberGeneratorService.generate(toModule(request.getDocumentType()))
+        );
 
         // Create default Design, Content, and Email records
         template.setDesign(DocumentTemplateMapper.createDefaultDesign(template));
@@ -230,5 +237,23 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
         return templateRepository.findById(id)
                 .orElseThrow(() -> new DocumentTemplateException("Document template not found with id: " + id));
     }
-}
 
+    private DocumentModule toModule(DocumentType documentType) {
+        switch (documentType) {
+            case INVOICE:
+                return DocumentModule.DOCUMENT_TEMPLATE_INVOICE;
+            case QUOTE:
+                return DocumentModule.DOCUMENT_TEMPLATE_QUOTE;
+            case PURCHASE_ORDER:
+                return DocumentModule.DOCUMENT_TEMPLATE_PURCHASE_ORDER;
+            case CREDIT_NOTE:
+                return DocumentModule.DOCUMENT_TEMPLATE_CREDIT_NOTE;
+            case DELIVERY_NOTE:
+                return DocumentModule.DOCUMENT_TEMPLATE_DELIVERY_NOTE;
+            case RECEIPT:
+                return DocumentModule.DOCUMENT_TEMPLATE_RECEIPT;
+            default:
+                throw new DocumentTemplateException("Unsupported document type for template code generation: " + documentType);
+        }
+    }
+}

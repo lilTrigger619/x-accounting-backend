@@ -35,6 +35,7 @@ public class ChartOfAccount {
     private List<ChartOfAccountClearTo_ENTITY> coaClearTo;
 
 
+    @Builder.Default
     @Column(nullable=false)
     private boolean deleted = false;
 

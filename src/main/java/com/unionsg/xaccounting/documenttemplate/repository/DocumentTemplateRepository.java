@@ -26,6 +26,10 @@ public interface DocumentTemplateRepository extends JpaRepository<DocumentTempla
 
     Page<DocumentTemplate> findByDocumentType(DocumentType documentType, Pageable pageable);
 
+    Page<DocumentTemplate> findByIsSystem(boolean isSystem, Pageable pageable);
+
+    Page<DocumentTemplate> findByDocumentTypeAndIsSystem(DocumentType documentType, boolean isSystem, Pageable pageable);
+
     @Modifying
     @Query("UPDATE DocumentTemplate t SET t.isDefault = false WHERE t.documentType = :documentType AND t.id <> :excludeId")
     void clearDefaultForOtherTemplates(@Param("documentType") DocumentType documentType, @Param("excludeId") Long excludeId);

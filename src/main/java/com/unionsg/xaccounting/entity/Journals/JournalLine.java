@@ -35,9 +35,11 @@ public class JournalLine extends BaseEntity {
     @Column(name = "description", length = 500)
     private String description;
 
+    @Builder.Default
     @Column(name = "debit_amount", precision = 19, scale = 2, nullable = false)
     private BigDecimal debitAmount = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "credit_amount", precision = 19, scale = 2, nullable = false)
     private BigDecimal creditAmount = BigDecimal.ZERO;
 

@@ -12,7 +12,7 @@ public interface DocumentTemplateService {
 
     DocumentTemplateResponse getTemplate(Long id);
 
-    Page<DocumentTemplateResponse> listTemplates(DocumentType type, Pageable pageable);
+    Page<DocumentTemplateResponse> listTemplates(DocumentType type, boolean systemOnly, boolean userOnly, Pageable pageable);
 
     DocumentTemplateResponse updateTemplate(Long id, UpdateDocumentTemplateRequest request);
 
@@ -28,4 +28,3 @@ public interface DocumentTemplateService {
 
     DocumentTemplateResponse setDefaultTemplate(Long id);
 }
-

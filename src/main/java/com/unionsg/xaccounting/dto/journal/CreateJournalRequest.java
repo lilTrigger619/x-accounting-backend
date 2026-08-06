@@ -1,4 +1,5 @@
 package com.unionsg.xaccounting.dto.journal;
+
 import com.unionsg.xaccounting.enums.JournalType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -15,6 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CreateJournalRequest {
+
     @NotNull(message = "Journal date is required")
     private LocalDate journalDate;
 
@@ -27,6 +29,7 @@ public class CreateJournalRequest {
     @NotNull(message = "Journal type is required")
     private JournalType journalType;
 
+    @Builder.Default
     @Size(max = 10)
     private String currencyCode = "GHS";
 

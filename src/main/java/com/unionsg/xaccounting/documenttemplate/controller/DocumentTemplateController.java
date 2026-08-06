@@ -43,15 +43,17 @@ public class DocumentTemplateController {
     }
 
     // =============================
-    // List Templates
+// List Templates
     // =============================
 
     @GetMapping
     public ResponseEntity<Page<DocumentTemplateResponse>> listTemplates(
             @RequestParam(name = "type", required = false) DocumentType type,
+            @RequestParam(name = "systemOnly", defaultValue = "false") boolean systemOnly,
+            @RequestParam(name = "userOnly", defaultValue = "false") boolean userOnly,
             Pageable pageable
     ) {
-        return ResponseEntity.ok(documentTemplateService.listTemplates(type, pageable));
+        return ResponseEntity.ok(documentTemplateService.listTemplates(type, systemOnly, userOnly, pageable));
     }
 
     // =============================

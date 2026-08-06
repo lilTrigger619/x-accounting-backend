@@ -54,7 +54,9 @@ public class AccountCreationDTO {
     private String currency;
     private String defaultTaxRate;
     private String description;
+    @Builder.Default
     private Optional<String> openingBalance = Optional.empty();
+    @Builder.Default
     private Optional<String> openingBalanceDate = Optional.empty();
     // private String statementCode;
     // private String statementType;

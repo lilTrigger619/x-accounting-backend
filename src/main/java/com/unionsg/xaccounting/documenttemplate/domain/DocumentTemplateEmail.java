@@ -30,6 +30,7 @@ public class DocumentTemplateEmail {
     @Column(length = 500)
     private String subject;
 
+    @Builder.Default
     @Column(name = "use_greeting", nullable = false)
     private boolean useGreeting = true;
 

@@ -44,9 +44,11 @@ public class MailConfiguration {
     @Column(name = "from_name", length = 255)
     private String fromName;
 
+    @Builder.Default
     @Column(name = "use_tls")
     private boolean useTls = true;
 
+    @Builder.Default
     @Column(nullable = false)
     private boolean active = true;
 

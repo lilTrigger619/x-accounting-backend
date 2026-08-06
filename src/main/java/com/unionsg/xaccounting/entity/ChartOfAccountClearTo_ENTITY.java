@@ -49,6 +49,7 @@ public class ChartOfAccountClearTo_ENTITY {
     @Column(name = "date_created")
     private LocalDateTime dateCreated;
 
+    @Builder.Default
     @Column(name = "deleted")
     private Boolean deleted = false;
 

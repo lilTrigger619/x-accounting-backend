@@ -40,10 +40,12 @@ public class JournalEntry extends BaseEntity {
     @Column(name = "description", length = 500)
     private String description;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "journal_type", nullable = false, length = 30)
     private JournalType journalType = JournalType.GENERAL;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private JournalStatus status = JournalStatus.POSTED;
@@ -60,21 +62,27 @@ public class JournalEntry extends BaseEntity {
     @Column(name = "reversed_at")
     private LocalDateTime reversedAt;
 
+    @Builder.Default
     @Column(name = "is_system_generated", nullable = false)
     private Boolean systemGenerated = false;
 
+    @Builder.Default
     @Column(name = "is_adjustment", nullable = false)
     private Boolean adjustmentEntry = false;
 
+    @Builder.Default
     @Column(name = "currency_code", nullable = false, length = 10)
     private String currencyCode = "GHS";
 
+    @Builder.Default
     @Column(name = "exchange_rate", precision = 19, scale = 6)
     private BigDecimal exchangeRate = BigDecimal.ONE;
 
+    @Builder.Default
     @Column(name = "total_debit", precision = 19, scale = 2, nullable = false)
     private BigDecimal totalDebit = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "total_credit", precision = 19, scale = 2, nullable = false)
     private BigDecimal totalCredit = BigDecimal.ZERO;
 
@@ -87,6 +95,7 @@ public class JournalEntry extends BaseEntity {
     @Column(name = "reversal_of_journal_id")
     private Long reversalOfJournalId;
 
+    @Builder.Default
     @OneToMany(
             mappedBy = "journalEntry",
             cascade = CascadeType.ALL,

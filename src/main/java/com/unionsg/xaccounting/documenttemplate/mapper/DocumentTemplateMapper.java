@@ -31,6 +31,7 @@ public class DocumentTemplateMapper {
         DocumentTemplateResponse response = new DocumentTemplateResponse();
         response.setId(template.getId());
         response.setName(template.getName());
+        response.setDescription(template.getDescription());
         response.setDocumentType(template.getDocumentType());
         response.setLayout(template.getLayout());
         response.setDefault(template.isDefault());

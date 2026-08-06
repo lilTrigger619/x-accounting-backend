@@ -32,12 +32,14 @@ public class Config {
 
     private String itemLabel;
 
+    @Builder.Default
     private Boolean showValueField = false;
 
     private String valueFieldLabel;
 
     private String valueFieldPlaceholder;
 
+    @Builder.Default
     private Boolean systemDefined = true;
 
 //    private String status = "ACTIVE";
@@ -53,6 +55,7 @@ public class Config {
     private LocalDateTime updatedAt;
 
 
+    @Builder.Default
     @OneToMany(
             mappedBy = "config",
             cascade = CascadeType.ALL,

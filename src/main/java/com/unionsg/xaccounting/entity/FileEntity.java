@@ -74,6 +74,7 @@ public class FileEntity {
     @Column(length = 500)
     private String description;
 
+    @Builder.Default
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
 

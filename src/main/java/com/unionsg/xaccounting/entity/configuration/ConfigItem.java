@@ -30,6 +30,7 @@ public class ConfigItem {
 
     private String description;
 
+    @Builder.Default
     private Boolean isDefault = false;
 
 //    private String status = "ACTIVE";

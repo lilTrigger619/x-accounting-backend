@@ -69,15 +69,26 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
         return DocumentTemplateMapper.toResponse(template);
     }
 
-    // =============================
+// =============================
     // List Templates
     // =============================
 
     @Override
     @Transactional(readOnly = true)
-    public Page<DocumentTemplateResponse> listTemplates(DocumentType type, Pageable pageable) {
+    public Page<DocumentTemplateResponse> listTemplates(DocumentType type, boolean systemOnly, boolean userOnly, Pageable pageable) {
+        // If both filters are requested, treat it as all templates (no isSystem filter)
+        boolean filterBySystem = systemOnly != userOnly;
+
+        if (type != null && filterBySystem) {
+            return templateRepository.findByDocumentTypeAndIsSystem(type, systemOnly, pageable)
+                    .map(DocumentTemplateMapper::toResponse);
+        }
         if (type != null) {
             return templateRepository.findByDocumentType(type, pageable)
+                    .map(DocumentTemplateMapper::toResponse);
+        }
+        if (filterBySystem) {
+            return templateRepository.findByIsSystem(systemOnly, pageable)
                     .map(DocumentTemplateMapper::toResponse);
         }
         return templateRepository.findAll(pageable)

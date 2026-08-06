@@ -13,6 +13,7 @@ public class DocumentTemplateResponse {
 
     private Long id;
     private String name;
+    private String description;
     private DocumentType documentType;
     private DocumentLayout layout;
     private boolean isDefault;

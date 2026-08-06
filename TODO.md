@@ -1,12 +1,11 @@
-# Payment Module - Phase 8 Implementation
+# TODO: Document Template Sample Preview Endpoint
 
-## Step 1: Create Additional DTOs
-- [x] ReceiptEmailRequest
-- [x] ActivityResponse
-- [x] EmailHistoryResponse
-
-## Step 2: Create Controller
-- [x] PaymentController
-
-## Step 3: Verify compilation
-- [x] Build successful
+## Steps
+- [x] 1. Create `SamplePreviewRequest` DTO
+- [x] 2. Create `DocumentPreviewSampleDataProvider` interface
+- [x] 3. Create `InvoiceSampleDataProvider` implementation
+- [x] 4. Create `DocumentTemplatePreviewService` interface
+- [x] 5. Create `DocumentTemplatePreviewServiceImpl`
+- [x] 6. Add `samplePreview` endpoint to `DocumentTemplateController`
+- [x] 7. Add tests (provider + service)
+- [x] 8. Compile & run tests (BUILD SUCCESSFUL)

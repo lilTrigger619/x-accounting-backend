@@ -1,0 +1,623 @@
+
+
+
+We need to implement a new backend endpoint for the Accounting application's Invoice Document Template Designer.
+
+TECH STACK
+
+- Java
+- Spring Boot
+- Existing application architecture
+- Existing Document Template module
+- Thymeleaf for HTML rendering
+- OpenHTMLToPDF for PDF generation
+- Existing invoice/document rendering pipeline
+- Existing DTO/mapper/service conventions
+- Existing authentication/tenant/business context
+
+IMPORTANT ARCHITECTURAL RULE
+
+We already have an existing document preview flow that accepts:
+
+    documentType = INVOICE
+    entityId = 010323
+
+The existing flow queries the real Invoice entity, builds the invoice document model, and renders the Thymeleaf template into HTML.
+
+DO NOT replace or modify that existing real-document preview flow.
+
+Instead, create a separate preview flow specifically for the Document Template Designer.
+
+The new flow must use fabricated/in-memory sample data.
+
+DO NOT create sample Invoice, Customer, InvoiceItem, Payment, Journal, or other accounting records in the database.
+
+DO NOT seed fake accounting transactions.
+
+DO NOT modify account balances.
+
+DO NOT create journal entries.
+
+DO NOT consume invoice number sequences.
+
+DO NOT create audit/activity records.
+
+The sample data must exist only during the HTTP request.
+
+==================================================
+1. ENDPOINT
+==================================================
+
+Create:
+
+POST
+
+/api/document-templates/{templateId}/sample-preview
+
+Where:
+
+templateId = the document template being customized.
+
+Example:
+
+POST /api/document-templates/123/sample-preview
+
+The response must be:
+
+Content-Type: text/html
+
+and contain the fully rendered invoice HTML.
+
+==================================================
+2. REQUEST DTO
+==================================================
+
+The endpoint must accept the current unsaved template configuration.
+
+Create an appropriate request DTO following the existing backend DTO conventions.
+
+Conceptually:
+
+SamplePreviewRequest
+
+{
+    "design": {
+        ...
+    },
+    "content": {
+        ...
+    }
+}
+
+Do NOT blindly copy these fields if the existing Document Template DTOs already define the correct structure.
+
+Reuse the existing Design/Content configuration DTOs where possible.
+
+The important requirement is:
+
+The request represents the CURRENT UNSAVED DESIGNER STATE.
+
+The user must be able to change a color/layout/content setting and immediately preview it without saving first.
+
+==================================================
+3. TEMPLATE LOOKUP
+==================================================
+
+Use templateId to retrieve the existing Document Template.
+
+Validate:
+
+- template exists
+- template belongs to the current business/company/tenant
+- template is an INVOICE template
+- template is accessible to the authenticated user
+
+If not found:
+
+Return the application's standard 404 response.
+
+If the template is not an invoice template:
+
+Return an appropriate 400/422 business error.
+
+Do not allow a template from another business/company to be previewed.
+
+==================================================
+4. SAMPLE DATA PROVIDER
+==================================================
+
+Create a reusable sample-data provider.
+
+Suggested architecture:
+
+DocumentPreviewSampleDataProvider
+
+with an Invoice implementation:
+
+InvoiceSampleDataProvider
+
+The provider should create an in-memory InvoiceDocumentModel.
+
+IMPORTANT:
+
+The sample model must be the SAME document model used by the real invoice rendering pipeline.
+
+Do NOT create a separate SampleInvoiceDocumentModel.
+
+The architecture should be:
+
+REAL INVOICE:
+
+Invoice entity
+    ↓
+InvoiceMapper/DocumentMapper
+    ↓
+InvoiceDocumentModel
+    ↓
+Thymeleaf
+    ↓
+HTML
+
+SAMPLE PREVIEW:
+
+InvoiceSampleDataProvider
+    ↓
+InvoiceDocumentModel
+    ↓
+Thymeleaf
+    ↓
+HTML
+
+This ensures the sample preview exercises the same Thymeleaf template structure as the real invoice.
+
+==================================================
+5. SAMPLE INVOICE DATA
+==================================================
+
+Create realistic sample data covering as many invoice fields as possible.
+
+Example:
+
+Business:
+
+Acme Business Solutions Ltd.
++233 20 123 4567
+billing@acme.example
+www.acme.example
+
+Address:
+
+12 Independence Avenue
+Accra
+Ghana
+
+Customer:
+
+Kwame Mensah Enterprises
+
+Customer email:
+
+kwame@example.com
+
+Customer phone:
+
++233 24 555 1234
+
+Customer address:
+
+45 Oxford Street
+Osu
+Accra, Ghana
+
+Invoice:
+
+INV-2026-0001
+
+Reference:
+
+PO-2026-0192
+
+Issue date:
+
+2026-08-05
+
+Due date:
+
+2026-09-04
+
+Payment terms:
+
+Net 30
+
+Payment method:
+
+Bank Transfer
+
+Items:
+
+1.
+Website Development
+Quantity: 1
+Unit price: 2500.00
+
+2.
+Consulting Services
+Quantity: 5
+Unit price: 150.00
+
+3.
+Hosting & Maintenance
+Quantity: 1
+Unit price: 300.00
+
+Include realistic:
+
+- subtotal
+- tax
+- discount
+- total
+- amount paid
+- balance due
+- notes
+- terms
+- billing address
+- shipping address
+- payment method
+- reference number
+
+Use values that make the invoice visually representative.
+
+The purpose is to ensure the template designer can see what a realistic invoice looks like.
+
+==================================================
+6. SAMPLE DATA MUST NOT BE STORED
+==================================================
+
+The provider must return an in-memory object.
+
+There must be:
+
+NO:
+
+repository.save(...)
+invoiceRepository.save(...)
+customerRepository.save(...)
+journalRepository.save(...)
+
+and no database mutation whatsoever.
+
+The request lifecycle should be:
+
+HTTP request
+    ↓
+load template
+    ↓
+create sample InvoiceDocumentModel
+    ↓
+apply requested configuration
+    ↓
+render Thymeleaf
+    ↓
+return HTML
+    ↓
+request ends
+
+==================================================
+7. APPLY UNSAVED DESIGN CONFIGURATION
+==================================================
+
+This is one of the most important requirements.
+
+The sample preview must use the configuration sent by the frontend.
+
+For example:
+
+If frontend sends:
+
+primaryColor = "#2563EB"
+
+the generated HTML must use that color.
+
+If frontend sends:
+
+layout = "MODERN"
+
+the Modern invoice template/layout must be rendered.
+
+If frontend sends:
+
+logoPosition = "CENTER"
+
+the rendered invoice must reflect that.
+
+If frontend sends:
+
+showBillingAddress = false
+
+the billing address must not be displayed.
+
+If frontend sends:
+
+invoiceTitle = "TAX INVOICE"
+
+the generated HTML must display:
+
+TAX INVOICE
+
+The preview must therefore use:
+
+CURRENT UNSAVED DESIGNER CONFIGURATION
+
+rather than only the saved template configuration.
+
+==================================================
+8. DO NOT PERSIST THE REQUEST CONFIGURATION
+==================================================
+
+The configuration submitted to sample-preview must NOT be saved.
+
+This endpoint is strictly:
+
+READ/RENDER ONLY.
+
+For example:
+
+POST /sample-preview
+
+must NOT update:
+
+DocumentTemplate
+DocumentTemplateDesign
+DocumentTemplateContent
+
+or any other database entity.
+
+The actual Save operation remains a separate endpoint.
+
+==================================================
+9. REUSE EXISTING THYMELEAF RENDERING
+==================================================
+
+Do not create a second invoice HTML renderer.
+
+Reuse the existing Thymeleaf rendering service.
+
+If the existing service looks conceptually like:
+
+InvoiceTemplateRenderer
+
+or:
+
+DocumentTemplateRenderer
+
+reuse it.
+
+The target architecture is:
+
+SamplePreviewService
+        ↓
+InvoiceSampleDataProvider
+        ↓
+InvoiceDocumentModel
+        ↓
+Existing DocumentTemplateRenderer
+        ↓
+Thymeleaf
+        ↓
+HTML String
+
+If the existing rendering service currently requires an Invoice entity, refactor it carefully so that the lower-level rendering layer accepts the document model instead.
+
+Do not duplicate rendering logic.
+
+==================================================
+10. TEMPLATE SELECTION
+==================================================
+
+The selected template must determine the layout.
+
+For example:
+
+CLASSIC
+MODERN
+PROFESSIONAL
+
+If the existing architecture uses template files, resolve the correct Thymeleaf template through the existing template-resolution mechanism.
+
+Do not hardcode HTML strings inside the controller.
+
+The controller must never contain invoice HTML.
+
+==================================================
+11. CONTROLLER
+==================================================
+
+Create an appropriate controller method.
+
+Conceptually:
+
+@PostMapping("/{templateId}/sample-preview")
+public ResponseEntity<String> samplePreview(
+        @PathVariable Long templateId,
+        @RequestBody SamplePreviewRequest request
+)
+
+Use the project's actual ID type and API conventions.
+
+Set:
+
+Content-Type: text/html
+
+Return the rendered HTML.
+
+Do not return:
+
+{
+    "html": "..."
+}
+
+unless the existing API convention specifically requires that.
+
+The frontend needs the response directly as HTML.
+
+==================================================
+12. SERVICE
+==================================================
+
+Keep the controller thin.
+
+The controller should delegate to something like:
+
+DocumentTemplatePreviewService
+
+or:
+
+InvoiceTemplatePreviewService
+
+The service should:
+
+1. Retrieve template
+2. Validate template ownership/type
+3. Build sample document model
+4. Apply unsaved design/content configuration
+5. Render using existing Thymeleaf renderer
+6. Return HTML
+
+==================================================
+13. ERROR HANDLING
+==================================================
+
+Use the existing application's standard exception handling.
+
+Handle at minimum:
+
+404:
+Template not found.
+
+400/422:
+Template is not an invoice template.
+
+400/422:
+Invalid template configuration.
+
+500:
+Unable to render template.
+
+Never expose:
+
+- Java stack traces
+- SQL errors
+- internal class names
+- filesystem paths
+
+to the frontend.
+
+==================================================
+14. SECURITY
+==================================================
+
+The endpoint must respect the application's existing:
+
+- authentication
+- authorization
+
+
+Do not bypass existing security filters.
+
+==================================================
+15. FUTURE EXTENSIBILITY
+==================================================
+
+The sample-data architecture must be extensible.
+
+Design it so that later we can add:
+
+InvoiceSampleDataProvider
+CreditNoteSampleDataProvider
+QuoteSampleDataProvider
+PaymentReceiptSampleDataProvider
+CustomerStatementSampleDataProvider
+
+without changing the controller architecture.
+
+For example:
+
+DocumentType
+    ↓
+SampleDataProviderResolver
+    ↓
+InvoiceSampleDataProvider
+
+For THIS implementation only INVOICE is required.
+
+==================================================
+16. TESTS
+==================================================
+
+Add appropriate unit/integration tests.
+
+At minimum test:
+
+1. Existing template can generate sample preview.
+
+2. Nonexistent template returns 404.
+
+3. Non-INVOICE template is rejected.
+
+4. Sample preview does not create database records.
+
+5. Unsaved configuration affects generated HTML.
+
+For example:
+
+primaryColor = "#FF0000"
+
+should result in the rendered HTML containing the configured value.
+
+6. Sample data contains realistic invoice information.
+
+7. Template ownership/business isolation is respected.
+
+==================================================
+17. DO NOT IMPLEMENT
+==================================================
+
+Do NOT implement:
+
+- frontend changes
+- PDF generation
+- email sending
+- invoice sending
+- invoice persistence
+- fake database entities
+- template autosave
+- template versioning
+- drag-and-drop editor
+- new accounting transactions
+
+This task is ONLY the backend sample invoice HTML preview endpoint.
+
+==================================================
+18. FINAL REPORT
+==================================================
+
+After implementation report:
+
+1. Files created
+2. Files modified
+3. Endpoint URL
+4. Request DTO structure
+5. Response format
+6. Sample data provider structure
+7. Existing rendering services reused
+8. How unsaved configuration is applied
+9. Confirmation that no database records are created
+10. Tests added
+11. Any assumptions made
+12. Any existing backend contract that required adaptation
+
+IMPORTANT:
+
+Do not create duplicate invoice rendering logic.
+
+The real invoice renderer and the sample preview renderer must ultimately converge on the same InvoiceDocumentModel + Thymeleaf rendering pipeline.

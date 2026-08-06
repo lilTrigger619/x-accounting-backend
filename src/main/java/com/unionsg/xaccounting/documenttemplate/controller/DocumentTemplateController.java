@@ -3,12 +3,14 @@ package com.unionsg.xaccounting.documenttemplate.controller;
 import com.unionsg.xaccounting.documenttemplate.dto.request.*;
 import com.unionsg.xaccounting.documenttemplate.dto.response.DocumentTemplateResponse;
 import com.unionsg.xaccounting.documenttemplate.enums.DocumentType;
+import com.unionsg.xaccounting.documenttemplate.preview.DocumentTemplatePreviewService;
 import com.unionsg.xaccounting.documenttemplate.service.DocumentTemplateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class DocumentTemplateController {
 
     private final DocumentTemplateService documentTemplateService;
+    private final DocumentTemplatePreviewService documentTemplatePreviewService;
 
     // =============================
     // Create Template
@@ -128,7 +131,7 @@ public class DocumentTemplateController {
         return ResponseEntity.ok(documentTemplateService.updateReminderEmail(id, request));
     }
 
-    // =============================
+// =============================
     // Set Default Template
     // =============================
 
@@ -137,6 +140,32 @@ public class DocumentTemplateController {
             @PathVariable Long id
     ) {
         return ResponseEntity.ok(documentTemplateService.setDefaultTemplate(id));
+    }
+
+    // =============================
+    // Sample Preview (Document Template Designer)
+    // =============================
+
+    /**
+     * Renders a sample invoice preview using the template's saved configuration
+     * overlaid with the current unsaved designer state.
+     *
+     * <p>Strictly read/render only — the submitted configuration is never persisted
+     * and no database records are created.</p>
+     *
+     * @param templateId the template being customized
+     * @param request    the current unsaved designer state (layout/design/content)
+     * @return the fully rendered invoice HTML
+     */
+    @PostMapping("/{templateId}/sample-preview")
+    public ResponseEntity<String> samplePreview(
+            @PathVariable Long templateId,
+            @Valid @RequestBody SamplePreviewRequest request
+    ) {
+        String html = documentTemplatePreviewService.samplePreview(templateId, request);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_HTML)
+                .body(html);
     }
 }
 

@@ -9,3 +9,4 @@
 - [x] 6. Add `samplePreview` endpoint to `DocumentTemplateController`
 - [x] 7. Add tests (provider + service)
 - [x] 8. Compile & run tests (BUILD SUCCESSFUL)
+- [x] 9. Fix Thymeleaf context-relative link error in `ThymeleafDocumentRenderer` (use WebContext within HTTP request)

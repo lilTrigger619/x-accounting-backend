@@ -40,13 +40,13 @@
         <div class="company-section">
             <h1 class="company-name" th:if="${content.showCompanyName}" th:text="${company.name}">Company Name</h1>
             <div class="company-details">
-                <span th:if="${content.showPhone && company.phone}" th:text="'📞 ' + ${company.phone}">Phone</span>
-                <span class="separator" th:if="${content.showPhone && company.phone && content.showEmail && company.email}">|</span>
-                <span th:if="${content.showEmail && company.email}" th:text="'✉ ' + ${company.email}">Email</span>
-                <span class="separator" th:if="${content.showEmail && company.email && content.showWebsite && company.website}">|</span>
-                <span th:if="${content.showWebsite && company.website}" th:text="'🌐 ' + ${company.website}">Website</span>
+                <span th:if="${content.showPhone && !#strings.isEmpty(company.phone)}" th:text="'📞 ' + ${company.phone}">Phone</span>
+                <span class="separator" th:if="${content.showPhone && !#strings.isEmpty(company.phone) && content.showEmail && !#strings.isEmpty(company.email)}">|</span>
+                <span th:if="${content.showEmail && !#strings.isEmpty(company.email)}" th:text="'✉ ' + ${company.email}">Email</span>
+                <span class="separator" th:if="${content.showEmail && !#strings.isEmpty(company.email) && content.showWebsite && !#strings.isEmpty(company.website)}">|</span>
+                <span th:if="${content.showWebsite && !#strings.isEmpty(company.website)}" th:text="'🌐 ' + ${company.website}">Website</span>
             </div>
-            <p th:if="${content.showAddress && company.fullAddress}" class="company-address" th:text="${company.fullAddress}">Address</p>
+            <p th:if="${content.showAddress && !#strings.isEmpty(company.fullAddress)}" class="company-address" th:text="${company.fullAddress}">Address</p>
         </div>
     </div>
 
@@ -131,7 +131,7 @@
             <h3 class="section-title">Payment</h3>
             <p>Bank Transfer / Check / Online</p>
         </div>
-        <div th:if="${content.showTerms && invoice.terms}" class="terms-section">
+        <div th:if="${content.showTerms && !#strings.isEmpty(invoice.terms)}" class="terms-section">
             <h3 class="section-title">Terms</h3>
             <p th:text="${invoice.terms}">Terms go here.</p>
         </div>

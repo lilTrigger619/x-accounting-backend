@@ -10,3 +10,4 @@
 - [x] 7. Add tests (provider + service)
 - [x] 8. Compile & run tests (BUILD SUCCESSFUL)
 - [x] 9. Fix Thymeleaf context-relative link error in `ThymeleafDocumentRenderer` (use WebContext within HTTP request)
+- [x] 10. Create `CompanyConfigSeeder` to seed COMPANY config for realistic template rendering

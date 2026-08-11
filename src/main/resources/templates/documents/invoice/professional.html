@@ -3,25 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <title th:text="${content.formTitle} ?: 'Invoice'">Invoice</title>
-    <link rel="stylesheet" type="text/css" th:href="@{/css/documents/invoice/common.css}" />
-    <link rel="stylesheet" type="text/css" th:href="@{/css/documents/invoice/professional.css}" />
+    <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/common.css'" />
+    <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/professional.css'" />
     <style th:inline="css">
         body {
             font-family: [[${design.fontFamily}]];
             font-size: [[${design.fontSize}]]px;
         }
-        .top-border {
-            border-top: 4px solid [[${design.primaryColor}]];
-        }
-        .section-title {
+        .invoice-title,
+        .notes-section .section-title,
+        .terms-section .section-title,
+        .logo-fallback-bars span {
             color: [[${design.primaryColor}]];
-            border-bottom: 2px solid [[${design.primaryColor}]];
+        }
+        .logo-fallback-bars span {
+            background: [[${design.primaryColor}]];
         }
         .items-table thead {
-            background-color: [[${design.primaryColor}]];
+            border-bottom-color: [[${design.primaryColor}]];
         }
-        .total-row {
-            border-top: 2px solid [[${design.primaryColor}]];
+        .total-row td {
+            border-top-color: [[${design.primaryColor}]];
+            border-bottom-color: [[${design.primaryColor}]];
         }
         .footer-line {
             border-top: 1px solid [[${design.secondaryColor}]];
@@ -30,66 +33,59 @@
 </head>
 <body>
 <div class="invoice-container professional top-border">
-    <!-- Company Header -->
+
+    <!-- Header: big title left, logo/company right -->
     <div class="company-header">
-        <div class="company-info">
-            <div th:if="${company.logoUrl}" class="logo-section"
-                 th:style="${design.logoPosition == 'top-left'} ? 'float: left; margin-right: 20px;' :
-                           (${design.logoPosition == 'top-right'} ? 'float: right; margin-left: 20px;' : 'text-align: center; margin-bottom: 15px;')">
-                <img th:src="${company.logoUrl}"
-                     th:style="'max-width: ' + (${design.logoWidth} ?: 140) + 'px; max-height: ' + (${design.logoHeight} ?: 70) + 'px;'"
-                     alt="Company Logo"/>
-            </div>
-            <h1 class="company-name" th:if="${content.showCompanyName}" th:text="${company.name}">Company Name</h1>
-            <div class="company-details">
-                <p th:if="${content.showPhone && !#strings.isEmpty(company.phone)}" th:text="'Phone: ' + ${company.phone}">Phone</p>
-                <p th:if="${content.showEmail && !#strings.isEmpty(company.email)}" th:text="'Email: ' + ${company.email}">Email</p>
-                <p th:if="${content.showWebsite && !#strings.isEmpty(company.website)}" th:text="'Website: ' + ${company.website}">Website</p>
-                <p th:if="${content.showAddress && !#strings.isEmpty(company.fullAddress)}" th:text="${company.fullAddress}">Address</p>
-            </div>
-        </div>
         <div class="invoice-identity">
             <h1 class="invoice-title" th:text="${content.formTitle} ?: 'INVOICE'">INVOICE</h1>
-            <table class="meta-table">
-                <tr>
-                    <td class="meta-label">Invoice #:</td>
-                    <td class="meta-value" th:text="${invoice.invoiceNumber}">INV-001</td>
-                </tr>
-                <tr>
-                    <td class="meta-label">Issue Date:</td>
-                    <td class="meta-value" th:text="${#temporals.format(invoice.issueDate, 'MMM dd, yyyy')}">Jan 01, 2024</td>
-                </tr>
-                <tr th:if="${content.showDueDate}">
-                    <td class="meta-label">Due Date:</td>
-                    <td class="meta-value" th:text="${#temporals.format(invoice.dueDate, 'MMM dd, yyyy')}">Jan 31, 2024</td>
-                </tr>
-                <tr th:if="${invoice.reference}">
-                    <td class="meta-label">Reference:</td>
-                    <td class="meta-value" th:text="${invoice.reference}">REF</td>
-                </tr>
-            </table>
+        </div>
+        <div class="company-info">
+            <div th:if="${company.logoUrl}" class="logo-section">
+                <img th:src="${company.logoUrl}"
+                     th:style="'max-width: ' + (${design.logoWidth} ?: 140) + 'px; max-height: ' + (${design.logoHeight} ?: 40) + 'px;'"
+                     alt="Company Logo"/>
+            </div>
+            <div th:unless="${company.logoUrl}" class="logo-fallback-bars">
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <h2 class="company-name" th:if="${content.showCompanyName}" th:text="${company.name}">Company Name</h2>
+            <div class="company-details">
+                <p th:if="${content.showAddress && !#strings.isEmpty(company.fullAddress)}" th:text="${company.fullAddress}">Address</p>
+                <p th:if="${content.showPhone && !#strings.isEmpty(company.phone)}" th:text="${company.phone}">Phone</p>
+            </div>
         </div>
     </div>
 
-    <!-- Clearfix -->
-    <div style="clear: both;"></div>
-
-    <!-- Addresses Grid -->
+    <!-- Info grid: Invoice meta / Bill To / Company recap -->
     <div class="addresses-grid">
+        <div class="meta-box">
+            <div class="meta-field">
+                <span class="field-label">N. Invoice</span>
+                <span class="field-value" th:text="${invoice.invoiceNumber}">INV-001</span>
+            </div>
+            <div class="meta-field">
+                <span class="field-label">Date</span>
+                <span class="field-value" th:text="${#temporals.format(invoice.issueDate, 'dd MMMM yyyy')}">25 September 2024</span>
+            </div>
+            <div class="meta-field" th:if="${content.showPaymentMethod}">
+                <span class="field-label">Payment Method</span>
+                <span class="field-value">Credit Card</span>
+            </div>
+        </div>
+
         <div th:if="${content.showBillingAddress}" class="address-box">
             <h3 class="section-title">Bill To</h3>
             <p th:text="${invoice.customer.displayName}">Customer Name</p>
             <p th:text="${invoice.billingInfo.addressLine1}">Address</p>
-            <p th:if="${invoice.billingInfo.addressLine2}" th:text="${invoice.billingInfo.addressLine2}">Address 2</p>
             <p th:text="${invoice.billingInfo.city} + ', ' + ${invoice.billingInfo.state} + ' ' + ${invoice.billingInfo.postalCode}">City, State ZIP</p>
-            <p th:text="${invoice.billingInfo.country}">Country</p>
-            <p th:text="${invoice.billingInfo.billingEmail}">Email</p>
+            <p th:if="${!#strings.isEmpty(invoice.billingInfo.billingEmail)}" th:text="${invoice.billingInfo.billingEmail}">Email</p>
         </div>
-        <div th:if="${content.showShippingAddress}" class="address-box">
-            <h3 class="section-title">Ship To</h3>
-            <p th:text="${invoice.customer.displayName}">Customer Name</p>
-            <p th:if="${invoice.customer.shippingAddress?.addressLine}" th:text="${invoice.customer.shippingAddress.addressLine}">Shipping Address</p>
-            <p th:if="${invoice.customer.shippingAddress?.city}" th:text="${invoice.customer.shippingAddress.city} + ', ' + (${invoice.customer.shippingAddress.state} ?: '') + ' ' + (${invoice.customer.shippingAddress.zipCode} ?: '')">City, State ZIP</p>
+
+        <div class="address-box">
+            <h3 class="section-title">From</h3>
+            <p th:text="${company.name}">Company Name</p>
+            <p th:if="${content.showAddress && !#strings.isEmpty(company.fullAddress)}" th:text="${company.fullAddress}">Address</p>
+            <p th:if="${content.showPhone && !#strings.isEmpty(company.phone)}" th:text="${company.phone}">Phone</p>
         </div>
     </div>
 
@@ -97,10 +93,9 @@
     <table class="items-table">
         <thead>
         <tr>
-            <th class="col-description">Item Description</th>
-            <th class="col-qty">Quantity</th>
-            <th class="col-price">Unit Price</th>
-            <th class="col-tax">Tax Rate</th>
+            <th class="col-description">Items</th>
+            <th class="col-qty">Qty.</th>
+            <th class="col-price">Price</th>
             <th class="col-total">Total</th>
         </tr>
         </thead>
@@ -109,11 +104,16 @@
             <td class="col-description" th:text="${item.description}">Description</td>
             <td class="col-qty" th:text="${item.quantity}">1</td>
             <td class="col-price" th:text="${{item.unitPrice}}">0.00</td>
-            <td class="col-tax" th:text="${item.taxRate} + '%'">0%</td>
             <td class="col-total" th:text="${{item.lineTotal}}">0.00</td>
         </tr>
         </tbody>
     </table>
+
+    <!-- Decorative blank lines -->
+    <div class="extra-lines">
+        <div></div>
+        <div></div>
+    </div>
 
     <!-- Totals -->
     <table class="totals-table">
@@ -122,7 +122,7 @@
             <td class="totals-value" th:text="${{invoice.subtotal}}">0.00</td>
         </tr>
         <tr>
-            <td class="totals-label">Total Tax</td>
+            <td class="totals-label">Tax</td>
             <td class="totals-value" th:text="${{invoice.totalTax}}">0.00</td>
         </tr>
         <tr th:if="${invoice.discountType.name() != 'NONE' && invoice.discountAmount > 0}">
@@ -130,7 +130,7 @@
             <td class="totals-value" th:text="'-' + ${{invoice.discountAmount}}">0.00</td>
         </tr>
         <tr class="total-row">
-            <td class="totals-label">Total Amount</td>
+            <td class="totals-label">Total</td>
             <td class="totals-value" th:text="${{invoice.totalAmount}}">0.00</td>
         </tr>
         <tr th:if="${content.showDueDate}" class="due-row">
@@ -139,21 +139,17 @@
         </tr>
     </table>
 
-    <!-- Bottom Sections -->
+    <!-- Bottom sections -->
     <div class="bottom-sections">
-        <div th:if="${content.showPaymentMethod}" class="payment-section">
-            <h3 class="section-title">Payment Information</h3>
-            <p>Bank Transfer / Check / Online Payment</p>
-        </div>
         <div th:if="${content.showTerms && !#strings.isEmpty(invoice.terms)}" class="terms-section">
             <h3 class="section-title">Terms & Conditions</h3>
             <p th:text="${invoice.terms}">Terms go here.</p>
         </div>
     </div>
 
-    <div th:if="${invoice.notes}" class="notes-section">
-        <h3 class="section-title">Notes</h3>
-        <p th:text="${invoice.notes}">Notes go here.</p>
+    <div class="notes-section">
+        <h3 class="section-title">Thank You!</h3>
+        <p th:if="${invoice.notes}" th:text="${invoice.notes}">Notes go here.</p>
     </div>
 
     <!-- Footer -->
@@ -162,4 +158,3 @@
 </div>
 </body>
 </html>
-

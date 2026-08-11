@@ -1,6 +1,7 @@
 /* =============================
    Document Invoice - Common Styles
    Shared across all invoice layouts
+   Redesigned to match "modern" reference layout
    ============================= */
 
 * {
@@ -9,10 +10,40 @@
     box-sizing: border-box;
 }
 
+:root {
+    --accent-green: #12946f;
+    --accent-blue: #3b6fd4;
+    --accent-blue-bg: #eaf1fc;
+    --text-dark: #1f2937;
+    --text-gray: #6b7280;
+    --text-light-gray: #9aa1ac;
+    --border-color: #e6e8eb;
+
+    /* Slate palette used by the previous "modern" layout */
+    --slate: #5b7ea3;
+    --slate-dark: #47617f;
+    --slate-line: #c7d4e2;
+    --slate-page-bg: #e9eef4;
+
+    /* Coral/charcoal palette used by the flat geometric "modern" layout */
+    --coral: #ef5a4c;
+    --coral-dark: #d8483b;
+    --coral-bg: #fbe2df;
+    --charcoal: #3a3a3a;
+    --charcoal-dark: #2c2c2c;
+    --row-gray: #f0f0f0;
+
+    /* Sage palette used by the minimalist "professional" layout */
+    --sage: #7c9081;
+    --sage-dark: #5f7364;
+    --sage-page-bg: #8a9c8f;
+}
+
 body {
     background: #f5f5f5;
-    color: #333;
+    color: var(--text-dark);
     line-height: 1.6;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }
@@ -21,30 +52,52 @@ body {
     max-width: 800px;
     margin: 20px auto;
     background: #fff;
-    padding: 40px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 48px 44px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Logo */
+.logo-section {
+    display: inline-block;
+    margin-bottom: 16px;
+    padding: 8px 14px;
+    border: 1px solid var(--accent-blue);
+    border-radius: 4px;
+    color: var(--accent-blue);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
 }
 
 /* Company */
 .company-name {
-    font-size: 22px;
+    font-size: 17px;
     font-weight: 700;
-    margin-bottom: 5px;
-    color: #222;
+    margin-bottom: 8px;
+    color: var(--text-dark);
 }
 
 .company-details p {
     margin: 2px 0;
-    font-size: 13px;
-    color: #555;
+    font-size: 12.5px;
+    color: var(--text-gray);
 }
 
 /* Invoice Title */
 .invoice-title {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 800;
     letter-spacing: 1px;
-    margin-bottom: 10px;
+    margin-bottom: 14px;
+    color: var(--accent-green);
+    text-transform: uppercase;
+}
+
+/* Header divider */
+.header-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 24px 0 20px 0;
 }
 
 /* Items Table */
@@ -55,27 +108,30 @@ body {
 }
 
 .items-table thead {
-    background-color: #1a73e8;
-    color: #fff;
+    background: none;
+    color: var(--accent-green);
+    border-bottom: 2px solid var(--accent-blue);
 }
 
 .items-table th {
-    padding: 10px 8px;
+    padding: 8px 8px 10px 8px;
     text-align: left;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 11.5px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    color: var(--accent-green);
 }
 
 .items-table td {
-    padding: 10px 8px;
-    border-bottom: 1px solid #eee;
-    font-size: 14px;
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 13.5px;
+    color: var(--text-dark);
 }
 
-.items-table tbody tr:hover {
-    background-color: #f8f9fa;
+.items-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .col-description {
@@ -103,88 +159,119 @@ body {
     font-weight: 600;
 }
 
+.items-table th.col-qty {
+    text-align: center;
+}
+
+.items-table th.col-price,
+.items-table th.col-total {
+    text-align: right;
+}
+
+.items-table th.col-tax {
+    text-align: center;
+}
+
 /* Totals */
 .totals-table {
     width: 100%;
-    max-width: 350px;
+    max-width: 300px;
     margin-left: auto;
     border-collapse: collapse;
+    margin-top: 10px;
 }
 
 .totals-table td {
     padding: 6px 10px;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .totals-label {
     text-align: left;
     font-weight: 500;
-    color: #555;
+    color: var(--text-gray);
 }
 
 .totals-value {
     text-align: right;
     font-weight: 600;
+    color: var(--text-dark);
 }
 
 .total-row td {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 700;
     padding-top: 10px;
-    border-top: 2px solid #333;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-dark);
 }
 
 .due-row td {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
-    color: #d93025;
+    padding: 12px 10px;
+    background: var(--accent-blue-bg);
+    color: var(--accent-blue);
+}
+
+.due-row .totals-label {
+    color: var(--accent-blue);
+    border-radius: 4px 0 0 4px;
+}
+
+.due-row .totals-value {
+    color: var(--accent-blue);
+    border-radius: 0 4px 4px 0;
 }
 
 .due-amount {
-    color: #d93025;
+    color: var(--accent-blue);
     font-weight: 700;
 }
 
 /* Sections */
 .section-title {
-    font-size: 14px;
+    font-size: 11.5px;
     font-weight: 700;
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    color: var(--accent-green);
 }
 
 .terms-section,
-.notes-section {
-    margin-top: 20px;
-    padding: 15px;
-    background: #f9f9f9;
-    border-radius: 4px;
+.notes-section,
+.payment-section {
+    margin-top: 26px;
+}
+
+.terms-section h3,
+.notes-section h3,
+.payment-section h3 {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-green);
+    margin-bottom: 6px;
 }
 
 .terms-section p,
-.notes-section p {
-    font-size: 13px;
-    color: #555;
-    line-height: 1.5;
-}
-
-.payment-section {
-    margin-top: 20px;
-}
-
+.notes-section p,
 .payment-section p {
-    font-size: 13px;
-    color: #555;
+    font-size: 12.5px;
+    color: var(--text-gray);
+    line-height: 1.5;
 }
 
 /* Footer */
 .footer-text {
-    text-align: center;
+    text-align: left;
     font-size: 12px;
-    color: #999;
-    margin-top: 20px;
-    padding-top: 10px;
+    color: var(--text-light-gray);
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
 }
 
 /* Print Styles */
@@ -200,4 +287,3 @@ body {
         max-width: 100%;
     }
 }
-

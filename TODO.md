@@ -11,3 +11,6 @@
 - [x] 8. Compile & run tests (BUILD SUCCESSFUL)
 - [x] 9. Fix Thymeleaf context-relative link error in `ThymeleafDocumentRenderer` (use WebContext within HTTP request)
 - [x] 10. Create `CompanyConfigSeeder` to seed COMPANY config for realistic template rendering
+- [x] 11. Fix boolean-coercion type errors in `th:if` conditions in classic/modern/professional templates
+- [x] 12. Make CSS links absolute using `baseUrl` variable from request (scheme://host[:port]/contextPath)
+- [x] 13. Allow static resources (`/css/**`, `/js/**`, `/images/**`, `/fonts/**`, `/favicon.ico`) through auth in `SecurityConfig`

@@ -34,10 +34,11 @@ public class ThymeleafDocumentRenderer {
     private final TemplateEngine templateEngine;
 
     public String render(DocumentRenderer renderer, DocumentContext context) {
-ServletRequestAttributes attrs =
+        ServletRequestAttributes attrs =
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
 
         AbstractContext thymeleafContext;
+        String baseUrl = "";
         if (attrs != null) {
             HttpServletRequest request = attrs.getRequest();
             HttpServletResponse response = attrs.getResponse();
@@ -48,6 +49,21 @@ ServletRequestAttributes attrs =
             IServletWebExchange exchange =
                     application.buildExchange(request, response);
             thymeleafContext = new WebContext(exchange, Locale.US);
+
+            // Compute absolute base URL so templates can link static assets absolutely,
+            // e.g. http://localhost:8080/css/documents/invoice/common.css
+            String scheme = request.getScheme();
+            String serverName = request.getServerName();
+            int serverPort = request.getServerPort();
+            String contextPath = request.getContextPath();
+
+            StringBuilder sb = new StringBuilder(scheme).append("://").append(serverName);
+            boolean isHttps = "https".equalsIgnoreCase(scheme);
+            if ((isHttps && serverPort != 443) || (!isHttps && serverPort != 80)) {
+                sb.append(':').append(serverPort);
+            }
+            sb.append(contextPath);
+            baseUrl = sb.toString();
         } else {
             thymeleafContext = new Context(Locale.US);
         }
@@ -58,6 +74,7 @@ ServletRequestAttributes attrs =
         thymeleafContext.setVariable("content", context.getContent());
         thymeleafContext.setVariable("company", context.getCompany());
         thymeleafContext.setVariable("variables", context.getVariables());
+        thymeleafContext.setVariable("baseUrl", baseUrl);
 
         // Add invoice-specific shorthand for backward compatibility in templates
         thymeleafContext.setVariable("invoice", context.getDocument());

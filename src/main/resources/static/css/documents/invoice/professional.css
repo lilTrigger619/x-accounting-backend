@@ -1,118 +1,309 @@
 /* =============================
    Professional Invoice Layout
-   Structured, formal with clear sections
+   Minimalist, sage-green accent, generous whitespace
    ============================= */
+
+body {
+    background: var(--sage-page-bg);
+}
+
+.invoice-container.professional {
+    background: #fff;
+    padding: 48px 50px 40px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
 
 .top-border {
     padding-top: 20px;
+    border-top: none !important;
 }
 
+/* ---------- Header row: big title left, logo/company right ---------- */
 .company-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 25px;
-}
-
-.company-info {
-    width: 55%;
-}
-
-.company-details p {
-    font-size: 13px;
-    color: #555;
-    margin: 2px 0;
+    align-items: flex-start;
+    margin-bottom: 30px;
 }
 
 .invoice-identity {
-    width: 40%;
+    order: 1;
+    width: auto;
+    text-align: left;
+}
+
+.invoice-title {
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--sage);
+    margin: 0;
+}
+
+.company-info {
+    order: 2;
+    width: auto;
     text-align: right;
-}
-
-.meta-table {
-    margin-left: auto;
-    border-collapse: collapse;
-}
-
-.meta-table td {
-    padding: 4px 6px;
-    font-size: 13px;
-}
-
-.meta-table .meta-label {
-    font-weight: 600;
-    color: #555;
-    text-align: right;
-}
-
-.meta-table .meta-value {
-    font-weight: 500;
-    color: #333;
-    text-align: right;
-}
-
-.section-title {
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 10px;
-    padding-bottom: 5px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.addresses-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 25px;
-}
-
-.address-box {
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 4px;
-}
-
-.address-box p {
-    font-size: 13px;
-    color: #333;
-    margin: 2px 0;
-}
-
-.items-table thead {
-    border-radius: 4px;
-}
-
-.items-table th:first-child {
-    border-radius: 4px 0 0 4px;
-}
-
-.items-table th:last-child {
-    border-radius: 0 4px 4px 0;
-}
-
-.bottom-sections {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-top: 20px;
-}
-
-.payment-section p,
-.terms-section p {
-    font-size: 13px;
-    color: #555;
-}
-
-.notes-section {
-    margin-top: 20px;
-}
-
-.footer-line {
-    margin-top: 25px;
-    margin-bottom: 10px;
 }
 
 .logo-section {
-    margin-bottom: 10px;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
 }
 
+.logo-section img {
+    max-height: 34px;
+}
+
+.logo-fallback-bars {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 26px;
+    margin-bottom: 6px;
+}
+
+.logo-fallback-bars span {
+    display: inline-block;
+    width: 4px;
+    background: var(--sage);
+    border-radius: 2px;
+}
+
+.logo-fallback-bars span:nth-child(1) { height: 40%; }
+.logo-fallback-bars span:nth-child(2) { height: 70%; }
+.logo-fallback-bars span:nth-child(3) { height: 100%; }
+.logo-fallback-bars span:nth-child(4) { height: 65%; }
+.logo-fallback-bars span:nth-child(5) { height: 45%; }
+
+.company-name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+}
+
+.company-info .company-details p {
+    font-size: 11.5px;
+    color: var(--text-gray);
+    margin: 1px 0;
+}
+
+/* ---------- Info grid: meta fields / bill to / company recap ---------- */
+.addresses-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding-top: 22px;
+}
+
+.address-box,
+.meta-box {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+.meta-field {
+    margin-bottom: 12px;
+}
+
+.meta-field .field-label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-gray);
+    margin-bottom: 2px;
+}
+
+.meta-field .field-value {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.address-box .section-title {
+    display: none;
+}
+
+.address-box p {
+    font-size: 12.5px;
+    color: var(--text-gray);
+    margin: 1px 0;
+}
+
+.address-box p:first-child {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin-bottom: 3px;
+}
+
+/* ---------- Items table ---------- */
+.items-table {
+    margin: 0 0 8px 0;
+}
+
+.items-table thead {
+    background: none !important;
+    border-bottom: 2px solid var(--text-dark);
+}
+
+.items-table th {
+    color: var(--text-dark);
+    text-transform: none;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 8px;
+    letter-spacing: 0;
+}
+
+.items-table th.col-qty,
+.items-table th.col-price,
+.items-table th.col-total {
+    text-align: right;
+}
+
+.items-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 13px;
+    color: var(--text-dark);
+}
+
+.items-table .col-qty,
+.items-table .col-price,
+.items-table .col-total {
+    text-align: right;
+}
+
+.items-table td.col-total {
+    font-weight: 700;
+}
+
+/* Decorative blank ruled lines, like the reference's extra signature-style rows */
+.extra-lines {
+    margin: 4px 0 20px 0;
+}
+
+.extra-lines div {
+    height: 30px;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+/* ---------- Totals ---------- */
+.totals-table {
+    max-width: 240px;
+    margin-left: auto;
+    margin-top: 0;
+}
+
+.totals-table .totals-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-gray);
+    font-weight: 600;
+}
+
+.totals-table .totals-value {
+    font-size: 12.5px;
+    color: var(--text-dark);
+}
+
+.total-row td {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-dark);
+    padding-top: 10px;
+    border-top: 1px solid var(--text-dark);
+    border-bottom: 1px solid var(--text-dark);
+    padding-bottom: 8px;
+}
+
+.total-row .totals-label {
+    text-transform: uppercase;
+    color: var(--text-dark);
+}
+
+.due-row td {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--sage-dark);
+    padding-top: 8px;
+}
+
+/* ---------- Bottom sections ---------- */
+.bottom-sections {
+    display: block;
+    margin-top: 34px;
+}
+
+.bottom-sections .payment-section {
+    display: none;
+}
+
+.terms-section .section-title {
+    color: var(--sage);
+    font-size: 11.5px;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 6px;
+}
+
+.terms-section p {
+    font-size: 12.5px;
+    color: var(--text-gray);
+}
+
+.notes-section {
+    margin-top: 26px;
+}
+
+.notes-section .section-title {
+    color: var(--sage);
+    font-size: 22px;
+    font-weight: 800;
+    text-transform: none;
+    letter-spacing: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 8px;
+}
+
+.notes-section p {
+    font-size: 12.5px;
+    color: var(--text-gray);
+    max-width: 480px;
+    line-height: 1.6;
+}
+
+/* ---------- Footer ---------- */
+.footer-line {
+    display: none;
+}
+
+.footer-text {
+    font-size: 11px;
+    color: var(--text-light-gray);
+    margin-top: 20px;
+    padding-top: 0;
+    border-top: none;
+}
+
+@media print {
+    body {
+        background: #fff;
+    }
+
+    .invoice-container.professional {
+        box-shadow: none;
+    }
+}

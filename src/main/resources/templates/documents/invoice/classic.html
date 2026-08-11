@@ -3,25 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <title th:text="${content.formTitle} ?: 'Invoice'">Invoice</title>
-    <link rel="stylesheet" type="text/css" th:href="@{/css/documents/invoice/common.css}" />
-    <link rel="stylesheet" type="text/css" th:href="@{/css/documents/invoice/classic.css}" />
+    <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/common.css'" />
+    <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/classic.css'" />
     <style th:inline="css">
         body {
             font-family: [[${design.fontFamily}]];
             font-size: [[${design.fontSize}]]px;
         }
-        .header-bar {
-            background-color: [[${design.primaryColor}]];
-        }
-        .footer-bar {
-            background-color: [[${design.secondaryColor}]];
-        }
     </style>
 </head>
 <body>
 <div class="invoice-container classic">
-    <!-- Header Bar -->
-    <div class="header-bar"></div>
 
     <!-- Company & Invoice Header -->
     <table class="header-table">
@@ -34,37 +26,41 @@
                          th:style="'max-width: ' + (${design.logoWidth} ?: 120) + 'px; max-height: ' + (${design.logoHeight} ?: 60) + 'px;'"
                          alt="Company Logo"/>
                 </div>
+                <div th:unless="${company.logoUrl}" class="logo-section">LOGO</div>
+
                 <h1 class="company-name" th:if="${content.showCompanyName}" th:text="${company.name}">Company Name</h1>
                 <div class="company-details">
-                    <p th:if="${content.showPhone && !#strings.isEmpty(company.phone)}" th:text="'Phone: ' + ${company.phone}">Phone</p>
-                    <p th:if="${content.showEmail && !#strings.isEmpty(company.email)}" th:text="'Email: ' + ${company.email}">Email</p>
-                    <p th:if="${content.showWebsite && !#strings.isEmpty(company.website)}" th:text="'Web: ' + ${company.website}">Website</p>
                     <p th:if="${content.showAddress && !#strings.isEmpty(company.fullAddress)}" th:text="${company.fullAddress}">Address</p>
+                    <p th:if="${content.showPhone && !#strings.isEmpty(company.phone)}" th:text="${company.phone}">Phone</p>
+                    <p th:if="${content.showEmail && !#strings.isEmpty(company.email)}" th:text="${company.email}">Email</p>
+                    <p th:if="${content.showWebsite && !#strings.isEmpty(company.website)}" th:text="${company.website}">Website</p>
                 </div>
             </td>
             <td class="invoice-title-section">
-                <h1 class="invoice-title" th:text="${content.formTitle} ?: 'INVOICE'">INVOICE</h1>
+                <h1 class="invoice-title" th:text="${content.formTitle} ?: 'Invoice'">Invoice</h1>
                 <table class="invoice-meta">
                     <tr>
-                        <td class="meta-label">Invoice #:</td>
+                        <td class="meta-label">Invoice No.</td>
                         <td class="meta-value" th:text="${invoice.invoiceNumber}">INV-001</td>
                     </tr>
                     <tr th:if="${content.showDueDate}">
-                        <td class="meta-label">Issue Date:</td>
+                        <td class="meta-label">Issued</td>
                         <td class="meta-value" th:text="${#temporals.format(invoice.issueDate, 'MMM dd, yyyy')}">Jan 01, 2024</td>
                     </tr>
                     <tr th:if="${content.showDueDate}">
-                        <td class="meta-label">Due Date:</td>
+                        <td class="meta-label">Due</td>
                         <td class="meta-value" th:text="${#temporals.format(invoice.dueDate, 'MMM dd, yyyy')}">Jan 31, 2024</td>
                     </tr>
                     <tr th:if="${invoice.reference}">
-                        <td class="meta-label">Reference:</td>
+                        <td class="meta-label">Reference</td>
                         <td class="meta-value" th:text="${invoice.reference}">REF</td>
                     </tr>
                 </table>
             </td>
         </tr>
     </table>
+
+    <hr class="header-divider" />
 
     <!-- Bill To / Ship To -->
     <table class="address-table">
@@ -126,9 +122,9 @@
             <td class="totals-label">Total</td>
             <td class="totals-value" th:text="${{invoice.totalAmount}}">0.00</td>
         </tr>
-        <tr th:if="${content.showDueDate}">
+        <tr th:if="${content.showDueDate}" class="due-row">
             <td class="totals-label">Amount Due</td>
-            <td class="totals-value due-amount" th:text="${{invoice.totalDue}}">0.00</td>
+            <td class="totals-value" th:text="${{invoice.totalDue}}">0.00</td>
         </tr>
     </table>
 
@@ -140,7 +136,7 @@
 
     <!-- Notes & Terms -->
     <div th:if="${content.showTerms && !#strings.isEmpty(invoice.terms)}" class="terms-section">
-        <h3>Terms & Conditions</h3>
+        <h3>Terms &amp; Conditions</h3>
         <p th:text="${invoice.terms}">Terms go here.</p>
     </div>
 
@@ -149,10 +145,8 @@
         <p th:text="${invoice.notes}">Notes go here.</p>
     </div>
 
-    <!-- Footer Bar -->
-    <div class="footer-bar"></div>
+    <!-- Footer -->
     <p class="footer-text" th:text="${company.name} + ' | Thank you for your business!'">Footer</p>
 </div>
 </body>
 </html>
-

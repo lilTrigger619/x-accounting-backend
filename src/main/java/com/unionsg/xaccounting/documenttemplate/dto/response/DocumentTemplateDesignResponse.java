@@ -14,5 +14,6 @@ public class DocumentTemplateDesignResponse {
     private String secondaryColor;
     private String fontFamily;
     private Integer fontSize;
+    private String fontColor;
 }
 

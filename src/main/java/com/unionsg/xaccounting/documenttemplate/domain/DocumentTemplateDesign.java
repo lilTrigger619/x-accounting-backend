@@ -47,6 +47,9 @@ public class DocumentTemplateDesign {
     @Column(name = "font_size")
     private Integer fontSize;
 
+    @Column(name = "font_color", length = 20)
+    private String fontColor;
+
     @Column(name = "logo_size", length = 10)
     private String logoSize;
 }

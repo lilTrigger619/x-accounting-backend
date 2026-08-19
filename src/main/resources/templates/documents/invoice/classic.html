@@ -9,6 +9,27 @@
         body {
             font-family: [[${design.fontFamily}]];
             font-size: [[${design.fontSize}]]px;
+            color: [[${design.fontColor} ?: '#000000']];
+        }
+        .invoice-title,
+        .items-table thead,
+        .items-table th,
+        .section-title,
+        .address-section h3,
+        .terms-section h3,
+        .notes-section h3,
+        .payment-section h3 {
+            color: [[${design.primaryColor}]];
+        }
+        .logo-section {
+            border-color: [[${design.secondaryColor}]];
+            color: [[${design.secondaryColor}]];
+        }
+        .due-row td,
+        .due-row .totals-label,
+        .due-row .totals-value,
+        .due-amount {
+            color: [[${design.secondaryColor}]];
         }
     </style>
 </head>

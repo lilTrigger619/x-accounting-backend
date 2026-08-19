@@ -20,5 +20,7 @@ public class UpdateDesignRequest {
     private String fontFamily;
 
     private Integer fontSize;
+
+    private String fontColor;
 }
 

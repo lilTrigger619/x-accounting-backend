@@ -139,6 +139,7 @@ class DocumentTemplatePreviewServiceImplTest {
         // Capture the template passed to the context builder so we can inspect applied overrides
         when(contextBuilder.build(any(), any())).thenAnswer(invocation -> DocumentContext.builder().build());
         when(rendererFactory.getRenderer(DocumentLayout.MODERN)).thenReturn(renderer);
+        when(renderer.getTemplatePath()).thenReturn("documents/invoice/modern");
         when(thymeleafRenderer.render(any(), any())).thenAnswer(invocation -> {
             DocumentRenderer r = invocation.getArgument(0);
             return "rendered:" + r.getTemplatePath();
@@ -164,6 +165,36 @@ class DocumentTemplatePreviewServiceImplTest {
         assertThat(previewTemplate.getLayout()).isEqualTo(DocumentLayout.MODERN);
         assertThat(previewTemplate.getDesign().getPrimaryColor()).isEqualTo("#FF0000");
         assertThat(previewTemplate.getContent().getFormTitle()).isEqualTo("TAX INVOICE");
+    }
+
+    @Test
+    void fontAndLogoDesignOverridesAreAppliedToPreviewTemplate() {
+        when(templateRepository.findById(1L)).thenReturn(Optional.of(invoiceTemplate()));
+        when(invoiceSampleDataProvider.buildSampleData()).thenReturn(new Object());
+        when(contextBuilder.build(any(), any())).thenReturn(DocumentContext.builder().build());
+        when(rendererFactory.getRenderer(DocumentLayout.CLASSIC)).thenReturn(renderer);
+        when(thymeleafRenderer.render(any(), any())).thenReturn("<html/>");
+
+        SamplePreviewRequest request = new SamplePreviewRequest();
+        UpdateDesignRequest design = new UpdateDesignRequest();
+        design.setFontFamily("Roboto");
+        design.setFontSize(18);
+        design.setFontColor("#FF0000");
+        design.setLogoWidth(220);
+        design.setLogoHeight(100);
+        request.setDesign(design);
+
+        service.samplePreview(1L, request);
+
+        ArgumentCaptor<DocumentTemplate> templateCaptor = ArgumentCaptor.forClass(DocumentTemplate.class);
+        verify(contextBuilder).build(any(), templateCaptor.capture());
+        DocumentTemplateDesign previewDesign = templateCaptor.getValue().getDesign();
+
+        assertThat(previewDesign.getFontFamily()).isEqualTo("Roboto");
+        assertThat(previewDesign.getFontSize()).isEqualTo(18);
+        assertThat(previewDesign.getFontColor()).isEqualTo("#FF0000");
+        assertThat(previewDesign.getLogoWidth()).isEqualTo(220);
+        assertThat(previewDesign.getLogoHeight()).isEqualTo(100);
     }
 
     @Test

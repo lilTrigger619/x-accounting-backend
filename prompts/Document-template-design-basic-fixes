@@ -1,0 +1,672 @@
+We need to fix the Invoice Document Template Designer because several design properties are currently buggy or do not reliably update the backend-generated sample preview.
+
+The affected properties are:
+
+- Font family
+- Font size
+- Font color
+- Logo width
+- Logo height
+
+The goal is to make these properties fully controlled by the designer state and ensure that every change is reflected in:
+
+Designer State
+    ↓
+Sample Preview Request
+    ↓
+POST /api/document-templates/{templateId}/sample-preview
+    ↓
+Backend Thymeleaf rendering
+    ↓
+iframe preview
+
+Do not implement a frontend-only visual approximation. The backend-generated HTML must actually reflect these values.
+
+==================================================
+1. UPDATE THE SAMPLE PREVIEW REQUEST CONTRACT
+==================================================
+
+The sample-preview request must contain the following structure:
+
+{
+  "layout": "MODERN",
+
+  "design": {
+    "logoFileId": 12345,
+    "logoPosition": "CENTER",
+    "logoWidth": 180,
+    "logoHeight": 60,
+
+    "primaryColor": "#2563EB",
+    "secondaryColor": "#64748B",
+
+    "fontFamily": "Inter",
+    "fontSize": 14,
+    "fontColor": "#111827"
+  },
+
+  "content": {
+    "formTitle": "TAX INVOICE",
+
+    "showCompanyName": true,
+    "showPhone": true,
+    "showEmail": true,
+    "showWebsite": true,
+    "showAddress": true,
+    "showBillingAddress": true,
+    "showShippingAddress": true,
+    "showTerms": true,
+    "showDueDate": true,
+    "showPaymentMethod": true
+  }
+}
+
+IMPORTANT:
+
+`fontColor` is a NEW property.
+
+If it does not currently exist in the frontend types/state, ADD IT.
+
+If the backend request DTO does not currently contain `fontColor`, the frontend implementation should still be prepared for the updated backend contract and report the backend mismatch rather than silently dropping the value.
+
+==================================================
+2. TYPESCRIPT TYPE
+==================================================
+
+Update the SamplePreviewRequest type.
+
+It should conceptually contain:
+
+interface SamplePreviewRequest {
+  layout: string;
+
+  design: {
+    logoFileId: number | null;
+
+    logoPosition: string;
+
+    logoWidth: number;
+
+    logoHeight: number;
+
+    primaryColor: string;
+
+    secondaryColor: string;
+
+    fontFamily: string;
+
+    fontSize: number;
+
+    fontColor: string;
+  };
+
+  content: {
+    formTitle: string;
+
+    showCompanyName: boolean;
+    showPhone: boolean;
+    showEmail: boolean;
+    showWebsite: boolean;
+    showAddress: boolean;
+    showBillingAddress: boolean;
+    showShippingAddress: boolean;
+    showTerms: boolean;
+    showDueDate: boolean;
+    showPaymentMethod: boolean;
+  };
+}
+
+Do not make these properties optional unless the backend contract explicitly requires them to be optional.
+
+==================================================
+3. DESIGNER STATE
+==================================================
+
+Audit the existing Invoice Template Designer state.
+
+Make sure the following properties exist as actual state values:
+
+design.logoFileId
+design.logoPosition
+design.logoWidth
+design.logoHeight
+design.primaryColor
+design.secondaryColor
+design.fontFamily
+design.fontSize
+design.fontColor
+
+Do NOT keep these values only inside individual UI components.
+
+There must be one source of truth for the entire designer.
+
+For example:
+
+designerState.design.fontFamily
+
+must be the value used by:
+
+- Font selector
+- Preview request
+- Save request
+- Reset functionality
+- Dirty/unsaved detection
+
+The same applies to every design property.
+
+==================================================
+4. FONT FAMILY
+
+The font family selector must update:
+
+design.fontFamily
+
+Example:
+
+User selects:
+
+Roboto
+
+State becomes:
+
+design.fontFamily = "Roboto"
+
+Then sample-preview must contain:
+
+"fontFamily": "Roboto"
+
+Do not send a display label if the backend expects an enum/value.
+
+Use the exact value expected by the backend/template renderer.
+
+When the preview is returned, the generated HTML must use the selected font.
+
+Do not merely change the font of the React designer UI.
+
+The invoice inside the iframe must change.
+
+==================================================
+5. FONT SIZE
+
+Font size must be a NUMBER.
+
+Example:
+
+design.fontSize = 14
+
+NOT:
+
+design.fontSize = "14px"
+
+NOT:
+
+design.fontSize = "14"
+
+The UI may display:
+
+14 px
+
+but the API payload must contain:
+
+"fontSize": 14
+
+Test multiple values:
+
+10
+12
+14
+16
+18
+20
+
+Each must generate a visibly different invoice preview.
+
+Do not clamp or overwrite the value unless the backend explicitly defines a valid range.
+
+==================================================
+6. FONT COLOR
+
+Add a proper font color control if one does not already exist.
+
+The designer should expose:
+
+Font Color
+
+Use a color picker/input.
+
+Example:
+
+design.fontColor = "#111827"
+
+The sample-preview request MUST contain:
+
+"fontColor": "#111827"
+
+This value must be used by the backend-rendered invoice HTML.
+
+Do not confuse:
+
+fontColor
+
+with:
+
+primaryColor
+
+or:
+
+secondaryColor.
+
+They are separate properties.
+
+For example:
+
+primaryColor:
+controls the invoice's primary branding/theme.
+
+secondaryColor:
+controls secondary theme elements.
+
+fontColor:
+controls general invoice text.
+
+==================================================
+7. LOGO WIDTH
+
+Make logo width a controlled numeric value.
+
+Example:
+
+design.logoWidth = 180
+
+The request must contain:
+
+"logoWidth": 180
+
+Do not send:
+
+"180px"
+
+Do not store it only in CSS.
+
+The backend must receive the numeric value.
+
+When the user changes:
+
+180 → 220
+
+the preview request must change accordingly.
+
+The rendered invoice must visibly change the logo width.
+
+==================================================
+8. LOGO HEIGHT
+
+Same requirement for:
+
+design.logoHeight
+
+Example:
+
+design.logoHeight = 60
+
+Request:
+
+"logoHeight": 60
+
+Do not send:
+
+"60px"
+
+The backend/template renderer can convert the numeric value to the appropriate CSS unit.
+
+Changing:
+
+60 → 100
+
+must result in a visibly taller logo in the preview.
+
+==================================================
+9. REQUEST BUILDER
+
+Find the code responsible for constructing:
+
+POST /api/document-templates/{templateId}/sample-preview
+
+Do NOT manually construct a partial payload from individual UI components.
+
+Instead, build the request from the central designer state.
+
+Conceptually:
+
+const payload = {
+  layout: designerState.layout,
+
+  design: {
+    logoFileId: designerState.design.logoFileId,
+    logoPosition: designerState.design.logoPosition,
+    logoWidth: designerState.design.logoWidth,
+    logoHeight: designerState.design.logoHeight,
+    primaryColor: designerState.design.primaryColor,
+    secondaryColor: designerState.design.secondaryColor,
+    fontFamily: designerState.design.fontFamily,
+    fontSize: designerState.design.fontSize,
+    fontColor: designerState.design.fontColor,
+  },
+
+  content: {
+    ...
+  }
+};
+
+This prevents individual fields from accidentally being omitted.
+
+==================================================
+10. IMPORTANT — DO NOT DROP ZERO/EMPTY VALUES
+
+Do not use logic such as:
+
+value || defaultValue
+
+for numeric design properties.
+
+For example, avoid:
+
+logoWidth: state.logoWidth || 100
+
+because legitimate values can be interpreted incorrectly.
+
+Use explicit null/undefined checks where necessary.
+
+For numeric values:
+
+0
+
+must not accidentally become a default value.
+
+For logoFileId:
+
+null
+
+must remain null when no logo is selected.
+
+==================================================
+11. PREVIEW DEBOUNCE
+
+Keep the existing preview debounce.
+
+Changing:
+
+fontFamily
+fontSize
+fontColor
+logoWidth
+logoHeight
+
+should trigger the same debounced:
+
+POST /api/document-templates/{templateId}/sample-preview
+
+Do not create separate preview endpoints.
+
+Do not create separate preview logic for these fields.
+
+==================================================
+12. SAVE REQUEST
+
+Audit the existing SAVE implementation as well.
+
+The same properties should be included when saving the template:
+
+- logoFileId
+- logoPosition
+- logoWidth
+- logoHeight
+- primaryColor
+- secondaryColor
+- fontFamily
+- fontSize
+- fontColor
+
+If the existing save API already supports these properties, make sure the frontend actually sends them.
+
+If one or more properties are missing from the backend save DTO/API, report the mismatch clearly.
+
+Do NOT silently omit them.
+
+==================================================
+13. INITIALIZATION
+
+When loading an existing template:
+
+GET /api/document-templates/{templateId}
+
+must correctly populate:
+
+designerState.design.logoWidth
+designerState.design.logoHeight
+designerState.design.fontFamily
+designerState.design.fontSize
+designerState.design.fontColor
+
+Do not replace valid backend values with frontend defaults.
+
+For example, if backend returns:
+
+fontFamily = "Roboto"
+fontSize = 16
+fontColor = "#222222"
+logoWidth = 200
+logoHeight = 70
+
+the designer must initialize with exactly those values.
+
+==================================================
+14. RESET
+
+If the designer has a reset/revert feature, make sure these properties are also reset:
+
+fontFamily
+fontSize
+fontColor
+logoWidth
+logoHeight
+
+The reset should restore the saved template configuration, not arbitrary frontend defaults.
+
+==================================================
+15. UNSAVED CHANGES
+
+Dirty-state detection must include:
+
+logoWidth
+logoHeight
+fontFamily
+fontSize
+fontColor
+
+For example:
+
+Changing font size:
+
+14 → 16
+
+must result in:
+
+Unsaved changes
+
+Changing it back:
+
+16 → 14
+
+should return to the saved state if all other properties are unchanged.
+
+==================================================
+16. PREVIEW VERIFICATION
+
+After implementing the changes, verify the actual NETWORK request.
+
+Do not only verify React state.
+
+For each property, confirm the request body contains the changed value.
+
+Test:
+
+### Font family
+
+Select:
+
+Roboto
+
+Network request must contain:
+
+"fontFamily": "Roboto"
+
+### Font size
+
+Select:
+
+18
+
+Network request must contain:
+
+"fontSize": 18
+
+### Font color
+
+Select:
+
+#FF0000
+
+Network request must contain:
+
+"fontColor": "#FF0000"
+
+### Logo width
+
+Set:
+
+220
+
+Network request must contain:
+
+"logoWidth": 220
+
+### Logo height
+
+Set:
+
+100
+
+Network request must contain:
+
+"logoHeight": 100
+
+==================================================
+17. VISUAL VERIFICATION
+
+After the backend responds with HTML, verify the iframe itself changes.
+
+Do NOT consider the task complete merely because the request payload changed.
+
+The actual rendered invoice must visibly respond.
+
+Examples:
+
+Font family:
+Invoice text changes font.
+
+Font size:
+Invoice text becomes visibly larger/smaller.
+
+Font color:
+Invoice text changes color.
+
+Logo width:
+Logo becomes wider/narrower.
+
+Logo height:
+Logo becomes taller/shorter.
+
+==================================================
+18. IMPORTANT BACKEND CONTRACT CHECK
+
+Before completing the implementation, inspect the actual backend API DTO currently exposed by:
+
+POST /api/document-templates/{templateId}/sample-preview
+
+The required design properties are:
+
+logoFileId
+logoPosition
+logoWidth
+logoHeight
+primaryColor
+secondaryColor
+fontFamily
+fontSize
+fontColor
+
+If any of these fields do not currently exist in the backend DTO, DO NOT silently work around the problem in the frontend.
+
+Clearly report:
+
+FIELD:
+fontColor
+
+STATUS:
+Missing from backend DTO
+
+or whichever field is missing.
+
+The frontend and backend contracts must remain aligned.
+
+==================================================
+19. DO NOT CHANGE
+
+Do not change:
+
+- Invoice creation
+- Invoice calculations
+- Invoice sending
+- Email customization
+- Customer module
+- File upload module
+- Real invoice PDF generation
+- Existing invoice preview endpoint
+- Accounting logic
+
+This task is specifically to make the Invoice Document Template Designer's design properties work correctly.
+
+==================================================
+20. FINAL REPORT
+
+After implementation, report:
+
+1. Which fields already existed.
+2. Which fields were missing.
+3. Which frontend state fields were added/fixed.
+4. Which API payload fields were added/fixed.
+5. Whether fontColor exists in the backend contract.
+6. Whether save requests contain all five affected properties.
+7. Whether initial template loading populates them correctly.
+8. Whether dirty-state detection includes them.
+9. Whether sample-preview requests include them.
+10. How you verified the actual network payload.
+11. Any backend contract mismatch that still needs to be fixed.
+
+IMPORTANT:
+
+Do not simply patch the visual controls.
+
+Trace each property through the complete pipeline:
+
+UI control
+→ designer state
+→ request builder
+→ POST /sample-preview
+→ backend DTO
+→ Thymeleaf model
+→ generated HTML
+→ iframe
+
+Every property must survive this entire pipeline.

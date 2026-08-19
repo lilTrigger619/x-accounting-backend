@@ -140,6 +140,7 @@ if (Boolean.TRUE.equals(template.getDeleted())) {
         clone.setAccentColor(design.getAccentColor());
         clone.setFontFamily(design.getFontFamily());
         clone.setFontSize(design.getFontSize());
+        clone.setFontColor(design.getFontColor());
         clone.setLogoSize(design.getLogoSize());
         return clone;
     }
@@ -190,6 +191,9 @@ if (Boolean.TRUE.equals(template.getDeleted())) {
         }
         if (request.getFontSize() != null) {
             design.setFontSize(request.getFontSize());
+        }
+        if (request.getFontColor() != null) {
+            design.setFontColor(request.getFontColor());
         }
     }
 

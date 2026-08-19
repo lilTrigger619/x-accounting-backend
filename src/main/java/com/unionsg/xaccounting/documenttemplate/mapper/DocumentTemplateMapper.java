@@ -73,6 +73,7 @@ public class DocumentTemplateMapper {
         response.setSecondaryColor(design.getSecondaryColor());
         response.setFontFamily(design.getFontFamily());
         response.setFontSize(design.getFontSize());
+        response.setFontColor(design.getFontColor());
 
         return response;
     }
@@ -160,6 +161,9 @@ public class DocumentTemplateMapper {
         if (request.getFontSize() != null) {
             design.setFontSize(request.getFontSize());
         }
+        if (request.getFontColor() != null) {
+            design.setFontColor(request.getFontColor());
+        }
     }
 
     public static void applyContentUpdate(DocumentTemplateContent content, UpdateContentRequest request) {
@@ -238,6 +242,7 @@ public class DocumentTemplateMapper {
         design.setSecondaryColor("#34a853");
         design.setFontFamily("Arial, sans-serif");
         design.setFontSize(12);
+        design.setFontColor("#000000");
         return design;
     }
 

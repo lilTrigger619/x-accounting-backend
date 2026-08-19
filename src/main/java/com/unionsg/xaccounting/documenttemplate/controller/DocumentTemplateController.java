@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.documenttemplate.controller;
 
 import com.unionsg.xaccounting.documenttemplate.dto.request.*;
 import com.unionsg.xaccounting.documenttemplate.dto.response.DocumentTemplateResponse;
+import com.unionsg.xaccounting.documenttemplate.enums.DocumentLayout;
 import com.unionsg.xaccounting.documenttemplate.enums.DocumentType;
 import com.unionsg.xaccounting.documenttemplate.preview.DocumentTemplatePreviewService;
 import com.unionsg.xaccounting.documenttemplate.service.DocumentTemplateService;
@@ -51,12 +52,13 @@ public class DocumentTemplateController {
 
     @GetMapping
     public ResponseEntity<Page<DocumentTemplateResponse>> listTemplates(
-            @RequestParam(name = "type", required = false) DocumentType type,
+            @RequestParam(name = "documentType", required = false) DocumentType documentType,
+            @RequestParam(name = "layout", required = false) DocumentLayout layout,
             @RequestParam(name = "systemOnly", defaultValue = "false") boolean systemOnly,
             @RequestParam(name = "userOnly", defaultValue = "false") boolean userOnly,
             Pageable pageable
     ) {
-        return ResponseEntity.ok(documentTemplateService.listTemplates(type, systemOnly, userOnly, pageable));
+        return ResponseEntity.ok(documentTemplateService.listTemplates(documentType, layout, systemOnly, userOnly, pageable));
     }
 
     // =============================

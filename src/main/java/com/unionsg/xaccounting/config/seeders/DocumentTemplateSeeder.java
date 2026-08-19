@@ -65,6 +65,7 @@ public class DocumentTemplateSeeder implements ApplicationRunner {
                 .accentColor("#eeeeee")
                 .fontFamily("Arial")
                 .fontSize(12)
+                .fontColor("#000000")
                 .logoPosition("LEFT")
                 .logoSize("MEDIUM")
                 .build();
@@ -134,6 +135,7 @@ public class DocumentTemplateSeeder implements ApplicationRunner {
                 .accentColor("#eff6ff")
                 .fontFamily("Inter")
                 .fontSize(12)
+                .fontColor("#111827")
                 .logoPosition("RIGHT")
                 .logoSize("MEDIUM")
                 .build();
@@ -203,6 +205,7 @@ public class DocumentTemplateSeeder implements ApplicationRunner {
                 .accentColor("#f3f4f6")
                 .fontFamily("Helvetica")
                 .fontSize(11)
+                .fontColor("#111827")
                 .logoPosition("CENTER")
                 .logoSize("LARGE")
                 .build();

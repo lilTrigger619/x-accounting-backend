@@ -4,6 +4,7 @@ import com.unionsg.xaccounting.documenttemplate.domain.DocumentTemplate;
 import com.unionsg.xaccounting.documenttemplate.domain.DocumentTemplateEmail;
 import com.unionsg.xaccounting.documenttemplate.dto.request.*;
 import com.unionsg.xaccounting.documenttemplate.dto.response.DocumentTemplateResponse;
+import com.unionsg.xaccounting.documenttemplate.enums.DocumentLayout;
 import com.unionsg.xaccounting.documenttemplate.enums.DocumentType;
 import com.unionsg.xaccounting.documenttemplate.enums.EmailType;
 import com.unionsg.xaccounting.documenttemplate.exception.DocumentTemplateException;
@@ -12,11 +13,16 @@ import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateEmail
 import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateRepository;
 import com.unionsg.xaccounting.enums.DocumentModule;
 import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -75,23 +81,27 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<DocumentTemplateResponse> listTemplates(DocumentType type, boolean systemOnly, boolean userOnly, Pageable pageable) {
+    public Page<DocumentTemplateResponse> listTemplates(DocumentType documentType, DocumentLayout layout, boolean systemOnly, boolean userOnly, Pageable pageable) {
         // If both filters are requested, treat it as all templates (no isSystem filter)
         boolean filterBySystem = systemOnly != userOnly;
 
-        if (type != null && filterBySystem) {
-            return templateRepository.findByDocumentTypeAndIsSystem(type, systemOnly, pageable)
-                    .map(DocumentTemplateMapper::toResponse);
-        }
-        if (type != null) {
-            return templateRepository.findByDocumentType(type, pageable)
-                    .map(DocumentTemplateMapper::toResponse);
-        }
-        if (filterBySystem) {
-            return templateRepository.findByIsSystem(systemOnly, pageable)
-                    .map(DocumentTemplateMapper::toResponse);
-        }
-        return templateRepository.findAll(pageable)
+        Specification<DocumentTemplate> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (documentType != null) {
+                predicates.add(cb.equal(root.get("documentType"), documentType));
+            }
+            if (layout != null) {
+                predicates.add(cb.equal(root.get("layout"), layout));
+            }
+            if (filterBySystem) {
+                predicates.add(cb.equal(root.get("isSystem"), systemOnly));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return templateRepository.findAll(spec, pageable)
                 .map(DocumentTemplateMapper::toResponse);
     }
 

@@ -8,4 +8,6 @@ import java.util.List;
 public interface PaymentAllocationRepository extends JpaRepository<PaymentAllocationEntity, Long> {
 
     List<PaymentAllocationEntity> findByPaymentId(Long paymentId);
+
+    List<PaymentAllocationEntity> findByInvoice_CustomerId(Long customerId);
 }

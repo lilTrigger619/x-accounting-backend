@@ -4,6 +4,10 @@ Consolidated status across both repositories:
 - **Frontend (FE):** `expense-recorder` (React + Vite + TS + shadcn/Tailwind)
 - **Backend (BE):** `x-accounting-backend` (Java Spring Boot + Gradle)
 
+> **Update:** Accounts Payable core (Bills, Supplier Payments, AR/AP Aging, Customer/Supplier
+> Statements) was built end-to-end in this pass — see §2/§3/§10 below and the "AP Build" note
+> at the top of §0 for exactly what shipped and what's still open.
+
 This file is the single source of truth for what exists vs. what remains, verified directly
 against the code (routes, controllers, entities, services) rather than assumed. It mirrors the
 structure of the master project prompt. Update the checkboxes as work lands — do not remove
@@ -14,6 +18,54 @@ Legend: `[x]` Done · `[~]` Partial / one side only · `[ ]` Not started
 ---
 
 ## 0. Reality Check vs. "Completed" List in the Master Prompt
+
+### AP Build (this pass) — what shipped and what's still open
+
+Built a full Accounts Payable core, mirroring the existing AR (Invoice/Payment) architecture
+exactly, plus the two AR reports that were missing (aging, statements):
+
+- **Bills** (BE: `Bill`/`BillItem` entities, `BillController` at `/api/bills`, `BillService`,
+  `BillCalculationService`, `BillNumberGenerator`; FE: `BillsPage`/`BillsList`, `BillNewPage`
+  create+edit, `BillViewPage`) — draft → approve → paid lifecycle. Approving a bill posts a real
+  GL journal (Dr default expense account, Cr Accounts Payable) via `APJournalService`.
+- **Supplier Payments** (BE: `SupplierPaymentEntity`/`SupplierPaymentAllocationEntity`,
+  `SupplierPaymentController` at `/api/supplier-payments`, `SupplierPaymentService`,
+  `SupplierPaymentAllocationService` with allocate/auto-allocate-oldest/auto-allocate-largest/
+  remove/clear, `SupplierPaymentNumberGenerator`; FE: `SupplierPaymentsPage`,
+  `RecordSupplierPaymentPage`, `SupplierPaymentDetailsPage`, `AllocateSupplierPaymentPage`) —
+  creating a payment posts a real GL journal (Dr AP/Advances, Cr Bank) and each allocation change
+  posts its own adjusting journal. **This is more complete than the existing AR Payment module**:
+  `PaymentJournalService` (AR side) exists but was never actually invoked by `PaymentServiceImpl`
+  — a pre-existing gap, not touched here, but worth fixing for parity (see priority list).
+- **AR/AP Aging** (BE: `AgingReportService`, `AgingController` at `/api/reports/ar-aging` and
+  `/api/reports/ap-aging` — current/1-30/31-60/61-90/90+ buckets computed from open Invoice/Bill
+  balances; FE: `ArAgingPage`, `ApAgingPage`).
+- **Customer/Supplier Statements** (BE: `StatementService`, `StatementController` at
+  `/api/customers/{id}/statement` and `/api/suppliers/{id}/statement` — running-balance
+  statement combining invoices/bills with payment allocations over a date range; FE:
+  `CustomerStatementPage`, `SupplierStatementPage`, printable).
+- Small additive BE changes made to support the above: `GET /api/bills/outstanding?supplierId=`
+  (bills still owing a balance, for the payment-allocation screen), `PaymentAllocationRepository
+  .findByInvoice_CustomerId`, `SupplierPaymentAllocationRepository.findByBill_SupplierId`.
+
+**Deliberately deferred (not in this pass)** — flagged rather than silently skipped:
+- **Supplier Credits/Refunds** — AP mirror of `PaymentRefundEntity` wasn't built; only
+  payment *creation* and *allocation* exist for AP, no refund workflow.
+- **Purchase Orders / Purchase-to-Bill** — still just a document-template category, no entity.
+- **Recurring Bills** — not built (depends on a recurrence engine that doesn't exist yet).
+- **Bill/Supplier-payment attachments, email, PDF** — Bills don't have a document-template
+  renderer yet (Invoices do); attachments infra (`FileService`) wasn't wired in.
+- **AR Payment screens are still on mock data.** `services/payment.service.ts` (Payment
+  Receipts list/detail/allocate/receive pages) reads from `mock/payments.mock.ts`, not the real
+  `/api/payments` backend — discovered during this pass, not fixed (see priority list below;
+  it's a separate, larger rewiring job with its own DTO-shape mismatches to resolve). Same for
+  `SuppliersList.tsx` (supplier list UI is mock; supplier *create* and the new AP screens'
+  supplier picker are real).
+- **Bill numbering / GL account IDs are config-driven placeholders**, same pattern the existing
+  AR module already uses (`payment.journal.*` in `application.properties`) — the new
+  `bill.journal.*` / `supplierpayment.journal.*` keys point at account IDs `4`/`5`/`6` that need
+  to actually exist in the `account` table for GL posting to succeed at runtime; update these
+  once real Chart of Accounts IDs for Accounts Payable / Expense / Supplier Advances are known.
 
 Most claimed-complete items check out. A few corrections found during this audit:
 
@@ -75,11 +127,11 @@ Most claimed-complete items check out. A few corrections found during this audit
 - [x] Credit Limits (BE: `PaymentTerms.creditLimit`)
 - [~] Partial Payments — allocation model supports partial amounts; needs explicit UX/reporting confirmation
 - [~] Customer Refunds — `PaymentRefundEntity`/`RefundPaymentRequest` exist generically; verify full accounting impact (GL entries) is wired
-- [ ] Customer Statements (invoices/payments/credits/balance doc) — not implemented
+- [x] Customer Statements (BE: `StatementService.getCustomerStatement`, `GET /api/customers/{id}/statement`; FE: `CustomerStatementPage`)
 - [ ] Credit Notes (customer credit/invoice adjustment) — only a document-template category exists, no transaction entity/workflow
 - [ ] Customer Deposits (money received pre-invoice) — not implemented
 - [ ] Customer Credits (track/allocate unapplied credits) — not implemented
-- [ ] Customer Aging (AR aging report) — not implemented
+- [x] Customer Aging (BE: `AgingReportService.getArAging`, `GET /api/reports/ar-aging`; FE: `ArAgingPage`)
 - [ ] Collections (overdue follow-up tooling) — not implemented
 - [ ] Recurring Invoices (auto-generate on schedule) — not implemented
 - [ ] Invoice Reminders (auto notify on due/overdue) — an `invoice-reminder.html` email template exists but no scheduling/trigger logic found
@@ -92,18 +144,18 @@ Most claimed-complete items check out. A few corrections found during this audit
 
 ## 3. PURCHASES / ACCOUNTS PAYABLE
 
-- [x] Suppliers (BE: `Supplier`, `SupplierController`; FE: `SuppliersPage`, `SupplierForm`)
-- [ ] Supplier Bills — no `Bill` entity/controller in BE at all
-- [ ] Supplier Payments — no BE logic distinct from customer payments; needs its own module
-- [ ] Supplier Statements — not implemented
-- [ ] Supplier Aging (AP aging) — not implemented
+- [x] Suppliers (BE: `Supplier`, `SupplierController`; FE: `SupplierForm` create is real, `SuppliersList.tsx` list view is still mock data — see §0)
+- [x] Supplier Bills (BE: `Bill`/`BillItem`, `BillController` at `/api/bills`, `BillService`; FE: `BillsPage`/`BillsList`, `BillNewPage`, `BillViewPage`) — draft/open/partially-paid/paid/cancelled lifecycle, approve posts GL journal
+- [x] Supplier Payments (BE: `SupplierPaymentEntity`, `SupplierPaymentController` at `/api/supplier-payments`, `SupplierPaymentService`; FE: `SupplierPaymentsPage`, `RecordSupplierPaymentPage`, `SupplierPaymentDetailsPage`) — posts GL journal on creation
+- [x] Supplier Statements (BE: `StatementService.getSupplierStatement`, `GET /api/suppliers/{id}/statement`; FE: `SupplierStatementPage`)
+- [x] Supplier Aging / AP Aging (BE: `AgingReportService.getApAging`, `GET /api/reports/ap-aging`; FE: `ApAgingPage`)
 - [ ] Supplier Credits — not implemented
-- [ ] Supplier Refunds — not implemented
+- [ ] Supplier Refunds — not implemented (AP mirror of `PaymentRefundEntity` wasn't built; see §0)
 - [ ] Purchase Orders — not implemented (document-template category only)
 - [ ] Purchase-to-Bill conversion — not implemented
 - [ ] Recurring Bills — not implemented
-- [ ] Partial Supplier Payments — not implemented (no supplier payment module to begin with)
-- [ ] Unallocated Supplier Payments — not implemented
+- [x] Partial Supplier Payments — supported via `SupplierPaymentAllocationService` (partial bill allocation, same model as AR)
+- [x] Unallocated Supplier Payments — tracked via `SupplierPaymentEntity.unallocatedAmount`, visible on list/detail screens
 - [ ] Expense Management — **FE only** (`ExpenseForm`, `ExpensesList`); **no BE `Expense` entity/controller/service**
 - [ ] Employee Expenses (claims/reimbursement) — not implemented
 
@@ -188,9 +240,9 @@ Most claimed-complete items check out. A few corrections found during this audit
 - [x] Balance Sheet (BE: `/api/reports/balance-sheet`)
 - [x] Cash Flow Statement (BE: `/api/reports/cash-flow`)
 - [x] Report Engine (reusable templates, not hard-coded) (BE: full `ReportTemplate` designer subsystem — sections, formulas, draft locks, versioning/history, publish lifecycle; FE: `ReportDesigner`, `FormulaBuilder`, `SectionTree`, wizard, versions)
-- [ ] Account Statements (single-account activity view for end users) — GL data exists but no dedicated statement endpoint/page
-- [ ] Accounts Receivable Aging — not implemented
-- [ ] Accounts Payable Aging — not implemented
+- [ ] Account Statements (single-account activity view for end users) — GL data exists but no dedicated statement endpoint/page (customer/supplier statements now exist, see §2/§3; a per-GL-account statement is still open)
+- [x] Accounts Receivable Aging (see §2)
+- [x] Accounts Payable Aging (see §3)
 - [ ] Tax Reports — not implemented
 - [ ] Sales Reports (by customer/product/salesperson/period) — not implemented
 - [ ] Purchase Reports — not implemented
@@ -281,8 +333,8 @@ Most claimed-complete items check out. A few corrections found during this audit
 ## 17. ACCOUNTING DATA INTEGRITY
 
 - [x] Double-Entry Enforcement (BE: journal line balancing on post)
-- [x] Automatic Accounting (invoice/payment actions generate journal entries) (BE: `PaymentJournalService`, invoice posting flow)
-- [~] Source Traceability (entries reference originating transaction) — present for invoices/payments; needs confirmation for full coverage as more modules are added
+- [~] Automatic Accounting — **corrected from a previous pass**: on the AR side, `PaymentJournalService.postPaymentJournal` exists but is **never called** by `PaymentServiceImpl` — invoices and customer payments do not actually post GL journals today. On the **AP side (new)**, this is properly wired: approving a `Bill` and creating/allocating a `SupplierPaymentEntity` both call `APJournalService` and post real journals. Fixing the AR side to match is on the priority list below.
+- [~] Source Traceability (entries reference originating transaction) — present for AP (bills/supplier payments via `sourceModule`/`sourceEntityId`); not yet wired for AR invoices/payments (see above)
 - [x] No Silent Financial Changes (draft-vs-posted edit protection)
 - [x] Reversal Rather Than Destruction (Journal Reversal implemented)
 - [~] Balance Consistency across subledgers — holds for customer/GL today; will need re-validation once supplier bills, banking, and inventory modules are added
@@ -368,16 +420,24 @@ modules (banking, inventory, payroll, budgeting, etc.) are added:
 
 ---
 
-## Suggested Priority Order (not yet started, highest leverage first)
+## Suggested Priority Order (highest leverage first)
 
-1. **Accounting Periods + Period Locking** — everything else (closing, budgets, aging) depends on periods existing.
-2. **Supplier Bills + Supplier Payments (AP core)** — mirrors the AR side that's already solid; currently the biggest structural gap.
-3. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
-4. **Employee module backend** — same situation as Expenses.
-5. **AR/AP Aging + Customer/Supplier Statements** — high-value reports, reuse the existing report engine.
-6. **Banking (Bank Accounts, Transactions, Reconciliation)** — currently zero coverage despite being claimed as "started."
-7. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model.
-8. **Credit Notes, Customer Deposits/Credits** — completes the AR lifecycle.
-9. **Recurring Invoices/Bills/Journals + reminders** — automation layer, depends on 1–4 existing first.
-10. **Approval workflow engine** — generic enough to apply to journals, invoices, bills, expenses, payments at once.
-11. **Inventory, Fixed Assets, Payroll, Budgeting** — large standalone modules, tackle after the above core gaps are closed.
+1. **Wire AR Payment GL posting** — `PaymentJournalService` exists but `PaymentServiceImpl` never
+   calls it; invoices/customer payments still don't hit the GL. AP now does this correctly
+   (`APJournalService`) — bring AR up to the same standard for consistency.
+2. **Connect AR Payment screens to the real backend** — `PaymentReceiptsListPage`,
+   `ReceivePaymentPage`, `AllocatePaymentPage`, `PaymentDetailsPage` are polished but still read
+   `services/payment.service.ts`'s mock data (`mock/payments.mock.ts`), not `/api/payments`.
+   Same for `SuppliersList.tsx`. This is a service-layer rewrite (keep the same
+   page components, replace the mock service with real axios calls + a DTO adapter) — noted
+   as a discovered gap, not yet fixed.
+3. **Accounting Periods + Period Locking** — everything else (closing, budgets) depends on periods existing.
+4. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
+5. **Employee module backend** — same situation as Expenses.
+6. **Supplier Credits/Refunds + Purchase Orders/Purchase-to-Bill** — completes the AP lifecycle to the same depth as AR.
+7. **Banking (Bank Accounts, Transactions, Reconciliation)** — currently zero coverage despite being claimed as "started."
+8. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model.
+9. **Credit Notes, Customer Deposits/Credits** — completes the AR lifecycle.
+10. **Recurring Invoices/Bills/Journals + reminders** — automation layer, depends on 3–5 existing first.
+11. **Approval workflow engine** — generic enough to apply to journals, invoices, bills, expenses, payments at once.
+12. **Inventory, Fixed Assets, Payroll, Budgeting** — large standalone modules, tackle after the above core gaps are closed.

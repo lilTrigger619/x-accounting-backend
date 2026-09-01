@@ -7,28 +7,28 @@
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/professional.css'" />
     <style th:inline="css">
         body {
-            font-family: [[${design.fontFamily}]];
+            font-family: [(${design.fontFamily})];
             font-size: [[${design.fontSize}]]px;
-            color: [[${design.fontColor} ?: '#000000']];
+            color: [(${design.fontColor} ?: '#000000')];
         }
         .invoice-title,
         .notes-section .section-title,
         .terms-section .section-title,
         .logo-fallback-bars span {
-            color: [[${design.primaryColor}]];
+            color: [(${design.primaryColor})];
         }
         .logo-fallback-bars span {
-            background: [[${design.primaryColor}]];
+            background: [(${design.primaryColor})];
         }
         .items-table thead {
-            border-bottom-color: [[${design.primaryColor}]];
+            border-bottom-color: [(${design.primaryColor})];
         }
         .total-row td {
-            border-top-color: [[${design.primaryColor}]];
-            border-bottom-color: [[${design.primaryColor}]];
+            border-top-color: [(${design.primaryColor})];
+            border-bottom-color: [(${design.primaryColor})];
         }
         .footer-line {
-            border-top: 1px solid [[${design.secondaryColor}]];
+            border-top: 1px solid [(${design.secondaryColor})];
         }
     </style>
 </head>
@@ -41,12 +41,13 @@
             <h1 class="invoice-title" th:text="${content.formTitle} ?: 'INVOICE'">INVOICE</h1>
         </div>
         <div class="company-info">
-            <div th:if="${company.logoUrl}" class="logo-section">
+            <div th:if="${company.logoUrl}" class="logo-section" id="document-logo">
                 <img th:src="${company.logoUrl}"
                      th:style="'max-width: ' + (${design.logoWidth} ?: 140) + 'px; max-height: ' + (${design.logoHeight} ?: 40) + 'px;'"
                      alt="Company Logo"/>
             </div>
-            <div th:unless="${company.logoUrl}" class="logo-fallback-bars">
+            <div th:unless="${company.logoUrl}" class="logo-fallback-bars" id="document-logo"
+                 th:style="'max-width: ' + (${design.logoWidth} ?: 140) + 'px; max-height: ' + (${design.logoHeight} ?: 40) + 'px; overflow: hidden;'">
                 <span></span><span></span><span></span><span></span><span></span>
             </div>
             <h2 class="company-name" th:if="${content.showCompanyName}" th:text="${company.name}">Company Name</h2>

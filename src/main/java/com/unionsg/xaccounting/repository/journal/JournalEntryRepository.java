@@ -3,11 +3,12 @@ package com.unionsg.xaccounting.repository.journal;
 import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDate;
 import java.util.Optional;
 
-public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long> {
+public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long>, JpaSpecificationExecutor<JournalEntry> {
 
     Optional<JournalEntry> findByJournalNumber(String journalNumber);
 

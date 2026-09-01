@@ -19,10 +19,11 @@ public interface FileService {
     Page<FileResponseDto> getFiles(
             EntityType entityType,
             UUID entityId,
+            String mimeType,
             Pageable pageable
     );
 
-    FileResponseDto getFile(UUID id);
+    FileResponseDto getFile(String id);
 
-    void deleteFile(UUID id);
+    void deleteFile(String id);
 }

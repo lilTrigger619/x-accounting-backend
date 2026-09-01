@@ -7,9 +7,9 @@
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/classic.css'" />
     <style th:inline="css">
         body {
-            font-family: [[${design.fontFamily}]];
+            font-family: [(${design.fontFamily})];
             font-size: [[${design.fontSize}]]px;
-            color: [[${design.fontColor} ?: '#000000']];
+            color: [(${design.fontColor} ?: '#000000')];
         }
         .invoice-title,
         .items-table thead,
@@ -19,17 +19,17 @@
         .terms-section h3,
         .notes-section h3,
         .payment-section h3 {
-            color: [[${design.primaryColor}]];
+            color: [(${design.primaryColor})];
         }
         .logo-section {
-            border-color: [[${design.secondaryColor}]];
-            color: [[${design.secondaryColor}]];
+            border-color: [(${design.secondaryColor})];
+            color: [(${design.secondaryColor})];
         }
         .due-row td,
         .due-row .totals-label,
         .due-row .totals-value,
         .due-amount {
-            color: [[${design.secondaryColor}]];
+            color: [(${design.secondaryColor})];
         }
     </style>
 </head>
@@ -40,14 +40,15 @@
     <table class="header-table">
         <tr>
             <td class="company-section">
-                <div th:if="${company.logoUrl}" class="logo-section"
+                <div th:if="${company.logoUrl}" class="logo-section" id="document-logo"
                      th:style="${design.logoPosition == 'top-left'} ? 'text-align: left;' :
                                (${design.logoPosition == 'top-right'} ? 'text-align: right;' : 'text-align: center;')">
                     <img th:src="${company.logoUrl}"
                          th:style="'max-width: ' + (${design.logoWidth} ?: 120) + 'px; max-height: ' + (${design.logoHeight} ?: 60) + 'px;'"
                          alt="Company Logo"/>
                 </div>
-                <div th:unless="${company.logoUrl}" class="logo-section">LOGO</div>
+                <div th:unless="${company.logoUrl}" class="logo-section" id="document-logo"
+                     th:style="'max-width: ' + (${design.logoWidth} ?: 120) + 'px; max-height: ' + (${design.logoHeight} ?: 60) + 'px; overflow: hidden;'">LOGO</div>
 
                 <h1 class="company-name" th:if="${content.showCompanyName}" th:text="${company.name}">Company Name</h1>
                 <div class="company-details">

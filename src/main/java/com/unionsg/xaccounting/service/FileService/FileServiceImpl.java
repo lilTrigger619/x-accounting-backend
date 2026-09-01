@@ -7,9 +7,11 @@ import com.unionsg.xaccounting.enums.EntityType;
 import com.unionsg.xaccounting.enums.FileSource;
 import com.unionsg.xaccounting.enums.StorageProvider;
 import com.unionsg.xaccounting.repository.FileRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -70,21 +72,34 @@ public class FileServiceImpl implements FileService {
     public Page<FileResponseDto> getFiles(
             EntityType entityType,
             UUID entityId,
+            String mimeType,
             Pageable pageable
     ) {
 
-        var data =  fileRepository
-                .findByEntityTypeAndEntityIdAndIsDeletedFalse(
-                        entityType,
-                        entityId,
-                        pageable
-                )
+        Specification<FileEntity> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.equal(root.get("isDeleted"), false));
+
+            if (entityType != null) {
+                predicates.add(cb.equal(root.get("entityType"), entityType));
+            }
+            if (entityId != null) {
+                predicates.add(cb.equal(root.get("entityId"), entityId.toString()));
+            }
+            if (mimeType != null && !mimeType.isBlank()) {
+                predicates.add(cb.equal(cb.lower(root.get("mimeType")), mimeType.trim().toLowerCase()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return fileRepository.findAll(spec, pageable)
                 .map(this::mapToDto);
-        return data;
     }
 
     @Override
-    public FileResponseDto getFile(UUID id) {
+    public FileResponseDto getFile(String id) {
 
         FileEntity entity = fileRepository
                 .findByIdAndIsDeletedFalse(id)
@@ -94,7 +109,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public void deleteFile(UUID id) {
+    public void deleteFile(String id) {
 
         FileEntity entity = fileRepository
                 .findByIdAndIsDeletedFalse(id)
@@ -109,7 +124,7 @@ public class FileServiceImpl implements FileService {
     private FileResponseDto mapToDto(FileEntity entity) {
 
         return FileResponseDto.builder()
-                .id(UUID.fromString(entity.getId()))
+                .id(entity.getId())
                 .fileName(entity.getFileName())
                 .originalName(entity.getOriginalName())
                 .fileExtension(entity.getFileExtension())
@@ -120,6 +135,8 @@ public class FileServiceImpl implements FileService {
                 .entityId(entity.getEntityId())
                 .description(entity.getDescription())
                 .createdAt(entity.getCreatedAt())
+                .fileUrl("/api/files/" + entity.getId() + "/download")
+                .storagePath(entity.getStoragePath())
                 .build();
     }
 

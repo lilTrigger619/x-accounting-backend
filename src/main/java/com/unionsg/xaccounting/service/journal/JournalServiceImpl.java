@@ -10,19 +10,23 @@ import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.Journals.JournalLine;
 import com.unionsg.xaccounting.enums.DocumentModule;
 import com.unionsg.xaccounting.enums.JournalStatus;
+import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.exception.BadRequestException;
 import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -120,8 +124,48 @@ public class JournalServiceImpl implements JournalService {
     }
 
 @Override
-    public Page<JournalResponse> getAll(Pageable pageable) {
-        return journalRepository.findAll(pageable)
+    public Page<JournalResponse> getAll(
+            String search,
+            JournalStatus status,
+            JournalType journalType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String sourceModule,
+            Pageable pageable
+    ) {
+        Specification<JournalEntry> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.equal(root.get("deleted"), false));
+
+            if (search != null && !search.isBlank()) {
+                String like = "%" + search.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(root.get("journalNumber")), like),
+                        cb.like(cb.lower(root.get("reference")), like),
+                        cb.like(cb.lower(root.get("description")), like)
+                ));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (journalType != null) {
+                predicates.add(cb.equal(root.get("journalType"), journalType));
+            }
+            if (fromDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("journalDate"), fromDate));
+            }
+            if (toDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("journalDate"), toDate));
+            }
+            if (sourceModule != null && !sourceModule.isBlank()) {
+                predicates.add(cb.equal(root.get("sourceModule"), sourceModule));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return journalRepository.findAll(spec, pageable)
                 .map(journalMapper::toResponse);
     }
 

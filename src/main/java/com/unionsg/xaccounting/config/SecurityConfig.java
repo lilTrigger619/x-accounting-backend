@@ -126,6 +126,7 @@ public class SecurityConfig {
                                 "/swagger-resources/**",
                                 "/webjars/**",
                                 "/api/users/**",
+                                "/api/files/*/download",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",

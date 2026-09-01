@@ -55,13 +55,14 @@ public class FileController {
 
     @GetMapping
     public ResponseEntity<Page<FileResponseDto>> getFiles(
-            @RequestParam EntityType entityType,
-            @RequestParam UUID entityId,
+            @RequestParam(required = false) EntityType entityType,
+            @RequestParam(required = false) UUID entityId,
+            @RequestParam(required = false) String mimeType,
             Pageable pageable
     ) {
 
         Page<FileResponseDto> response =
-                fileService.getFiles(entityType, entityId, pageable);
+                fileService.getFiles(entityType, entityId, mimeType, pageable);
 
         return ResponseEntity.ok(response);
     }
@@ -69,7 +70,7 @@ public class FileController {
 
     @GetMapping("/{id}")
     public ResponseEntity<FileResponseDto> getFile(
-            @PathVariable UUID id
+            @PathVariable String id
     ) {
 
         FileResponseDto response = fileService.getFile(id);
@@ -80,7 +81,7 @@ public class FileController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFile(
-            @PathVariable UUID id
+            @PathVariable String id
     ) {
 
         fileService.deleteFile(id);
@@ -91,7 +92,7 @@ public class FileController {
 
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> downloadFile(
-            @PathVariable UUID id
+            @PathVariable String id
     ) {
 
         FileResponseDto file = fileService.getFile(id);

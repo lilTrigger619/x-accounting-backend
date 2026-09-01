@@ -6,7 +6,6 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Getter
 @Setter
@@ -14,7 +13,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class FileResponseDto {
-    private UUID id;
+    private String id;
 
     private String fileName;
 
@@ -38,4 +37,6 @@ public class FileResponseDto {
     private String entityId;
 
     private String storagePath;
+
+    private String fileUrl;
 }

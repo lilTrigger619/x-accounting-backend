@@ -57,7 +57,7 @@ public class FileEntity {
     private FileSource fileSource;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "entity_type", nullable = false)
+    @Column(name = "entity_type", nullable = false, length=51)
     private EntityType entityType;
 
     @Column(name = "entity_id", nullable=false)

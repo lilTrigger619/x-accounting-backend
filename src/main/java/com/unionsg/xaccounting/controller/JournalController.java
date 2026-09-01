@@ -4,13 +4,18 @@ import com.unionsg.xaccounting.dto.journal.CreateJournalRequest;
 import com.unionsg.xaccounting.dto.journal.JournalResponse;
 import com.unionsg.xaccounting.dto.journal.ReverseJournalRequest;
 import com.unionsg.xaccounting.dto.journal.UpdateJournalRequest;
+import com.unionsg.xaccounting.enums.JournalStatus;
+import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.service.journal.JournalService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/journals")
@@ -90,16 +95,22 @@ public class JournalController {
     }
 
     // =====================================================
-    // Get All
+    // Get All / Search
     // =====================================================
 
     @GetMapping
     public ResponseEntity<Page<JournalResponse>> getAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) JournalStatus status,
+            @RequestParam(required = false) JournalType journalType,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String sourceModule,
             Pageable pageable
     ) {
 
         Page<JournalResponse> response =
-                journalService.getAll(pageable);
+                journalService.getAll(search, status, journalType, fromDate, toDate, sourceModule, pageable);
 
         return ResponseEntity.ok(response);
     }

@@ -7,21 +7,21 @@
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/modern.css'" />
     <style th:inline="css">
         body {
-            font-family: [[${design.fontFamily}]];
+            font-family: [(${design.fontFamily})];
             font-size: [[${design.fontSize}]]px;
-            color: [[${design.fontColor} ?: '#000000']];
+            color: [(${design.fontColor} ?: '#000000')];
         }
         .invoice-banner {
-            background: [[${design.primaryColor}]];
+            background: [(${design.primaryColor})];
         }
         .modern .items-table thead,
         .footer-text {
-            background-color: [[${design.secondaryColor}]];
+            background-color: [(${design.secondaryColor})];
         }
         .totals-row span:first-child,
         .totals-grand span:first-child,
         .due-row span:first-child {
-            color: [[${design.secondaryColor}]];
+            color: [(${design.secondaryColor})];
         }
     </style>
 </head>
@@ -31,12 +31,13 @@
     <!-- Header banner -->
     <div class="invoice-banner">
         <div class="banner-top">
-            <div class="logo-section" th:if="${company.logoUrl}">
+            <div class="logo-section" th:if="${company.logoUrl}" id="document-logo">
                 <img th:src="${company.logoUrl}"
                      th:style="'max-width: ' + (${design.logoWidth} ?: 110) + 'px; max-height: ' + (${design.logoHeight} ?: 40) + 'px;'"
                      alt="Company Logo"/>
             </div>
-            <div class="logo-fallback" th:unless="${company.logoUrl}">
+            <div class="logo-fallback" th:unless="${company.logoUrl}" id="document-logo"
+                 th:style="'max-width: ' + (${design.logoWidth} ?: 110) + 'px; max-height: ' + (${design.logoHeight} ?: 40) + 'px; overflow: hidden;'">
                 <span class="logo-mark"></span>
                 <span class="logo-text" th:text="${company.name}">Company<br/>Logo</span>
             </div>

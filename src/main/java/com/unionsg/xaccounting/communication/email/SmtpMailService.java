@@ -19,7 +19,6 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.util.Properties;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -60,7 +59,7 @@ public class SmtpMailService implements MailService {
                         // Convert Long to UUID (files stored as string UUIDs)
                         String uuidStr = fileIdLong.toString();
                         // Try to get file info
-                        FileResponseDto fileInfo = fileService.getFile(UUID.fromString(uuidStr));
+                        FileResponseDto fileInfo = fileService.getFile(uuidStr);
                         Resource resource = fileStorageService.download(fileInfo.getStoragePath());
                         if (resource != null && resource.exists()) {
                             helper.addAttachment(

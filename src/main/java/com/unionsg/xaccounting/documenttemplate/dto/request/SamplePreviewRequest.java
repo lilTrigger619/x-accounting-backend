@@ -1,6 +1,7 @@
 package com.unionsg.xaccounting.documenttemplate.dto.request;
 
 import com.unionsg.xaccounting.documenttemplate.enums.DocumentLayout;
+import jakarta.validation.Valid;
 import lombok.Data;
 
 /**
@@ -22,6 +23,7 @@ public class SamplePreviewRequest {
      * Unsaved design configuration (colors, fonts, logo position, etc.).
      * Fields not provided fall back to the template's saved design.
      */
+    @Valid
     private UpdateDesignRequest design;
 
     /**

@@ -107,6 +107,22 @@ public class InvoiceController {
 
     /*
      =============================
+     Outstanding Invoices for a Customer (for payment allocation)
+     =============================
+     */
+
+    @GetMapping("/outstanding")
+    public ResponseEntity<java.util.List<InvoiceResponse>> outstandingForCustomer(
+            @RequestParam Long customerId
+    ) {
+        return ResponseEntity.ok(
+                invoiceService.getOutstandingInvoicesForCustomer(customerId)
+        );
+    }
+
+
+    /*
+     =============================
      Delete
      =============================
      */

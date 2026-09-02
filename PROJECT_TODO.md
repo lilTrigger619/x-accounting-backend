@@ -4,9 +4,12 @@ Consolidated status across both repositories:
 - **Frontend (FE):** `expense-recorder` (React + Vite + TS + shadcn/Tailwind)
 - **Backend (BE):** `x-accounting-backend` (Java Spring Boot + Gradle)
 
-> **Update:** Accounts Payable core (Bills, Supplier Payments, AR/AP Aging, Customer/Supplier
-> Statements) was built end-to-end in this pass — see §2/§3/§10 below and the "AP Build" note
-> at the top of §0 for exactly what shipped and what's still open.
+> **Update 1:** Accounts Payable core (Bills, Supplier Payments, AR/AP Aging, Customer/Supplier
+> Statements) was built end-to-end — see §2/§3/§10 below and the "AP Build" note at the top of
+> §0 for exactly what shipped and what's still open.
+>
+> **Update 2:** The AR Payment Receipts screens and the Suppliers list — flagged in Update 1 as
+> still running on mock data — are now wired to the real backend too. See "AR Wiring" note below.
 
 This file is the single source of truth for what exists vs. what remains, verified directly
 against the code (routes, controllers, entities, services) rather than assumed. It mirrors the
@@ -55,17 +58,54 @@ exactly, plus the two AR reports that were missing (aging, statements):
 - **Recurring Bills** — not built (depends on a recurrence engine that doesn't exist yet).
 - **Bill/Supplier-payment attachments, email, PDF** — Bills don't have a document-template
   renderer yet (Invoices do); attachments infra (`FileService`) wasn't wired in.
-- **AR Payment screens are still on mock data.** `services/payment.service.ts` (Payment
-  Receipts list/detail/allocate/receive pages) reads from `mock/payments.mock.ts`, not the real
-  `/api/payments` backend — discovered during this pass, not fixed (see priority list below;
-  it's a separate, larger rewiring job with its own DTO-shape mismatches to resolve). Same for
-  `SuppliersList.tsx` (supplier list UI is mock; supplier *create* and the new AP screens'
-  supplier picker are real).
 - **Bill numbering / GL account IDs are config-driven placeholders**, same pattern the existing
   AR module already uses (`payment.journal.*` in `application.properties`) — the new
   `bill.journal.*` / `supplierpayment.journal.*` keys point at account IDs `4`/`5`/`6` that need
   to actually exist in the `account` table for GL posting to succeed at runtime; update these
   once real Chart of Accounts IDs for Accounts Payable / Expense / Supplier Advances are known.
+
+### AR Wiring (this pass) — Payment Receipts + Suppliers list now real
+
+Previously `services/payment.service.ts` (backing `PaymentReceiptsListPage`, `ReceivePaymentPage`,
+`AllocatePaymentPage`, `PaymentDetailsPage`) and `SuppliersList.tsx` read from
+`mock/payments.mock.ts` / a hardcoded array — the pages were fully built but not connected. Fixed:
+
+- **`services/payment.service.ts` rewritten** to call the real `/api/payments`, `/api/customers`,
+  `/api/invoices`, `/api/chart-of-accounts` endpoints, adapting backend DTOs to the exact same
+  `Payment`/`Customer`/`OutstandingInvoice`/`BankAccount` shapes the pages already expect — no
+  page component needed to change. Notable adapter details:
+  - `createPayment` creates the payment first (without allocations, to avoid a latent bug in
+    `PaymentServiceImpl.initializePayment` where allocations passed at creation time don't get
+    their running totals recalculated), then calls the separate `/allocate` endpoint — same
+    pattern used for the new AP `SupplierPaymentService`.
+  - `updateAllocations` (used by the "replace the whole allocation set" AR allocate screen)
+    clears existing allocations via `DELETE /allocation` then re-applies the desired set, since
+    the real backend models allocation as incremental add/remove rather than "set full state."
+  - Backend `Currency` enum has `GHC`, not `GHS` (which the AR screens hardcode as the default);
+    translated transparently at the service boundary (`toBackendCurrency`/`fromBackendCurrency`)
+    rather than changing the UI's currency labels.
+  - `Customer.outstandingBalance` / `creditBalance` in the picker list default to `0` — the thin
+    `CustomerResponseDTO` used by the list/search endpoint has no phone number or balance
+    aggregate, and computing a live balance per row in a typeahead would mean an expensive
+    per-customer fetch. Honest `0` rather than fabricated numbers; a real aggregate would need a
+    new backend endpoint (same shape as the AP `Aging` work) if this needs to be accurate.
+  - `nextReceiptNumber()` returns a cosmetic placeholder — the backend always generates the real
+    receipt number server-side on save and ignores whatever the client sends.
+- **Small additive BE change**: `GET /api/invoices/outstanding?customerId=` (mirrors the AP
+  `/api/bills/outstanding` endpoint added earlier), used to populate the receive-payment
+  allocation table with real open invoices instead of mock ones.
+- **`SuppliersList.tsx` rewritten** to call `SupplierRequests.getSuppliers` (already real, just
+  unused by this screen) with server-side pagination/search, plus a "Balance Owed" column
+  computed from the new `GET /api/reports/ap-aging` endpoint instead of a fabricated number.
+
+**Still not wired / worth knowing:**
+- Payment receipt PDF generation, email, attachments, and activity-timeline endpoints on the AR
+  side are pre-existing backend stubs (`PaymentController` returns empty bytes / empty lists for
+  `/receipt`, `/attachments`, `/activities`, `/emails`) — the adapter surfaces whatever those
+  stubs give back (empty), it doesn't fabricate content, but those features aren't functional
+  end-to-end yet.
+- `Payment.customerCode`/`phone` on **list rows** (not detail) are blank — `PaymentListItemResponse`
+  doesn't carry them; only the single-payment detail endpoint does.
 
 Most claimed-complete items check out. A few corrections found during this audit:
 
@@ -144,7 +184,7 @@ Most claimed-complete items check out. A few corrections found during this audit
 
 ## 3. PURCHASES / ACCOUNTS PAYABLE
 
-- [x] Suppliers (BE: `Supplier`, `SupplierController`; FE: `SupplierForm` create is real, `SuppliersList.tsx` list view is still mock data — see §0)
+- [x] Suppliers (BE: `Supplier`, `SupplierController`; FE: `SupplierForm`, `SuppliersList.tsx` — both real now, list view wired to `/api/suppliers` with an AP-aging-derived balance column)
 - [x] Supplier Bills (BE: `Bill`/`BillItem`, `BillController` at `/api/bills`, `BillService`; FE: `BillsPage`/`BillsList`, `BillNewPage`, `BillViewPage`) — draft/open/partially-paid/paid/cancelled lifecycle, approve posts GL journal
 - [x] Supplier Payments (BE: `SupplierPaymentEntity`, `SupplierPaymentController` at `/api/supplier-payments`, `SupplierPaymentService`; FE: `SupplierPaymentsPage`, `RecordSupplierPaymentPage`, `SupplierPaymentDetailsPage`) — posts GL journal on creation
 - [x] Supplier Statements (BE: `StatementService.getSupplierStatement`, `GET /api/suppliers/{id}/statement`; FE: `SupplierStatementPage`)
@@ -423,21 +463,18 @@ modules (banking, inventory, payroll, budgeting, etc.) are added:
 ## Suggested Priority Order (highest leverage first)
 
 1. **Wire AR Payment GL posting** — `PaymentJournalService` exists but `PaymentServiceImpl` never
-   calls it; invoices/customer payments still don't hit the GL. AP now does this correctly
-   (`APJournalService`) — bring AR up to the same standard for consistency.
-2. **Connect AR Payment screens to the real backend** — `PaymentReceiptsListPage`,
-   `ReceivePaymentPage`, `AllocatePaymentPage`, `PaymentDetailsPage` are polished but still read
-   `services/payment.service.ts`'s mock data (`mock/payments.mock.ts`), not `/api/payments`.
-   Same for `SuppliersList.tsx`. This is a service-layer rewrite (keep the same
-   page components, replace the mock service with real axios calls + a DTO adapter) — noted
-   as a discovered gap, not yet fixed.
-3. **Accounting Periods + Period Locking** — everything else (closing, budgets) depends on periods existing.
-4. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
-5. **Employee module backend** — same situation as Expenses.
-6. **Supplier Credits/Refunds + Purchase Orders/Purchase-to-Bill** — completes the AP lifecycle to the same depth as AR.
-7. **Banking (Bank Accounts, Transactions, Reconciliation)** — currently zero coverage despite being claimed as "started."
-8. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model.
-9. **Credit Notes, Customer Deposits/Credits** — completes the AR lifecycle.
-10. **Recurring Invoices/Bills/Journals + reminders** — automation layer, depends on 3–5 existing first.
+   calls it; invoices/customer payments still don't hit the GL. AP does this correctly
+   (`APJournalService`) — bring AR up to the same standard for consistency. ~~Connect AR Payment
+   screens to the real backend~~ **done** (see "AR Wiring" note above) — this GL-posting gap is
+   what's left.
+2. **Accounting Periods + Period Locking** — everything else (closing, budgets) depends on periods existing.
+3. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
+4. **Employee module backend** — same situation as Expenses.
+5. **Supplier Credits/Refunds + Purchase Orders/Purchase-to-Bill** — completes the AP lifecycle to the same depth as AR.
+6. **Banking (Bank Accounts, Transactions, Reconciliation)** — currently zero coverage despite being claimed as "started."
+7. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model.
+8. **Credit Notes, Customer Deposits/Credits** — completes the AR lifecycle.
+9. **Payment receipt PDF/email/attachments/activity** — pre-existing AR backend stubs, now visibly empty end-to-end via the wired-up frontend rather than hidden behind mock data.
+10. **Recurring Invoices/Bills/Journals + reminders** — automation layer, depends on 2–4 existing first.
 11. **Approval workflow engine** — generic enough to apply to journals, invoices, bills, expenses, payments at once.
 12. **Inventory, Fixed Assets, Payroll, Budgeting** — large standalone modules, tackle after the above core gaps are closed.

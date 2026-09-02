@@ -171,6 +171,22 @@ public class InvoiceService {
     }
 
 
+    /**
+     * Invoices for a customer that still carry an outstanding balance (not
+     * CANCELLED or PAID) — used to populate the receive-payment allocation screen.
+     */
+    public java.util.List<InvoiceResponse> getOutstandingInvoicesForCustomer(Long customerId) {
+
+        return invoiceRepository.findByCustomerId(customerId).stream()
+                .filter(invoice -> invoice.getStatus() != InvoiceStatus.CANCELLED
+                        && invoice.getStatus() != InvoiceStatus.PAID
+                        && invoice.getBalance() != null
+                        && invoice.getBalance().compareTo(java.math.BigDecimal.ZERO) > 0)
+                .map(InvoiceMapper::toResponse)
+                .toList();
+    }
+
+
     @Transactional
     public void deleteInvoice(Long id) {
 

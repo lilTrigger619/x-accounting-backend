@@ -373,8 +373,8 @@ Most claimed-complete items check out. A few corrections found during this audit
 ## 17. ACCOUNTING DATA INTEGRITY
 
 - [x] Double-Entry Enforcement (BE: journal line balancing on post)
-- [~] Automatic Accounting — **corrected from a previous pass**: on the AR side, `PaymentJournalService.postPaymentJournal` exists but is **never called** by `PaymentServiceImpl` — invoices and customer payments do not actually post GL journals today. On the **AP side (new)**, this is properly wired: approving a `Bill` and creating/allocating a `SupplierPaymentEntity` both call `APJournalService` and post real journals. Fixing the AR side to match is on the priority list below.
-- [~] Source Traceability (entries reference originating transaction) — present for AP (bills/supplier payments via `sourceModule`/`sourceEntityId`); not yet wired for AR invoices/payments (see above)
+- [x] Automatic Accounting — **fixed**: `PaymentServiceImpl.createPayment` now calls `PaymentJournalService.postPaymentJournal`, and `PaymentAllocationServiceImpl` calls `postAdditionalAllocationJournal`/`postRemoveAllocationJournal` on allocate (incl. auto-allocate), remove, and clear — matching the pattern the new AP module (`APJournalService`) already used. Customer *invoices* still don't post a journal on their own (no `InvoiceJournalService` exists — an invoice only affects the AR subledger fields on the `Invoice` entity itself, not the GL, until a payment against it posts); that's a separate, smaller gap than the payment-side one that's now closed.
+- [x] Source Traceability (entries reference originating transaction) — present for AP (bills/supplier payments via `sourceModule`/`sourceEntityId`) and now for AR payments too (`sourceModule="PAYMENT"`); invoice creation still isn't source-traceable to a journal since none is posted for it (see above)
 - [x] No Silent Financial Changes (draft-vs-posted edit protection)
 - [x] Reversal Rather Than Destruction (Journal Reversal implemented)
 - [~] Balance Consistency across subledgers — holds for customer/GL today; will need re-validation once supplier bills, banking, and inventory modules are added
@@ -392,7 +392,7 @@ Most claimed-complete items check out. A few corrections found during this audit
 - [ ] Scheduled Reports — not implemented (`SchedulingConfig` exists for infra but no scheduled report job found)
 - [ ] Automatic Reconciliation Suggestions — not implemented (no banking module)
 - [ ] Automatic Tax Calculations — not implemented (no tax engine)
-- [x] Automatic Accounting Entries — implemented for invoices/payments (see §17)
+- [x] Automatic Accounting Entries — implemented for AR payments and AP (bills + supplier payments); invoice creation itself still doesn't post a journal (see §17)
 
 ## 19. BUSINESS INTELLIGENCE
 
@@ -462,19 +462,21 @@ modules (banking, inventory, payroll, budgeting, etc.) are added:
 
 ## Suggested Priority Order (highest leverage first)
 
-1. **Wire AR Payment GL posting** — `PaymentJournalService` exists but `PaymentServiceImpl` never
-   calls it; invoices/customer payments still don't hit the GL. AP does this correctly
-   (`APJournalService`) — bring AR up to the same standard for consistency. ~~Connect AR Payment
-   screens to the real backend~~ **done** (see "AR Wiring" note above) — this GL-posting gap is
-   what's left.
-2. **Accounting Periods + Period Locking** — everything else (closing, budgets) depends on periods existing.
-3. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
-4. **Employee module backend** — same situation as Expenses.
-5. **Supplier Credits/Refunds + Purchase Orders/Purchase-to-Bill** — completes the AP lifecycle to the same depth as AR.
-6. **Banking (Bank Accounts, Transactions, Reconciliation)** — currently zero coverage despite being claimed as "started."
-7. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model.
-8. **Credit Notes, Customer Deposits/Credits** — completes the AR lifecycle.
-9. **Payment receipt PDF/email/attachments/activity** — pre-existing AR backend stubs, now visibly empty end-to-end via the wired-up frontend rather than hidden behind mock data.
-10. **Recurring Invoices/Bills/Journals + reminders** — automation layer, depends on 2–4 existing first.
-11. **Approval workflow engine** — generic enough to apply to journals, invoices, bills, expenses, payments at once.
-12. **Inventory, Fixed Assets, Payroll, Budgeting** — large standalone modules, tackle after the above core gaps are closed.
+1. **Accounting Periods + Period Locking** — everything else (closing, budgets) depends on periods existing.
+2. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
+3. **Employee module backend** — same situation as Expenses.
+4. **Supplier Credits/Refunds + Purchase Orders/Purchase-to-Bill** — completes the AP lifecycle to the same depth as AR.
+5. **Banking (Bank Accounts, Transactions, Reconciliation)** — currently zero coverage despite being claimed as "started."
+6. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model.
+7. **Credit Notes, Customer Deposits/Credits** — completes the AR lifecycle.
+8. **Payment receipt PDF/email/attachments/activity** — pre-existing AR backend stubs, now visibly empty end-to-end via the wired-up frontend rather than hidden behind mock data.
+9. **Recurring Invoices/Bills/Journals + reminders** — automation layer, depends on 1–3 existing first.
+10. **Approval workflow engine** — generic enough to apply to journals, invoices, bills, expenses, payments at once.
+11. **Inventory, Fixed Assets, Payroll, Budgeting** — large standalone modules, tackle after the above core gaps are closed.
+
+**Just closed:** AR Payment GL posting — `PaymentServiceImpl`/`PaymentAllocationServiceImpl` now
+call `PaymentJournalService` on create/allocate/remove/clear, matching the AP module's pattern
+(`APJournalService`). Real GL posting now covers both AR payments and AP (bills + supplier
+payments); the one remaining posting gap is that *invoices* themselves don't post a journal on
+creation (only the payment against them does) — a smaller, separate item from what was tracked
+here before.

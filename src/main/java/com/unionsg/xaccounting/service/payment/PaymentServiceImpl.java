@@ -43,6 +43,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentValidator paymentValidator;
     private final CustomerRepository customerRepository;
     private final ChartOfAccountRepository chartOfAccountRepository;
+    private final PaymentJournalService paymentJournalService;
 
     // ========================================================================
     // CREATE PAYMENT
@@ -65,6 +66,8 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setReceiptNumber(receiptNumberGenerator.generateReceiptNumber());
 
         PaymentEntity saved = paymentRepository.save(payment);
+
+        paymentJournalService.postPaymentJournal(saved);
 
         return PaymentMapper.toCreateResponse(saved, "Payment created successfully");
     }

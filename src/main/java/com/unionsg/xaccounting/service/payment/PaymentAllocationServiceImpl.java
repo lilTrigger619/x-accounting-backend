@@ -31,6 +31,7 @@ public class PaymentAllocationServiceImpl implements PaymentAllocationService {
     private final PaymentRepository paymentRepository;
     private final PaymentAllocationRepository paymentAllocationRepository;
     private final InvoiceRepository invoiceRepository;
+    private final PaymentJournalService paymentJournalService;
 
     // =========================================================================
     // ALLOCATE PAYMENT
@@ -80,6 +81,10 @@ public class PaymentAllocationServiceImpl implements PaymentAllocationService {
             totalAllocated = newTotalAllocated;
 
             responses.add(buildAllocationResponse(allocation, invoice, outstandingBefore));
+
+            if (payment.getJournal() != null) {
+                paymentJournalService.postAdditionalAllocationJournal(payment, allocation);
+            }
         }
 
         updatePaymentTotals(payment);
@@ -110,6 +115,11 @@ public class PaymentAllocationServiceImpl implements PaymentAllocationService {
         invoiceRepository.save(invoice);
 
         payment.removeAllocation(allocation);
+
+        if (payment.getJournal() != null) {
+            paymentJournalService.postRemoveAllocationJournal(payment, allocation);
+        }
+
         paymentAllocationRepository.delete(allocation);
 
         updatePaymentTotals(payment);
@@ -217,6 +227,10 @@ public class PaymentAllocationServiceImpl implements PaymentAllocationService {
             invoice.setBalance(invoice.getBalance().add(allocationAmount));
             updateInvoiceStatus(invoice);
             invoiceRepository.save(invoice);
+
+            if (payment.getJournal() != null) {
+                paymentJournalService.postRemoveAllocationJournal(payment, allocation);
+            }
 
             paymentAllocationRepository.delete(allocation);
         }
@@ -385,6 +399,10 @@ public class PaymentAllocationServiceImpl implements PaymentAllocationService {
             remaining = remaining.subtract(allocationAmount);
 
             responses.add(buildAllocationResponse(allocation, invoice, outstandingBefore));
+
+            if (payment.getJournal() != null) {
+                paymentJournalService.postAdditionalAllocationJournal(payment, allocation);
+            }
         }
 
         updatePaymentTotals(payment);

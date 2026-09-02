@@ -13,7 +13,10 @@ import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateEmail
 import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateRepository;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
+import com.unionsg.xaccounting.enums.CustomerActivityReferenceType;
+import com.unionsg.xaccounting.enums.CustomerActivityType;
 import com.unionsg.xaccounting.repository.invoice.InvoiceRepository;
+import com.unionsg.xaccounting.service.customer.CustomerActivityLogService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +41,7 @@ public class InvoiceEmailRequestedEventListener {
     private final EmailTemplateRenderer emailRenderer;
     private final MailService mailService;
     private final EmailLogService emailLogService;
+    private final CustomerActivityLogService customerActivityLogService;
 
     @Async("emailTaskExecutor")
     @EventListener
@@ -141,6 +145,14 @@ public class InvoiceEmailRequestedEventListener {
                         emailLogService.addAttachment(emailLogId, fileId);
                     }
                 }
+                customerActivityLogService.record(
+                        customer.getId(),
+                        CustomerActivityType.EMAIL_SENT,
+                        "Email sent: " + subject,
+                        "To " + event.getCustomerEmail(),
+                        CustomerActivityReferenceType.INVOICE,
+                        invoice.getId()
+                );
                 log.info("Email sent successfully for invoice {} to {}", event.getInvoiceId(), event.getCustomerEmail());
             } else {
                 emailLogService.markFailed(emailLogId, result.getFailedReason());

@@ -7,6 +7,8 @@ import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.payment.PaymentAllocationEntity;
 import com.unionsg.xaccounting.entity.payment.PaymentEntity;
 import com.unionsg.xaccounting.entity.payment.PaymentRefundEntity;
+import com.unionsg.xaccounting.enums.CustomerActivityReferenceType;
+import com.unionsg.xaccounting.enums.CustomerActivityType;
 import com.unionsg.xaccounting.enums.PaymentStatus;
 import com.unionsg.xaccounting.exception.BadRequestException;
 import com.unionsg.xaccounting.exception.BusinessException;
@@ -15,6 +17,7 @@ import com.unionsg.xaccounting.repository.CustomerRepository;
 import com.unionsg.xaccounting.repository.payment.PaymentAllocationRepository;
 import com.unionsg.xaccounting.repository.payment.PaymentRefundRepository;
 import com.unionsg.xaccounting.repository.payment.PaymentRepository;
+import com.unionsg.xaccounting.service.customer.CustomerActivityLogService;
 import com.unionsg.xaccounting.utils.PaymentConstants;
 import com.unionsg.xaccounting.validator.PaymentValidator;
 import jakarta.persistence.criteria.Predicate;
@@ -44,6 +47,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final CustomerRepository customerRepository;
     private final ChartOfAccountRepository chartOfAccountRepository;
     private final PaymentJournalService paymentJournalService;
+    private final CustomerActivityLogService customerActivityLogService;
 
     // ========================================================================
     // CREATE PAYMENT
@@ -68,6 +72,15 @@ public class PaymentServiceImpl implements PaymentService {
         PaymentEntity saved = paymentRepository.save(payment);
 
         paymentJournalService.postPaymentJournal(saved);
+
+        customerActivityLogService.record(
+                customer.getId(),
+                CustomerActivityType.PAYMENT_RECEIVED,
+                "Payment " + saved.getReceiptNumber() + " received",
+                "Amount: " + saved.getAmountReceived() + " " + saved.getCurrency(),
+                CustomerActivityReferenceType.PAYMENT,
+                saved.getId()
+        );
 
         return PaymentMapper.toCreateResponse(saved, "Payment created successfully");
     }

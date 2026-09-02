@@ -19,7 +19,10 @@ import com.unionsg.xaccounting.repository.CustomerRepository;
 import com.unionsg.xaccounting.repository.invoice.InvoiceRepository;
 import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
 import com.unionsg.xaccounting.security.util.SecurityUtils;
+import com.unionsg.xaccounting.enums.CustomerActivityReferenceType;
+import com.unionsg.xaccounting.enums.CustomerActivityType;
 import com.unionsg.xaccounting.service.FileService.FileService;
+import com.unionsg.xaccounting.service.customer.CustomerActivityLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +43,7 @@ public class InvoiceService {
     private final InvoiceCalculationService calculationService;
     private final DocumentNumberGeneratorService generator;
     private final FileService fileService;
+    private final CustomerActivityLogService customerActivityLogService;
 
     @Transactional
     public InvoiceResponse createInvoice(
@@ -89,6 +93,16 @@ public class InvoiceService {
             fileUploadMetaDto.setUploadedBy(currentUserId);
             fileService.uploadFile(files, fileUploadMetaDto);
         }
+
+        customerActivityLogService.record(
+                customer.getId(),
+                CustomerActivityType.INVOICE_CREATED,
+                "Invoice " + saved.getInvoiceNumber() + " created",
+                "Total: " + saved.getTotalAmount(),
+                CustomerActivityReferenceType.INVOICE,
+                saved.getId()
+        );
+
         return InvoiceMapper.toResponse(saved);
     }
 

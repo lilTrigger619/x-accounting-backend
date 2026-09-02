@@ -3,10 +3,15 @@ package com.unionsg.xaccounting.controller;
 import com.unionsg.xaccounting.dto.customer.*;
 import com.unionsg.xaccounting.response.ApiResponse;
 import com.unionsg.xaccounting.response.PaginationResponse;
+import com.unionsg.xaccounting.service.customer.CustomerActivityLogService;
 import com.unionsg.xaccounting.service.customer.CustomerService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class CustomerController {
     private final CustomerService customerService;
+    private final CustomerActivityLogService customerActivityLogService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<CustomerResponseDTO>> createCustomer(@Valid @RequestBody CreateCustomerRequestDTO request ){
@@ -76,6 +82,38 @@ public class CustomerController {
                         .success(true)
                         .message("Billing address retrieved")
                         .content(customerAddress)
+                        .build()
+        );
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<CustomerResponseDTO>> updateStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateCustomerStatusRequest request
+    ) {
+        CustomerResponseDTO response = customerService.updateStatus(id, request.getStatus());
+        return ResponseEntity.ok(
+                ApiResponse.<CustomerResponseDTO>builder()
+                        .success(true)
+                        .message("Customer status updated")
+                        .content(response)
+                        .build()
+        );
+    }
+
+    @GetMapping("/{id}/activity")
+    public ResponseEntity<ApiResponse<Page<CustomerActivityLogResponseDto>>> getActivity(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<CustomerActivityLogResponseDto> response = customerActivityLogService.getForCustomer(id, pageable);
+        return ResponseEntity.ok(
+                ApiResponse.<Page<CustomerActivityLogResponseDto>>builder()
+                        .success(true)
+                        .message("Customer activity retrieved")
+                        .content(response)
                         .build()
         );
     }

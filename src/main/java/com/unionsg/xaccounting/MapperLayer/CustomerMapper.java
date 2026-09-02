@@ -1,7 +1,10 @@
 package com.unionsg.xaccounting.MapperLayer;
 
+import com.unionsg.xaccounting.dto.customer.AddressDTO;
 import com.unionsg.xaccounting.dto.customer.CreateCustomerRequestDTO;
 import com.unionsg.xaccounting.dto.customer.CustomerResponseDTO;
+import com.unionsg.xaccounting.dto.customer.PaymentTermsDTO;
+import com.unionsg.xaccounting.dto.customer.TaxInfoDTO;
 import com.unionsg.xaccounting.entity.customer.Address;
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 import com.unionsg.xaccounting.entity.customer.TaxInfo;
@@ -73,6 +76,49 @@ public class CustomerMapper {
                 .customerType(customer.getCustomerType().name())
                 .status(customer.getStatus().name())
                 .email(customer.getEmail())
+                .phone(customer.getPhone())
+                .mobile(customer.getMobile())
+                .website(customer.getWebsite())
+                .createdAt(customer.getCreatedAt())
+                .billingAddress(toAddressDto(customer.getBillingAddress()))
+                .shippingAddress(toAddressDto(customer.getShippingAddress()))
+                .paymentTerms(toPaymentTermsDto(customer.getPaymentTerms()))
+                .taxInfo(toTaxInfoDto(customer.getTaxInfo()))
                 .build();
+    }
+
+    private static AddressDTO toAddressDto(Address address) {
+        if (address == null) {
+            return null;
+        }
+        return AddressDTO.builder()
+                .addressLine(address.getAddressLine())
+                .city(address.getCity())
+                .state(address.getState())
+                .zipCode(address.getZipCode())
+                .country(address.getCountry())
+                .build();
+    }
+
+    private static PaymentTermsDTO toPaymentTermsDto(PaymentTerms paymentTerms) {
+        if (paymentTerms == null) {
+            return null;
+        }
+        return PaymentTermsDTO.builder()
+                .paymentTermType(paymentTerms.getPaymentTermType() != null ? paymentTerms.getPaymentTermType().name() : null)
+                .creditLimit(paymentTerms.getCreditLimit())
+                .currency(paymentTerms.getCurrency() != null ? paymentTerms.getCurrency().name() : null)
+                .build();
+    }
+
+    private static TaxInfoDTO toTaxInfoDto(TaxInfo taxInfo) {
+        if (taxInfo == null) {
+            return null;
+        }
+        TaxInfoDTO dto = new TaxInfoDTO();
+        dto.setTaxId(taxInfo.getTaxId());
+        dto.setTaxExempt(taxInfo.getTaxExempt());
+        dto.setTaxExemptReason(taxInfo.getTaxExemptReason());
+        return dto;
     }
 }

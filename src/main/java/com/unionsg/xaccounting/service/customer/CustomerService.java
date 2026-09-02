@@ -17,6 +17,7 @@ public interface CustomerService {
 
     AddressDTO getCustomerBillingAddress(Long customerId);
 
+    CustomerResponseDTO updateStatus(Long id, String status);
 
     PaginationResponse<CustomerResponseDTO> getAllCustomers(int page, int size, String sortBy, String sortDir, String search);
 };

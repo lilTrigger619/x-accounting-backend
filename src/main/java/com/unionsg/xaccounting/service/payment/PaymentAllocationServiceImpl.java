@@ -6,12 +6,15 @@ import com.unionsg.xaccounting.dto.payment.PaymentAllocationResponse;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
 import com.unionsg.xaccounting.entity.payment.PaymentAllocationEntity;
 import com.unionsg.xaccounting.entity.payment.PaymentEntity;
+import com.unionsg.xaccounting.enums.CustomerActivityReferenceType;
+import com.unionsg.xaccounting.enums.CustomerActivityType;
 import com.unionsg.xaccounting.enums.InvoiceStatus;
 import com.unionsg.xaccounting.enums.PaymentStatus;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.invoice.InvoiceRepository;
 import com.unionsg.xaccounting.repository.payment.PaymentAllocationRepository;
 import com.unionsg.xaccounting.repository.payment.PaymentRepository;
+import com.unionsg.xaccounting.service.customer.CustomerActivityLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,7 @@ public class PaymentAllocationServiceImpl implements PaymentAllocationService {
     private final PaymentAllocationRepository paymentAllocationRepository;
     private final InvoiceRepository invoiceRepository;
     private final PaymentJournalService paymentJournalService;
+    private final CustomerActivityLogService customerActivityLogService;
 
     // =========================================================================
     // ALLOCATE PAYMENT
@@ -90,6 +94,17 @@ public class PaymentAllocationServiceImpl implements PaymentAllocationService {
         updatePaymentTotals(payment);
         updatePaymentStatus(payment);
         paymentRepository.save(payment);
+
+        if (payment.getCustomer() != null && !responses.isEmpty()) {
+            customerActivityLogService.record(
+                    payment.getCustomer().getId(),
+                    CustomerActivityType.PAYMENT_ALLOCATED,
+                    "Payment " + payment.getReceiptNumber() + " allocated to " + responses.size() + " invoice(s)",
+                    null,
+                    CustomerActivityReferenceType.PAYMENT,
+                    payment.getId()
+            );
+        }
 
         log.info("Allocated {} amount(s) to payment ID: {}", request.getAllocations().size(), paymentId);
         return responses;

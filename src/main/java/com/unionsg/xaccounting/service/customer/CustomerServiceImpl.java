@@ -21,6 +21,10 @@ import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.dto.customer.AddressDTO;
 
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
+import com.unionsg.xaccounting.enums.CustomerActivityReferenceType;
+import com.unionsg.xaccounting.enums.CustomerActivityType;
+import com.unionsg.xaccounting.enums.CustomerStatus;
+import com.unionsg.xaccounting.exception.BusinessException;
 
 import java.util.List;
 import java.util.UUID;
@@ -31,11 +35,11 @@ import java.util.Optional;
 @Transactional
 public class CustomerServiceImpl implements CustomerService{
     private final CustomerRepository customerRepository;
+    private final CustomerActivityLogService customerActivityLogService;
 
     @Override
     public CustomerResponseDTO createCustomer(CreateCustomerRequestDTO request) {
        // Basic validation
-        System.out.println("Hello");
         if (customerRepository.existsByDisplayName(request.getDisplayName())){
             throw new IllegalArgumentException("Display name already exists");
         }
@@ -44,6 +48,16 @@ public class CustomerServiceImpl implements CustomerService{
         customer.setCustomerCode(generateCustomerCode());
 
         Customer saved = customerRepository.save(customer);
+
+        customerActivityLogService.record(
+                saved.getId(),
+                CustomerActivityType.CREATED,
+                "Customer account created",
+                saved.getCustomerCode() + " · " + saved.getDisplayName(),
+                CustomerActivityReferenceType.CUSTOMER,
+                saved.getId()
+        );
+
         return CustomerMapper.toResponse(saved);
     }
 
@@ -117,6 +131,38 @@ public class CustomerServiceImpl implements CustomerService{
                .zipCode(customerAddress.getZipCode())
                .country(customerAddress.getCountry())
                .build();
+    }
+
+    @Override
+    public CustomerResponseDTO updateStatus(Long id, String status) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+
+        CustomerStatus newStatus;
+        try {
+            newStatus = CustomerStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException("Invalid status: " + status);
+        }
+
+        CustomerStatus previousStatus = customer.getStatus();
+        if (previousStatus == newStatus) {
+            return CustomerMapper.toResponse(customer);
+        }
+
+        customer.setStatus(newStatus);
+        Customer saved = customerRepository.save(customer);
+
+        customerActivityLogService.record(
+                saved.getId(),
+                CustomerActivityType.STATUS_CHANGED,
+                "Status changed from " + previousStatus + " to " + newStatus,
+                null,
+                CustomerActivityReferenceType.CUSTOMER,
+                saved.getId()
+        );
+
+        return CustomerMapper.toResponse(saved);
     }
 
     private String generateCustomerCode(){

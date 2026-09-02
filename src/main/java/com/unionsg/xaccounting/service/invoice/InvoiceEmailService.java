@@ -4,9 +4,12 @@ import com.unionsg.xaccounting.document.service.InvoiceDocumentService;
 import com.unionsg.xaccounting.event.InvoiceEmailRequestedEvent;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
+import com.unionsg.xaccounting.enums.CustomerActivityReferenceType;
+import com.unionsg.xaccounting.enums.CustomerActivityType;
 import com.unionsg.xaccounting.enums.InvoiceStatus;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.invoice.InvoiceRepository;
+import com.unionsg.xaccounting.service.customer.CustomerActivityLogService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +28,7 @@ public class InvoiceEmailService {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceDocumentService invoiceDocumentService;
     private final ApplicationEventPublisher eventPublisher;
+    private final CustomerActivityLogService customerActivityLogService;
 
     /**
      * Sends an invoice via email.
@@ -61,6 +65,17 @@ public class InvoiceEmailService {
         // Get customer email
         Customer customer = invoice.getCustomer();
         String customerEmail = customer != null ? customer.getEmail() : null;
+
+        if (customer != null) {
+            customerActivityLogService.record(
+                    customer.getId(),
+                    CustomerActivityType.INVOICE_SENT,
+                    "Invoice " + invoice.getInvoiceNumber() + " sent",
+                    null,
+                    CustomerActivityReferenceType.INVOICE,
+                    invoice.getId()
+            );
+        }
 
         if (customerEmail == null || customerEmail.isBlank()) {
             log.warn("Invoice {} has no customer email. Invoice sent but no email will be delivered.", invoiceId);

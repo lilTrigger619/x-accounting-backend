@@ -10,6 +10,13 @@ Consolidated status across both repositories:
 >
 > **Update 2:** The AR Payment Receipts screens and the Suppliers list — flagged in Update 1 as
 > still running on mock data — are now wired to the real backend too. See "AR Wiring" note below.
+> AR payments also now post real GL journals (`PaymentJournalService` wired into
+> `PaymentServiceImpl`/`PaymentAllocationServiceImpl`), matching AP.
+>
+> **Update 3:** Customers list is wired to the real backend, and there's a new `CustomerViewPage`
+> detail screen with a real cross-entity activity log (customer created, status changed,
+> invoices created/sent, payments received/allocated, emails sent) — each entry deep-links to
+> its source record. See "Customer Wiring" note below.
 
 This file is the single source of truth for what exists vs. what remains, verified directly
 against the code (routes, controllers, entities, services) rather than assumed. It mirrors the
@@ -107,6 +114,43 @@ Previously `services/payment.service.ts` (backing `PaymentReceiptsListPage`, `Re
 - `Payment.customerCode`/`phone` on **list rows** (not detail) are blank — `PaymentListItemResponse`
   doesn't carry them; only the single-payment detail endpoint does.
 
+### Customer Wiring (this pass) — real list, detail screen, cross-entity activity log
+
+`CustomersList.tsx` was reading from a hardcoded array like Suppliers was; fixed the same way
+(real `CustomerRequests.getCustomers` with pagination/search, balance column from AR aging).
+Beyond that, built a genuinely new capability: a customer detail screen with a real activity feed.
+
+- **`CustomerResponseDTO` enriched** (BE: `CustomerMapper.toResponse`) — now also returns phone,
+  mobile, website, createdAt, billingAddress, shippingAddress, paymentTerms, and taxInfo (all
+  already eagerly loaded on the `Customer` entity via default `@OneToOne` fetch, so no extra
+  queries). The list endpoint got these too since it reuses the same mapper — harmless, ignored
+  by callers that only read the thin fields.
+- **`CustomerActivityLog`** (BE: new entity + `CustomerActivityLogRepository` +
+  `CustomerActivityLogService`, `GET /api/customers/{id}/activity`) — a per-customer, append-only
+  feed. `CustomerActivityLogService.record(...)` runs in its own `REQUIRES_NEW` transaction and
+  swallows its own exceptions, so a broken log write can never roll back the real business
+  transaction (payment creation, invoice send, etc.) it's attached to.
+- **Wired into real triggers**, not just a stub table: `CustomerServiceImpl.createCustomer`
+  (CREATED), a new `PATCH /api/customers/{id}/status` endpoint (STATUS_CHANGED — this endpoint
+  didn't exist before; customers had no update path at all), `InvoiceService.createInvoice`
+  (INVOICE_CREATED), `InvoiceEmailService.sendInvoice` (INVOICE_SENT),
+  `InvoiceEmailRequestedEventListener` (EMAIL_SENT, only on confirmed delivery),
+  `PaymentServiceImpl.createPayment` (PAYMENT_RECEIVED), and `PaymentAllocationServiceImpl
+  .allocatePayment` (one consolidated PAYMENT_ALLOCATED entry per allocate call, not one per line,
+  to avoid a noisy feed).
+- **FE: `CustomerViewPage`** — contact info, billing/shipping address, payment terms & tax info,
+  an Activate/Deactivate action (using the new status endpoint), outstanding balance (AR aging)
+  with a link to the existing `CustomerStatementPage`, and the activity timeline itself. Each
+  entry is clickable when it has a `referenceType`/`referenceId`: `INVOICE` and `EMAIL` route to
+  `/invoices/:id`, `PAYMENT` routes to `/payments/:id` (the real payment detail page, now that AR
+  payments are wired to the backend); `CUSTOMER`-referenced entries (created, status changed)
+  aren't clickable — there's nowhere more specific to send them.
+
+**Worth knowing:** this is a *customer-scoped* activity log, not a system-wide audit trail —
+suppliers, bills, journals, users/roles, and report templates still have no equivalent (report
+templates have their own separate `ReportTemplateHistory`, unrelated to this). A general-purpose
+audit log covering every entity is still the bigger, unbuilt item in §14.
+
 Most claimed-complete items check out. A few corrections found during this audit:
 
 - **Banking / Transfers** — claimed "started" in the master prompt, but **no banking code exists
@@ -155,7 +199,7 @@ Most claimed-complete items check out. A few corrections found during this audit
 
 ## 2. SALES / ACCOUNTS RECEIVABLE
 
-- [x] Customers (BE: `Customer`, `CustomerController`; FE: `CustomersPage`, `CustomerForm`)
+- [x] Customers (BE: `Customer`, `CustomerController`; FE: `CustomersPage`/`CustomersList` — real list+pagination+search, `CustomerForm`, `CustomerViewPage` detail screen with activity log)
 - [x] Invoices — create/edit/status lifecycle (BE: `Invoice`, `InvoiceController`, `InvoiceService`; FE: `InvoicesPage`, `InvoiceNewPage`, `InvoiceViewPage`)
 - [x] Invoice Editing Controls (draft editable, finalized protected)
 - [x] Invoice PDF Generation (BE: `OpenHtmlPdfGenerationService`, invoice renderers)
@@ -333,10 +377,10 @@ Most claimed-complete items check out. A few corrections found during this audit
 ## 14. AUDIT & INTERNAL CONTROLS
 
 - [~] `AuditableBase` (createdBy/updatedBy/timestamps) exists on entities — baseline traceability only
-- [ ] Complete Audit Trail (creation/modification/approval/posting/reversal/deletion log) — no dedicated audit log entity/service
+- [~] Complete Audit Trail — a real, customer-scoped activity log now exists (`CustomerActivityLog`, see §2/§15 note below) covering customer creation, status changes, invoices, payments, and emails; still not a system-wide audit trail (no equivalent for suppliers, bills, journals, users, roles, etc.)
 - [x] Immutable Accounting History (posted journals protected from edit) — enforced via journal status + edit guards
 - [ ] User Activity Tracking — not implemented
-- [ ] Transaction History (lifecycle view per record) — partially via `InvoiceActivityTimeline`/`ActivityResponse` for invoices/payments only; not general-purpose
+- [~] Transaction History (lifecycle view per record) — invoices/payments have `InvoiceActivityTimeline`/`ActivityResponse`; customers now have a real cross-entity feed (`CustomerActivityLog`) surfaced on `CustomerViewPage`; still not general-purpose across every entity
 - [ ] Change History (field-level diffs) — not implemented
 - [x] Approval History — implemented only for report templates (`ReportTemplateHistory`), not for business transactions (no approvals exist yet elsewhere)
 - [ ] Period Controls — not implemented (no accounting periods exist yet)
@@ -432,7 +476,7 @@ Most claimed-complete items check out. A few corrections found during this audit
 
 - [ ] Global Search (cross-entity: customers/suppliers/invoices/payments/accounts/products) — not implemented
 - [ ] Notifications Center — not implemented
-- [~] Activity Timeline — implemented for invoices (`InvoiceActivityTimeline`) only, not system-wide
+- [~] Activity Timeline — implemented for invoices (`InvoiceActivityTimeline`) and now customers (`CustomerViewPage`'s activity log, clickable through to the source invoice/payment/email), not system-wide
 - [~] Contextual Actions — present ad hoc per page (e.g., invoice actions); not a formalized pattern
 - [ ] Bulk Actions — not implemented
 - [~] Responsive Design — Tailwind-based UI, mobile hook exists (`use-mobile.tsx`); full responsive QA not confirmed

@@ -7,8 +7,10 @@ import com.unionsg.xaccounting.entity.User.Role;
 import com.unionsg.xaccounting.entity.User.User;
 import com.unionsg.xaccounting.entity.ChartOfAccountClearTo_ENTITY;
 import com.unionsg.xaccounting.entity.ChartOfAccount;
+import com.unionsg.xaccounting.entity.TaxCategory;
 import com.unionsg.xaccounting.enums.AccountType;
 import com.unionsg.xaccounting.enums.NormalBalance;
+import com.unionsg.xaccounting.enums.TaxCategoryType;
 import com.unionsg.xaccounting.enums.UserStatus;
 import com.unionsg.xaccounting.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -40,6 +43,7 @@ public class DatabaseSeeder implements ApplicationRunner {
     private final DocumentNumberConfigRepository docConfigRepo;
 
     private final AccountRepository accountRepository;
+    private final TaxCategoryRepository taxCategoryRepository;
     private List<ChartOfAccountClearTo_ENTITY> assetsClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> liabilityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> equityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
@@ -347,6 +351,15 @@ public class DatabaseSeeder implements ApplicationRunner {
             createAccount("6220", "Accounts Receivable", 45L, chartOfAccountClearToRepo);
 
 
+        }
+
+        if (taxCategoryRepository.count() == 0) {
+            taxCategoryRepository.save(TaxCategory.builder().name("Sales Tax (Standard)").type(TaxCategoryType.SALES_TAX).rate(new BigDecimal("5.00")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("Sales Tax (Reduced)").type(TaxCategoryType.SALES_TAX).rate(new BigDecimal("2.50")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("VAT (Standard)").type(TaxCategoryType.VAT).rate(new BigDecimal("15.00")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("VAT (Zero-Rated)").type(TaxCategoryType.VAT).rate(BigDecimal.ZERO).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("Withholding Tax 5%").type(TaxCategoryType.WITHHOLDING_TAX).rate(new BigDecimal("5.00")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("Withholding Tax 10%").type(TaxCategoryType.WITHHOLDING_TAX).rate(new BigDecimal("10.00")).build());
         }
 
     }

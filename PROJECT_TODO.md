@@ -17,6 +17,16 @@ Consolidated status across both repositories:
 > detail screen with a real cross-entity activity log (customer created, status changed,
 > invoices created/sent, payments received/allocated, emails sent) — each entry deep-links to
 > its source record. See "Customer Wiring" note below.
+>
+> **Update 4:** New Products/Services module (BE: `Product` entity/`ProductController` at
+> `/api/products` with image upload via the existing generic file-attachment system; `TaxCategory`
+> entity/`TaxCategoryController` at `/api/tax-categories`, seeded with Sales Tax, VAT and
+> Withholding Tax rows; FE: `ProductsPage`/`ProductsList`, `ProductForm` with "Basic Info" (image,
+> name, item type, category, cost group) and "Sales" (description, price/rate, income account via
+> a new `SelectAccountModal` defaulting to the seeded "Sales" account, tax category dropdown)
+> sections). Invoice line items (`AddInvoiceLineModal`) can now search and select a product/
+> service, which prefills description/price/tax rate while leaving them editable. See "Products
+> & Services" note below.
 
 This file is the single source of truth for what exists vs. what remains, verified directly
 against the code (routes, controllers, entities, services) rather than assumed. It mirrors the
@@ -173,6 +183,40 @@ Most claimed-complete items check out. A few corrections found during this audit
   document/journal *categories* for the document-template system — but there is **no actual
   transactional logic** behind any of them except `REVERSING_JOURNAL` (Journal Reversal, which
   is fully implemented).
+
+### Products & Services (this pass) — new module, wired into invoice line items
+
+There was no catalog of sellable items anywhere in either repo — every invoice line was
+free-typed from scratch. Built a Products/Services module per spec and wired it into invoice
+line entry:
+
+- **`Product`** (BE: new entity/`ProductRepository`/`ProductService`/`ProductController` at
+  `/api/products`, multipart create/update mirroring `InvoiceController`'s pattern — a `request`
+  JSON part plus an optional `image` file part). Fields split into the two sections asked for:
+  - *Basic Info*: `name`, `itemType` (`INVENTORY`/`NON_INVENTORY`/`SERVICE`/`BUNDLE`), `category`
+    and `costGroup` (kept as free-text fields rather than their own managed reference tables —
+    a deliberate scope cut to keep this pass focused; revisit if the business needs enforced
+    category/cost-group lists). The image reuses the existing generic file-attachment system
+    (`EntityType.PRODUCT`) — create the product first, then upload the image referencing its id,
+    same as `InvoiceService` does for invoice attachments; the resulting file id is stored
+    directly on `Product.imageFileId` (not re-queried per row) so the product list can show
+    thumbnails without an extra request per item.
+  - *Sales*: `description`, `price`, `incomeAccount` (FK to the existing `AccountEntity`/`account`
+    table — the one with real named accounts like "4020 Sales", not the coarser `ChartOfAccount`
+    grouping table), `taxCategory` (FK to the new `TaxCategory` table below).
+- **`TaxCategory`** (BE: new entity/`TaxCategoryRepository`/`TaxCategoryService`/
+  `TaxCategoryController` at `/api/tax-categories`) — `type` (`SALES_TAX`/`VAT`/
+  `WITHHOLDING_TAX`) + `name` + `rate`. Seeded via `DatabaseSeeder` (guarded by
+  `taxCategoryRepository.count() == 0`, same pattern as the rest of the seeder) with two rows
+  each: Sales Tax (5%, 2.5%), VAT (15% standard, 0% zero-rated), Withholding Tax (5%, 10%).
+- **FE**: `ProductsPage`/`ProductsList` (search, pagination, image thumbnail, delete), `ProductForm`
+  (`ProductNewPage`, used for both create and edit) laid out as "Basic Info" + "Sales" cards
+  matching the spec, a new reusable `SelectAccountModal` (Command-based search dialog over
+  `GET /api/accounts`, highlights the "4020 Sales" account as the default) for the income-account
+  field, and a tax-category `Select` populated from `/api/tax-categories`.
+- **Invoice integration**: `AddInvoiceLineModal` gained a product/service search combobox at the
+  top. Selecting an item prefills `description`, `unitPrice`, and `taxRate` from the product's
+  tax category rate — all three remain plain editable fields afterward, nothing is locked.
 
 ---
 

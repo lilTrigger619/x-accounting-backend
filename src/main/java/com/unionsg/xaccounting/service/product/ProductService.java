@@ -70,7 +70,11 @@ public class ProductService {
         product.setTaxCategory(resolveTaxCategory(request.getTaxCategoryId()));
 
         if (image != null && !image.isEmpty()) {
+            deleteExistingImage(product);
             product.setImageFileId(uploadImage(product.getId(), image));
+        } else if (request.isRemoveImage()) {
+            deleteExistingImage(product);
+            product.setImageFileId(null);
         }
 
         Product saved = productRepository.save(product);
@@ -110,6 +114,12 @@ public class ProductService {
         if (taxCategoryId == null) return null;
         return taxCategoryRepository.findById(taxCategoryId)
                 .orElseThrow(() -> new RuntimeException("Tax category not found with id: " + taxCategoryId));
+    }
+
+    private void deleteExistingImage(Product product) {
+        if (product.getImageFileId() != null) {
+            fileService.deleteFile(product.getImageFileId());
+        }
     }
 
     private String uploadImage(Long productId, MultipartFile image) {

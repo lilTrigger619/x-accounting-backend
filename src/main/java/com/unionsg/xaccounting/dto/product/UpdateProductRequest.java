@@ -26,4 +26,7 @@ public class UpdateProductRequest {
 
     private Long taxCategoryId;
 
+    /** When true and no new image is uploaded alongside this request, the existing image is removed. */
+    private boolean removeImage;
+
 }

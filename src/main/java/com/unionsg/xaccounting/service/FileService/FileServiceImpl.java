@@ -71,7 +71,7 @@ public class FileServiceImpl implements FileService {
     @Override
     public Page<FileResponseDto> getFiles(
             EntityType entityType,
-            UUID entityId,
+            String entityId,
             String mimeType,
             Pageable pageable
     ) {
@@ -84,8 +84,8 @@ public class FileServiceImpl implements FileService {
             if (entityType != null) {
                 predicates.add(cb.equal(root.get("entityType"), entityType));
             }
-            if (entityId != null) {
-                predicates.add(cb.equal(root.get("entityId"), entityId.toString()));
+            if (entityId != null && !entityId.isBlank()) {
+                predicates.add(cb.equal(root.get("entityId"), entityId));
             }
             if (mimeType != null && !mimeType.isBlank()) {
                 predicates.add(cb.equal(cb.lower(root.get("mimeType")), mimeType.trim().toLowerCase()));

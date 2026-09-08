@@ -8,7 +8,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface FileService {
     List<FileResponseDto> uploadFile(
@@ -18,7 +17,7 @@ public interface FileService {
 
     Page<FileResponseDto> getFiles(
             EntityType entityType,
-            UUID entityId,
+            String entityId,
             String mimeType,
             Pageable pageable
     );

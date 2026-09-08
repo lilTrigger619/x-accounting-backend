@@ -22,7 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/files")
@@ -56,7 +55,7 @@ public class FileController {
     @GetMapping
     public ResponseEntity<Page<FileResponseDto>> getFiles(
             @RequestParam(required = false) EntityType entityType,
-            @RequestParam(required = false) UUID entityId,
+            @RequestParam(required = false) String entityId,
             @RequestParam(required = false) String mimeType,
             Pageable pageable
     ) {

@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.documenttemplate.preview;
 
 import com.unionsg.xaccounting.document.context.DocumentContext;
 import com.unionsg.xaccounting.document.context.DocumentContextBuilder;
+import com.unionsg.xaccounting.document.pdf.PdfGenerationService;
 import com.unionsg.xaccounting.document.renderer.DocumentRenderer;
 import com.unionsg.xaccounting.document.renderer.DocumentRendererFactory;
 import com.unionsg.xaccounting.document.template.ThymeleafDocumentRenderer;
@@ -42,9 +43,20 @@ public class DocumentTemplatePreviewServiceImpl implements DocumentTemplatePrevi
     private final DocumentRendererFactory rendererFactory;
     private final ThymeleafDocumentRenderer thymeleafRenderer;
     private final InvoiceSampleDataProvider invoiceSampleDataProvider;
+    private final PdfGenerationService pdfGenerationService;
 
     @Override
     public String samplePreview(Long templateId, SamplePreviewRequest request) {
+        return renderSampleHtml(templateId, request);
+    }
+
+    @Override
+    public byte[] samplePreviewPdf(Long templateId, SamplePreviewRequest request) {
+        String html = renderSampleHtml(templateId, request);
+        return pdfGenerationService.generatePdf(html);
+    }
+
+    private String renderSampleHtml(Long templateId, SamplePreviewRequest request) {
         // 1. Retrieve and validate the template
         DocumentTemplate template = templateRepository.findById(templateId)
                 .orElseThrow(() -> new BadRequestException("Document template not found with id: " + templateId));

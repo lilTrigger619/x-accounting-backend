@@ -39,6 +39,12 @@ Consolidated status across both repositories:
 > `payment_allocations`, `payment_refunds`, `supplier_payments`,
 > `supplier_payment_allocations`, and `document_templates`) — see "Created By Audit Trail"
 > note below, **including a manual DB migration you must run once**.
+>
+> **Update 7:** The invoice preview modal in the Document Template Designer ("Invoice preview",
+> opened via the toolbar's Preview button) now has a "Download PDF" button that renders the
+> current unsaved designer configuration as a real PDF (new `POST
+> /api/document-templates/{id}/sample-preview-pdf`, reusing the same sample-data rendering
+> pipeline as the existing HTML preview).
 
 This file is the single source of truth for what exists vs. what remains, verified directly
 against the code (routes, controllers, entities, services) rather than assumed. It mirrors the

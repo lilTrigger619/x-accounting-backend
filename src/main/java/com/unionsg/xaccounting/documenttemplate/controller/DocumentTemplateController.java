@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -168,6 +169,22 @@ public class DocumentTemplateController {
         return ResponseEntity.ok()
                 .contentType(MediaType.TEXT_HTML)
                 .body(html);
+    }
+
+    /**
+     * Same sample invoice as {@link #samplePreview}, rendered as a downloadable PDF
+     * of the current unsaved designer configuration. Strictly read/render only.
+     */
+    @PostMapping("/{templateId}/sample-preview-pdf")
+    public ResponseEntity<byte[]> samplePreviewPdf(
+            @PathVariable Long templateId,
+            @Valid @RequestBody SamplePreviewRequest request
+    ) {
+        byte[] pdfBytes = documentTemplatePreviewService.samplePreviewPdf(templateId, request);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"invoice-preview.pdf\"")
+                .body(pdfBytes);
     }
 }
 

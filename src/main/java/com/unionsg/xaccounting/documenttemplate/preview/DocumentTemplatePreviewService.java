@@ -22,4 +22,14 @@ public interface DocumentTemplatePreviewService {
      * @return the rendered invoice HTML
      */
     String samplePreview(Long templateId, SamplePreviewRequest request);
+
+    /**
+     * Renders the same sample invoice as {@link #samplePreview} but as a PDF,
+     * for downloading the current unsaved designer configuration.
+     *
+     * @param templateId the document template being customized
+     * @param request    the current unsaved designer state (layout/design/content)
+     * @return the rendered invoice PDF bytes
+     */
+    byte[] samplePreviewPdf(Long templateId, SamplePreviewRequest request);
 }

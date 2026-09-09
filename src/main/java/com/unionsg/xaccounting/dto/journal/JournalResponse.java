@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.unionsg.xaccounting.dto.CreatedByDTO;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
 import lombok.*;
@@ -52,7 +53,7 @@ public class JournalResponse {
 
     private LocalDateTime createdAt;
 
-    private String createdBy;
+    private CreatedByDTO createdBy;
 
     private List<JournalLineResponse> lines;
 

@@ -1,5 +1,6 @@
 package com.unionsg.xaccounting.dto.payment;
 
+import com.unionsg.xaccounting.dto.CreatedByDTO;
 import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentMethod;
 import com.unionsg.xaccounting.enums.PaymentStatus;
@@ -57,7 +58,7 @@ public class PaymentDetailsResponse {
 
     private List<Long> attachmentIds;
 
-    private String createdBy;
+    private CreatedByDTO createdBy;
 
     private LocalDateTime createdDate;
 

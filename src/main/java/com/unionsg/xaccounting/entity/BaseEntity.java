@@ -1,11 +1,15 @@
 package com.unionsg.xaccounting.entity;
+import com.unionsg.xaccounting.entity.User.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Getter
 @Setter
 @MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
 
     @Id
@@ -18,8 +22,10 @@ public abstract class BaseEntity {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "created_by", updatable = false, length = 100)
-    private String createdBy;
+    @CreatedBy
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by", updatable = false)
+    private User createdBy;
 
     @Column(name = "updated_by", length = 100)
     private String updatedBy;

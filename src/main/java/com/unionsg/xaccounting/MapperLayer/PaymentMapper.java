@@ -154,6 +154,8 @@ public class PaymentMapper {
         response.setAttachmentIds(payment.getAttachments());
         response.setAllocations(allocationResponses != null ? allocationResponses : Collections.emptyList());
         response.setRefunds(refundResponses != null ? refundResponses : Collections.emptyList());
+        response.setCreatedBy(CreatedByMapper.toDto(payment.getCreatedBy()));
+        response.setCreatedDate(payment.getCreatedAt());
 
         return response;
     }

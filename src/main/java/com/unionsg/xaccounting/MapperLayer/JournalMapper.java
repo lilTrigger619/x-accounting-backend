@@ -15,6 +15,7 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface JournalMapper {
     @Mapping(target = "lines", source = "lines")
+    @Mapping(target = "createdBy", expression = "java(CreatedByMapper.toDto(entity.getCreatedBy()))")
     JournalResponse toResponse(JournalEntry entity);
 
     List<JournalResponse> toResponseList(List<JournalEntry> entities);

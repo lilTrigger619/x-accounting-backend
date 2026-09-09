@@ -28,12 +28,18 @@ public class InvoiceDocumentService {
      * Uses the default template for INVOICE document type.
      */
     public DocumentGenerateResponse generateInvoicePdf(Long invoiceId) {
+        return generateInvoicePdf(invoiceId, null);
+    }
+
+    /**
+     * Generates a PDF invoice for the given invoice ID using a specific template,
+     * falling back to the default INVOICE template when templateId is null.
+     */
+    public DocumentGenerateResponse generateInvoicePdf(Long invoiceId, Long templateId) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new BusinessException("Invoice not found with id: " + invoiceId));
 
-        DocumentTemplate template = templateRepository
-                .findByDocumentTypeAndIsDefaultTrue(DocumentType.INVOICE)
-                .orElseThrow(() -> new BusinessException("No default invoice template found. Please set a default template first."));
+        DocumentTemplate template = resolveInvoiceTemplate(templateId);
 
         return documentGenerationService.generate(
                 invoice,
@@ -42,6 +48,19 @@ public class InvoiceDocumentService {
                 "INVOICE",
                 invoiceId
         );
+    }
+
+    /**
+     * Resolves an invoice document template by id, or the default INVOICE template when id is null.
+     */
+    public DocumentTemplate resolveInvoiceTemplate(Long templateId) {
+        if (templateId != null) {
+            return templateRepository.findById(templateId)
+                    .orElseThrow(() -> new BusinessException("Template not found with id: " + templateId));
+        }
+        return templateRepository
+                .findByDocumentTypeAndIsDefaultTrue(DocumentType.INVOICE)
+                .orElseThrow(() -> new BusinessException("No default invoice template found. Please set a default template first."));
     }
 
     /**

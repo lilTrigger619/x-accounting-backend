@@ -27,6 +27,12 @@ Consolidated status across both repositories:
 > sections). Invoice line items (`AddInvoiceLineModal`) can now search and select a product/
 > service, which prefills description/price/tax rate while leaving them editable. See "Products
 > & Services" note below.
+>
+> **Update 5:** The "Send Invoice" dialog can now preview exactly what will be sent — the
+> rendered email (recipient/subject/body) and the invoice PDF, using the actual invoice and the
+> currently-selected template — before you click Send. This surfaced (and fixed) a real bug: the
+> send endpoint was silently ignoring the template/email/subject/message the dialog collected.
+> See "Invoice Send Preview" note below.
 
 This file is the single source of truth for what exists vs. what remains, verified directly
 against the code (routes, controllers, entities, services) rather than assumed. It mirrors the
@@ -217,6 +223,42 @@ line entry:
 - **Invoice integration**: `AddInvoiceLineModal` gained a product/service search combobox at the
   top. Selecting an item prefills `description`, `unitPrice`, and `taxRate` from the product's
   tax category rate — all three remain plain editable fields afterward, nothing is locked.
+
+### Invoice Send Preview (this pass) — preview before send, and a real bug fixed underneath
+
+The "Send Invoice" dialog (`SendInvoiceDialog`) already had Template/Email/Subject/Message
+fields, but they were cosmetic: `InvoiceController./send` never had a `@RequestBody` parameter
+at all, so whatever the dialog collected was silently discarded on every send — the invoice PDF
+always used the *default* template (`InvoiceDocumentService.generateInvoicePdf` hardcoded it) and
+the email always went to `customer.getEmail()`, ignoring any override. Fixed that properly rather
+than just bolting a preview onto broken plumbing:
+
+- **BE — template selection now actually applies**: `InvoiceDocumentService` gained
+  `resolveInvoiceTemplate(templateId)` (id if given, else the default INVOICE template) and a
+  `generateInvoicePdf(invoiceId, templateId)` overload; the old `generateInvoicePdf(invoiceId)`
+  delegates to it with `null`.
+- **BE — new `SendInvoiceRequest` DTO** (`templateId`, `email`, `subject`, `message`, all
+  optional) is now actually read by `POST /api/invoices/{id}/send`.
+- **BE — new `InvoiceEmailContentService`**, extracted from what used to be dead-on-arrival logic
+  inside `InvoiceEmailRequestedEventListener` (which picked `templates.get(0)` — the first
+  template found, never the one actually selected). It resolves the subject/body either from the
+  chosen template's `DocumentTemplateEmail` (STANDARD type) or from the caller's subject/message
+  overrides, so the same resolution is shared by the real send and the preview.
+- **BE — `InvoiceEmailService.sendInvoice`** now resolves the template, recipient email
+  (override → else customer email), and email content *synchronously* at send time, then passes
+  the already-resolved `subject`/`bodyHtml` on `InvoiceEmailRequestedEvent` to the async listener
+  — the listener's only remaining job is delivery, so it no longer needs its own (buggy) template
+  lookup.
+- **BE — new `POST /api/invoices/{id}/send-preview`** (same `SendInvoiceRequest` body) returns
+  `{toEmail, subject, bodyHtml}` with zero side effects — no PDF generated/saved, no status
+  change, no email sent.
+- **FE — `SendInvoiceDialog`** gained a "Preview" step: it calls the new `send-preview` endpoint
+  for the email content and the existing (already-built, previously unused for this)
+  `POST /api/document-templates/{templateId}/preview` for the actual invoice PDF — rendered
+  inline via an iframe — using the real invoice and whichever template is currently selected in
+  the dialog. The recipient email field is pre-populated (from `invoice.billingInfo.billingEmail`
+  when the caller has it, else silently resolved via one `send-preview` call using the customer's
+  email on file) but stays a plain editable input the whole time.
 
 ---
 

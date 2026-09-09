@@ -4,7 +4,9 @@ package com.unionsg.xaccounting.controller;
 import com.unionsg.xaccounting.dto.FileUploadRequestDto;
 import com.unionsg.xaccounting.dto.invoice.CreateInvoiceRequest;
 import com.unionsg.xaccounting.dto.invoice.InvoiceResponse;
+import com.unionsg.xaccounting.dto.invoice.InvoiceSendPreviewResponse;
 import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsResponse;
+import com.unionsg.xaccounting.dto.invoice.SendInvoiceRequest;
 import com.unionsg.xaccounting.dto.invoice.UpdateInvoiceRequest;
 
 import com.unionsg.xaccounting.service.FileService.FileService;
@@ -148,12 +150,32 @@ public class InvoiceController {
     @PostMapping("/{id}/send")
     public ResponseEntity<Void> send(
 
-            @PathVariable Long id
+            @PathVariable Long id,
+            @RequestBody(required = false) SendInvoiceRequest request
     ) {
 
-        invoiceEmailService.sendInvoice(id);
+        invoiceEmailService.sendInvoice(id, request);
 
         return ResponseEntity.ok().build();
+    }
+
+
+    /*
+     =============================
+     Preview what a send would look like (recipient/subject/body) — no side effects
+     =============================
+     */
+
+    @PostMapping("/{id}/send-preview")
+    public ResponseEntity<InvoiceSendPreviewResponse> sendPreview(
+
+            @PathVariable Long id,
+            @RequestBody(required = false) SendInvoiceRequest request
+    ) {
+
+        return ResponseEntity.ok(
+                invoiceEmailService.previewSend(id, request)
+        );
     }
 
 

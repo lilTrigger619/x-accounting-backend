@@ -19,7 +19,7 @@ repositories {
 }
 
 ext {
-    openhtmlVersion = '1.0.10'
+    playwrightVersion = '1.49.0'
 }
 
 dependencies {
@@ -66,11 +66,8 @@ dependencies {
     //thymeleafe
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 
-    //openhtmltopdf
-    implementation "com.openhtmltopdf:openhtmltopdf-core:$openhtmlVersion"
-    implementation "com.openhtmltopdf:openhtmltopdf-pdfbox:$openhtmlVersion"
-    // Optional: for Java2D image support
-    implementation "com.openhtmltopdf:openhtmltopdf-java2d:$openhtmlVersion"
+    // Playwright (Chromium-based PDF rendering, matches browser CSS - flexbox/grid/clip-path support)
+    implementation "com.microsoft.playwright:playwright:$playwrightVersion"
     //spring mail service
         implementation 'org.springframework.boot:spring-boot-starter-mail'
 
@@ -80,4 +77,12 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+tasks.register('installPlaywrightBrowsers', JavaExec) {
+	group = 'playwright'
+	description = 'Downloads the Chromium browser Playwright needs for PDF generation. Run once per machine/deploy target.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.microsoft.playwright.CLI'
+	args = ['install', 'chromium']
 }

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8"/>
     <title th:text="${content.formTitle} ?: 'Invoice'">Invoice</title>
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/common.css'" />
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/professional.css'" />
@@ -78,9 +78,11 @@
         <div th:if="${content.showBillingAddress}" class="address-box">
             <h3 class="section-title">Bill To</h3>
             <p th:text="${invoice.customer.displayName}">Customer Name</p>
-            <p th:text="${invoice.billingInfo.addressLine1}">Address</p>
-            <p th:text="${invoice.billingInfo.city} + ', ' + ${invoice.billingInfo.state} + ' ' + ${invoice.billingInfo.postalCode}">City, State ZIP</p>
-            <p th:if="${!#strings.isEmpty(invoice.billingInfo.billingEmail)}" th:text="${invoice.billingInfo.billingEmail}">Email</p>
+            <th:block th:if="${invoice.billingInfo != null}">
+                <p th:text="${invoice.billingInfo.addressLine1}">Address</p>
+                <p th:text="${invoice.billingInfo.city} + ', ' + ${invoice.billingInfo.state} + ' ' + ${invoice.billingInfo.postalCode}">City, State ZIP</p>
+                <p th:if="${!#strings.isEmpty(invoice.billingInfo.billingEmail)}" th:text="${invoice.billingInfo.billingEmail}">Email</p>
+            </th:block>
         </div>
 
         <div class="address-box">
@@ -127,7 +129,7 @@
             <td class="totals-label">Tax</td>
             <td class="totals-value" th:text="${{invoice.totalTax}}">0.00</td>
         </tr>
-        <tr th:if="${invoice.discountType.name() != 'NONE' && invoice.discountAmount > 0}">
+        <tr th:if="${invoice.discountType != null && invoice.discountType.name() != 'NONE' && invoice.discountAmount > 0}">
             <td class="totals-label">Discount</td>
             <td class="totals-value" th:text="'-' + ${{invoice.discountAmount}}">0.00</td>
         </tr>
@@ -144,7 +146,7 @@
     <!-- Bottom sections -->
     <div class="bottom-sections">
         <div th:if="${content.showTerms && !#strings.isEmpty(invoice.terms)}" class="terms-section">
-            <h3 class="section-title">Terms & Conditions</h3>
+            <h3 class="section-title">Terms &amp; Conditions</h3>
             <p th:text="${invoice.terms}">Terms go here.</p>
         </div>
     </div>

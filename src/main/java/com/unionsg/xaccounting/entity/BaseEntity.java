@@ -1,7 +1,10 @@
 package com.unionsg.xaccounting.entity;
+import com.unionsg.xaccounting.security.auth.UserPrincipal;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @Getter
 @Setter
@@ -44,11 +47,45 @@ public abstract class BaseEntity {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+
+        String currentUserId = resolveCurrentUserId();
+
+        if (this.createdBy == null) {
+            this.createdBy = currentUserId;
+        }
+
+        if (this.updatedBy == null) {
+            this.updatedBy = currentUserId;
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+
+        String currentUserId = resolveCurrentUserId();
+
+        if (currentUserId != null) {
+            this.updatedBy = currentUserId;
+        }
+    }
+
+    private String resolveCurrentUserId() {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof UserPrincipal userPrincipal) {
+            return userPrincipal.getUser().getId().toString();
+        }
+
+        return null;
     }
 
     // =========================

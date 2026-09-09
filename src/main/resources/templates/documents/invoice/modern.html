@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8"/>
     <title th:text="${content.formTitle} ?: 'Invoice'">Invoice</title>
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/common.css'" />
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/modern.css'" />
@@ -55,7 +55,7 @@
         </div>
         <div class="meta-right" th:if="${content.showBillingAddress}">
             <p><span class="meta-caps">Invoice To:</span> <span class="meta-plain" th:text="${invoice.customer.displayName}">Customer Name</span></p>
-            <p class="meta-plain" th:text="${invoice.billingInfo.addressLine1} + ', ' + ${invoice.billingInfo.city}">Address, City</p>
+            <p class="meta-plain" th:if="${invoice.billingInfo != null}" th:text="${invoice.billingInfo.addressLine1} + ', ' + ${invoice.billingInfo.city}">Address, City</p>
         </div>
     </div>
 
@@ -98,7 +98,7 @@
                 <span>Tax</span>
                 <span th:text="${{invoice.totalTax}}">0.00</span>
             </div>
-            <div class="totals-row" th:if="${invoice.discountType.name() != 'NONE' && invoice.discountAmount > 0}">
+            <div class="totals-row" th:if="${invoice.discountType != null && invoice.discountType.name() != 'NONE' && invoice.discountAmount > 0}">
                 <span>Discount</span>
                 <span th:text="'-' + ${{invoice.discountAmount}}">0.00</span>
             </div>

@@ -33,6 +33,12 @@ Consolidated status across both repositories:
 > currently-selected template — before you click Send. This surfaced (and fixed) a real bug: the
 > send endpoint was silently ignoring the template/email/subject/message the dialog collected.
 > See "Invoice Send Preview" note below.
+>
+> **Update 6:** `created_by` now has real referential integrity to `users` (it was a
+> never-populated varchar column on `journal_entries`, `journal_lines`, `payments`,
+> `payment_allocations`, `payment_refunds`, `supplier_payments`,
+> `supplier_payment_allocations`, and `document_templates`) — see "Created By Audit Trail"
+> note below, **including a manual DB migration you must run once**.
 
 This file is the single source of truth for what exists vs. what remains, verified directly
 against the code (routes, controllers, entities, services) rather than assumed. It mirrors the
@@ -259,6 +265,39 @@ than just bolting a preview onto broken plumbing:
   the dialog. The recipient email field is pre-populated (from `invoice.billingInfo.billingEmail`
   when the caller has it, else silently resolved via one `send-preview` call using the customer's
   email on file) but stays a plain editable input the whole time.
+
+### Created By Audit Trail (this pass) — real FK, not a never-populated string
+
+`created_by` on `journal_entries`, `journal_lines`, `payments`, `payment_allocations`,
+`payment_refunds`, `supplier_payments`, `supplier_payment_allocations`, and `document_templates`
+(every `BaseEntity` subclass — that's the complete list, no other table was affected) was a plain
+`varchar(100)` column that **no create flow ever populated** — posting a journal, recording a
+payment, etc. left it null. The user had manually backfilled real values into it directly in the
+database for existing rows.
+
+- **BE — `BaseEntity.createdBy`** changed from `String` to a real `@ManyToOne User`
+  (`@JoinColumn(name = "created_by")`), populated automatically via `@CreatedBy` +
+  `@EntityListeners(AuditingEntityListener.class)` — reusing the `@EnableJpaAuditing` /
+  `AuditorAware<User>` bean that was already configured (and already used by `AuditableBase`/
+  `User`) but that `BaseEntity` simply wasn't wired into. This fixes recording for all 8 tables at
+  once with no per-service code changes needed. `updated_by` (still a plain string) now also
+  gets auto-populated on create/update via a small helper, matching a concurrent fix that landed
+  on this branch from elsewhere.
+- **BE — new `CreatedByDTO`/`CreatedByMapper`**, wired into `JournalResponse`/`JournalMapper` and
+  `PaymentDetailsResponse`/`PaymentMapper` so the API returns `{id, fullName}` instead of nothing.
+  (Supplier payments and document templates weren't touched at the DTO/frontend level since no
+  screen currently displays their creator — the FK/recording fix still covers them.)
+- **⚠️ BE — manual migration required**: `spring.jpa.hibernate.ddl-auto=update` will not safely
+  convert an already-populated `varchar` column to `uuid` + add a FK constraint. Run
+  `src/main/resources/db/manual-migrations/001_add_created_by_user_fk.sql` against the database
+  **once, before deploying this change** — it converts all 8 `created_by` columns and adds the FK
+  to `users(id)`. The script's header explains how to handle any pre-existing non-UUID values.
+- **FE — new `/settings/users/:id` `UserViewPage`** (name, email, status, roles, direct
+  permissions) plus `UserRequests.getUser(id)`, since only an edit form existed before and it
+  relied on router state rather than fetching by id.
+- **FE — new `CreatedByLink`** (name + a small icon button opening the user's page, or a plain
+  "System" label when there's no creator) now renders everywhere `created_by` was already shown:
+  `JournalDetailsPage`, `JournalsListPage`, `JournalPostingPage`, `PaymentDetailsPage`.
 
 ---
 

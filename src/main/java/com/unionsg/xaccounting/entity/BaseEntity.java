@@ -1,10 +1,13 @@
 package com.unionsg.xaccounting.entity;
 import com.unionsg.xaccounting.entity.User.User;
+import com.unionsg.xaccounting.security.auth.UserPrincipal;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @Getter
 @Setter
@@ -50,11 +53,41 @@ public abstract class BaseEntity {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+
+        // createdBy itself is populated automatically by AuditingEntityListener (@CreatedBy)
+        // via the AuditorAware<User> bean; only updatedBy needs a manual default here.
+        if (this.updatedBy == null) {
+            this.updatedBy = resolveCurrentUserId();
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+
+        String currentUserId = resolveCurrentUserId();
+
+        if (currentUserId != null) {
+            this.updatedBy = currentUserId;
+        }
+    }
+
+    private String resolveCurrentUserId() {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof UserPrincipal userPrincipal) {
+            return userPrincipal.getUser().getId().toString();
+        }
+
+        return null;
     }
 
     // =========================
@@ -66,56 +99,4 @@ public abstract class BaseEntity {
         this.deletedAt = LocalDateTime.now();
         this.deletedBy = deletedBy;
     }
-
-    // =========================
-    // Getters and Setters
-    // =========================
-
-//    public Long getId() {
-//        return id;
-//    }
-//
-//    public LocalDateTime getCreatedAt() {
-//        return createdAt;
-//    }
-//
-//    public LocalDateTime getUpdatedAt() {
-//        return updatedAt;
-//    }
-//
-//    public String getCreatedBy() {
-//        return createdBy;
-//    }
-//
-//    public void setCreatedBy(String createdBy) {
-//        this.createdBy = createdBy;
-//    }
-//
-//    public String getUpdatedBy() {
-//        return updatedBy;
-//    }
-//
-//    public void setUpdatedBy(String updatedBy) {
-//        this.updatedBy = updatedBy;
-//    }
-//
-//    public Boolean getDeleted() {
-//        return deleted;
-//    }
-//
-//    public void setDeleted(Boolean deleted) {
-//        this.deleted = deleted;
-//    }
-//
-//    public LocalDateTime getDeletedAt() {
-//        return deletedAt;
-//    }
-//
-//    public String getDeletedBy() {
-//        return deletedBy;
-//    }
-//
-//    public Long getVersion() {
-//        return version;
-//    }
 }

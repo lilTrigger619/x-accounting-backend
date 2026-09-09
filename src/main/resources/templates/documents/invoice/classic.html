@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8"/>
     <title th:text="${content.formTitle} ?: 'Invoice'">Invoice</title>
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/common.css'" />
     <link rel="stylesheet" type="text/css" th:href="${baseUrl} + '/css/documents/invoice/classic.css'" />
@@ -90,10 +90,12 @@
             <td th:if="${content.showBillingAddress}" class="address-section">
                 <h3>Bill To</h3>
                 <p th:text="${invoice.customer.displayName}">Customer Name</p>
-                <p th:text="${invoice.billingInfo.addressLine1}">Address Line 1</p>
-                <p th:if="${invoice.billingInfo.addressLine2}" th:text="${invoice.billingInfo.addressLine2}">Address Line 2</p>
-                <p th:text="${invoice.billingInfo.city} + ', ' + ${invoice.billingInfo.state} + ' ' + ${invoice.billingInfo.postalCode}">City, State ZIP</p>
-                <p th:text="${invoice.billingInfo.country}">Country</p>
+                <th:block th:if="${invoice.billingInfo != null}">
+                    <p th:text="${invoice.billingInfo.addressLine1}">Address Line 1</p>
+                    <p th:if="${invoice.billingInfo.addressLine2}" th:text="${invoice.billingInfo.addressLine2}">Address Line 2</p>
+                    <p th:text="${invoice.billingInfo.city} + ', ' + ${invoice.billingInfo.state} + ' ' + ${invoice.billingInfo.postalCode}">City, State ZIP</p>
+                    <p th:text="${invoice.billingInfo.country}">Country</p>
+                </th:block>
             </td>
             <td th:if="${content.showShippingAddress}" class="address-section">
                 <h3>Ship To</h3>
@@ -136,7 +138,7 @@
             <td class="totals-label">Tax Total</td>
             <td class="totals-value" th:text="${{invoice.totalTax}}">0.00</td>
         </tr>
-        <tr th:if="${invoice.discountType.name() != 'NONE' && invoice.discountAmount > 0}">
+        <tr th:if="${invoice.discountType != null && invoice.discountType.name() != 'NONE' && invoice.discountAmount > 0}">
             <td class="totals-label">Discount</td>
             <td class="totals-value" th:text="'-' + ${{invoice.discountAmount}}">0.00</td>
         </tr>

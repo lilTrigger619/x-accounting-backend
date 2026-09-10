@@ -15,6 +15,7 @@ import com.unionsg.xaccounting.documenttemplate.enums.DocumentLayout;
 import com.unionsg.xaccounting.documenttemplate.enums.DocumentType;
 import com.unionsg.xaccounting.documenttemplate.enums.TemplateStatus;
 import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateRepository;
+import com.unionsg.xaccounting.document.pdf.PdfGenerationService;
 import com.unionsg.xaccounting.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,9 @@ class DocumentTemplatePreviewServiceImplTest {
     private InvoiceSampleDataProvider invoiceSampleDataProvider;
 
     @Mock
+    private PdfGenerationService pdfGenerationService;
+
+    @Mock
     private DocumentRenderer renderer;
 
     private DocumentTemplatePreviewServiceImpl service;
@@ -62,7 +66,8 @@ class DocumentTemplatePreviewServiceImplTest {
                 contextBuilder,
                 rendererFactory,
                 thymeleafRenderer,
-                invoiceSampleDataProvider
+                invoiceSampleDataProvider,
+                pdfGenerationService
         );
     }
 

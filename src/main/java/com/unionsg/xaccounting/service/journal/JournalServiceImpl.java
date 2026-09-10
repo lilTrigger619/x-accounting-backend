@@ -16,6 +16,7 @@ import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.service.accounting.PeriodLockGuard;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
@@ -39,6 +40,7 @@ public class JournalServiceImpl implements JournalService {
     private final JournalPostingService postingService;
     private final JournalNumberGenerator numberGenerator;
     private final DocumentNumberGeneratorService generalSequenceGeneratorService;
+    private final PeriodLockGuard periodLockGuard;
 
     public JournalServiceImpl(
             JournalEntryRepository journalRepository,
@@ -46,7 +48,8 @@ public class JournalServiceImpl implements JournalService {
             JournalMapper journalMapper,
             JournalPostingService postingService,
             JournalNumberGenerator numberGenerator,
-            DocumentNumberGeneratorService generalSequenceGeneratorService
+            DocumentNumberGeneratorService generalSequenceGeneratorService,
+            PeriodLockGuard periodLockGuard
     ) {
         this.journalRepository = journalRepository;
         this.accountRepository = accountRepository;
@@ -54,6 +57,7 @@ public class JournalServiceImpl implements JournalService {
         this.postingService = postingService;
         this.numberGenerator = numberGenerator;
         this.generalSequenceGeneratorService = generalSequenceGeneratorService;
+        this.periodLockGuard = periodLockGuard;
     }
 
     @Override
@@ -205,6 +209,8 @@ public class JournalServiceImpl implements JournalService {
                     "Only posted journals can be reversed"
             );
         }
+
+        periodLockGuard.assertPostable(LocalDate.now());
 
         JournalEntry reversal = new JournalEntry();
 

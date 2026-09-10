@@ -3,6 +3,8 @@ import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.Journals.JournalLine;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.exception.BadRequestException;
+import com.unionsg.xaccounting.service.accounting.PeriodLockGuard;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -11,7 +13,10 @@ import java.time.LocalDateTime;
 
 
 @Service
+@RequiredArgsConstructor
 public class JournalPostingServiceImpl implements JournalPostingService {
+
+    private final PeriodLockGuard periodLockGuard;
 
     @Override
     public void validateJournal(JournalEntry journal) {
@@ -72,8 +77,7 @@ public class JournalPostingServiceImpl implements JournalPostingService {
     @Override
     public void validatePostingPeriod(JournalEntry journal) {
 
-        // future implementation
-        // validate accounting periods here
+        periodLockGuard.assertPostable(journal.getJournalDate());
     }
 
     @Override

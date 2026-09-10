@@ -305,6 +305,72 @@ database for existing rows.
   "System" label when there's no creator) now renders everywhere `created_by` was already shown:
   `JournalDetailsPage`, `JournalsListPage`, `JournalPostingPage`, `PaymentDetailsPage`.
 
+### Enterprise Accounting — Period, Fiscal Year and Closing Management (this pass) — periods, opening balances, year-end closing, retained earnings, recurring journals
+
+A large, from-scratch module implementing the full 23-section spec covering Accounting Periods,
+Financial Year Management, Period Locking, Opening Balances, Year-End Closing, Retained Earnings
+and Recurring Journal Entries.
+
+- **BE — `FinancialYear` / `AccountingPeriod`** entities plus `FinancialYearService`
+  (create with optional auto-generated monthly periods, overlap validation, `activate()` that
+  demotes the previous current year) and `AccountingPeriodService` (`lock`/`unlock`/`close`/
+  `reopen`, the last requiring a documented reason; `lockAllForFinancialYear` used by closing).
+- **BE — `FinancialPeriodAuditLog`**, a shared audit trail (`FinancialPeriodAuditLogService`,
+  its own `REQUIRES_NEW` transaction so a logging failure can never roll back the action it
+  records) covering every status change across Financial Years, Accounting Periods, Opening
+  Balances, Year-End Closing and Recurring Journals.
+- **BE — `PeriodLockGuard`**, the single enforcement point for period locking. Rather than
+  threading a period check through every module that posts to the GL, it hooks into the one
+  choke point all of them already share: `JournalPostingServiceImpl.validatePostingPeriod`
+  (previously an empty stub) — which manual journals, AR payment/refund postings, and AP
+  bill/supplier-payment postings all funnel through via `JournalService.create()`+`post()`.
+  `JournalServiceImpl.reverse()` bypassed that pipeline (it posts a reversal directly), so it
+  got its own explicit guard call. A date outside any defined period is allowed through, so
+  the feature doesn't retroactively block existing data the moment it ships.
+- **BE — `OpeningBalanceService`**, a one-time balanced journal per Financial Year
+  (`journalType=OPENING_BALANCE`, dated at the FY start date, `sourceModule`/`sourceEntityId`
+  linked back to the FY using the existing generic linkage fields AR/AP already use — no schema
+  change to `journal_entries`). Duplicate posting is blocked via `FinancialYear.hasOpeningBalance`.
+- **BE — `YearEndClosingService`**: `getClosingPreview` derives total revenue/expense and net
+  profit or loss for the FY's date range by reusing the existing `ProfitAndLossService`/
+  `ProfitAndLossRepository` query (no stored account balances exist anywhere in this codebase —
+  everything is derived from summed `JournalLine`s). `closeFinancialYear` posts a real `CLOSING`
+  journal that zeroes every INCOME/EXPENSE account with a non-zero period balance and transfers
+  the net result to a configurable Retained Earnings account
+  (`accounting.closing.retained-earnings-account-id`, default the seeded `3010` account), stores
+  a denormalized totalRevenue/totalExpense/netProfitLoss/retainedEarningsMovement snapshot on
+  `FinancialYear` so historical reporting for a closed year doesn't depend on re-deriving it later,
+  and auto-locks every remaining open period. `reopenFinancialYear` is a controlled, reason-required
+  reopen back to OPEN status.
+- **BE — Recurring Journals**: `RecurringJournalTemplate`/`RecurringJournalTemplateLine`/
+  `RecurringJournalOccurrence` plus `RecurringJournalService` (template CRUD,
+  pause/resume/stop/archive lifecycle, `generateDueOccurrences()`). A due date that falls in a
+  locked/closed period is recorded as a PENDING occurrence and retried on the next run rather
+  than skipped or forced through, using the same `PeriodLockGuard`. A daily
+  `@Scheduled` job (`RecurringJournalGenerationJob`) and an on-demand `/generate-due` endpoint
+  both drive it. The unique `(template, scheduled_date)` constraint prevents double-generation.
+- **BE — new controllers**: `/api/financial-years` (+ `/activate`), `/api/accounting-periods`
+  (+ `/lock`, `/unlock`, `/close`, `/reopen`), `/api/opening-balances`,
+  `/api/financial-years/{id}/closing` (`/preview`, `/close`, `/reopen`), `/api/recurring-journals`
+  (+ `/pause`, `/resume`, `/stop`, `/archive`, `/occurrences`, `/generate-due`).
+- **FE — `FinancialYearsPage`** (list, create with optional auto-generated monthly periods,
+  activate) and **`FinancialYearDetailPage`** with three tabs — **Accounting Periods**
+  (lock/unlock/close/reopen with a reason dialog), **Opening Balance** (a reusable
+  `JournalLineEditor` balanced multi-line entry form, becomes read-only once posted), and
+  **Year-End Closing** (revenue/expense/net P&L preview, warnings, confirm-to-close, and a
+  reason-required reopen once closed).
+- **FE — `RecurringJournalsPage`**: template list with status badges, create dialog (reusing
+  `JournalLineEditor`), pause/resume/stop/archive actions, a "Generate Due Now" button, and an
+  occurrence-history side sheet showing generated/pending/failed dates.
+- **FE — new `src/components/accounting/JournalLineEditor`**, a reusable balanced multi-line
+  account/description/debit/credit editor (built on the existing `SelectAccountModal`) shared by
+  the Opening Balance and Recurring Journal forms.
+- Wired into the sidebar's Accounting section and `App.tsx` routing (`/financial-years`,
+  `/financial-years/:id`, `/recurring-journals`).
+- **Not done in this pass**: manual browser QA against a live backend (would need a running DB +
+  authenticated session); typecheck (`tsc -p tsconfig.app.json --noEmit`) and `npm run build`
+  both pass cleanly, and the backend compiles cleanly under the usual temporary JDK 21 swap.
+
 ---
 
 ## 1. ACCOUNTING CORE
@@ -313,13 +379,13 @@ database for existing rows.
 - [x] Journal Entries (BE: `JournalEntry`, `JournalLine`, `JournalService`; FE: `JournalForm`, `JournalsListPage`)
 - [x] Journal Posting (BE: `JournalPostingService`; FE: `JournalPostingPage`)
 - [x] Journal Reversal (BE: `ReverseJournalRequest`; FE: `ReverseJournalDialog`, `JournalReversalCard`)
-- [ ] Accounting Periods (define financial years/periods) — no entity in BE
-- [ ] Period Locking (block writes to closed periods) — not implemented
-- [ ] Fiscal Year Management (create/rollover) — not implemented
-- [ ] Opening Balances (setup-time balance entry) — enum value exists (`OPENING_BALANCE_JOURNAL`), no logic
-- [ ] Year-End Closing (close temp accounts, roll to next FY) — not implemented
-- [ ] Retained Earnings (auto-transfer of P&L) — not implemented
-- [ ] Recurring Journal Entries (scheduled generation) — not implemented (no `Recurring*` code found)
+- [x] Accounting Periods (define financial years/periods) (BE: `FinancialYear`, `AccountingPeriod`, `FinancialYearService`, `AccountingPeriodService`; FE: `FinancialYearsPage`, `FinancialYearDetailPage` → Accounting Periods tab)
+- [x] Period Locking (block writes to closed periods) (BE: `PeriodLockGuard`, wired into the single GL choke point `JournalPostingServiceImpl.validatePostingPeriod` plus `JournalServiceImpl.reverse()`, so manual journals, AR payments, AP bills/supplier payments, reversals and recurring journal generation all respect lock/close state)
+- [x] Fiscal Year Management (create/rollover) (BE: create with auto-generated monthly periods, `activate()` demotes the previous current year; a "rollover" is create-next-year + close-previous rather than a single button, matching how the rest of the module is built)
+- [x] Opening Balances (setup-time balance entry) (BE: `OpeningBalanceService`, one-time balanced journal dated at FY start, `journalType=OPENING_BALANCE`; FE: `OpeningBalanceTab`)
+- [x] Year-End Closing (close temp accounts, roll to next FY) (BE: `YearEndClosingService.closeFinancialYear` — zeroes every INCOME/EXPENSE account with a non-zero balance in the FY's date range via a posted `CLOSING` journal, then auto-locks remaining open periods; FE: `YearEndClosingTab` preview + confirm)
+- [x] Retained Earnings (auto-transfer of P&L) (BE: the `CLOSING` journal's balancing line posts the net profit/loss to a configurable Retained Earnings account, `accounting.closing.retained-earnings-account-id`, default seeded account `3010`; a denormalized snapshot — totalRevenue/totalExpense/netProfitLoss/retainedEarningsMovement — is stored on `FinancialYear` for reporting that survives future query changes)
+- [x] Recurring Journal Entries (scheduled generation) (BE: `RecurringJournalTemplate`/`RecurringJournalTemplateLine`/`RecurringJournalOccurrence`, `RecurringJournalService.generateDueOccurrences()` run by a daily `@Scheduled` job (`RecurringJournalGenerationJob`) and an on-demand endpoint; a due date inside a locked/closed period is recorded PENDING and retried rather than skipped or forced through; FE: `RecurringJournalsPage`)
 - [ ] Journal Templates (save/reuse structures) — not implemented
 - [ ] Journal Approval (review/approve before posting) — not implemented (no approval workflow exists anywhere)
 - [ ] Adjusting Entries (period-end adjustments) — enum value exists (`ADJUSTMENT_JOURNAL`), no dedicated logic
@@ -514,7 +580,7 @@ database for existing rows.
 - [~] Transaction History (lifecycle view per record) — invoices/payments have `InvoiceActivityTimeline`/`ActivityResponse`; customers now have a real cross-entity feed (`CustomerActivityLog`) surfaced on `CustomerViewPage`; still not general-purpose across every entity
 - [ ] Change History (field-level diffs) — not implemented
 - [x] Approval History — implemented only for report templates (`ReportTemplateHistory`), not for business transactions (no approvals exist yet elsewhere)
-- [ ] Period Controls — not implemented (no accounting periods exist yet)
+- [x] Period Controls (BE: `FinancialPeriodAuditLog` records every CREATED/ACTIVATED/LOCKED/UNLOCKED/CLOSED/REOPENED/GENERATED action against a Financial Year, Accounting Period, Opening Balance, Year-End Closing or Recurring Journal, in its own `REQUIRES_NEW` transaction so an audit-write failure can't roll back the business action it documents; see §1)
 - [x] Permission Controls (RBAC) (BE: `Role`, `Permission`, `RequirePermission`, `PermissionInterceptor`, `PermissionScanner`)
 - [ ] Segregation of Duties enforcement — not implemented
 - [ ] Audit Reports (dedicated audit/compliance report views) — not implemented
@@ -553,7 +619,7 @@ database for existing rows.
 - [x] No Silent Financial Changes (draft-vs-posted edit protection)
 - [x] Reversal Rather Than Destruction (Journal Reversal implemented)
 - [~] Balance Consistency across subledgers — holds for customer/GL today; will need re-validation once supplier bills, banking, and inventory modules are added
-- [ ] Period Integrity — not enforceable yet (no accounting periods)
+- [x] Period Integrity (BE: `PeriodLockGuard.assertPostable`/`isPostable` enforced at the single GL posting choke point plus journal reversal; see §1)
 - [ ] Currency Integrity (multi-currency dual values) — not implemented (no multi-currency)
 - [~] Rounding Controls — `BigDecimal` used consistently in money fields; explicit rounding-mode policy not confirmed
 
@@ -561,7 +627,7 @@ database for existing rows.
 
 - [ ] Recurring Invoices — not implemented
 - [ ] Recurring Bills — not implemented
-- [ ] Recurring Journals — not implemented
+- [x] Recurring Journals — implemented (see §1)
 - [ ] Payment Reminders — not implemented (template exists, no trigger)
 - [ ] Overdue Notifications — not implemented
 - [ ] Scheduled Reports — not implemented (`SchedulingConfig` exists for infra but no scheduled report job found)
@@ -637,7 +703,7 @@ modules (banking, inventory, payroll, budgeting, etc.) are added:
 
 ## Suggested Priority Order (highest leverage first)
 
-1. **Accounting Periods + Period Locking** — everything else (closing, budgets) depends on periods existing.
+1. ~~**Accounting Periods + Period Locking**~~ — done; see §1 and the note below.
 2. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
 3. **Employee module backend** — same situation as Expenses.
 4. **Supplier Credits/Refunds + Purchase Orders/Purchase-to-Bill** — completes the AP lifecycle to the same depth as AR.
@@ -649,9 +715,20 @@ modules (banking, inventory, payroll, budgeting, etc.) are added:
 10. **Approval workflow engine** — generic enough to apply to journals, invoices, bills, expenses, payments at once.
 11. **Inventory, Fixed Assets, Payroll, Budgeting** — large standalone modules, tackle after the above core gaps are closed.
 
-**Just closed:** AR Payment GL posting — `PaymentServiceImpl`/`PaymentAllocationServiceImpl` now
-call `PaymentJournalService` on create/allocate/remove/clear, matching the AP module's pattern
-(`APJournalService`). Real GL posting now covers both AR payments and AP (bills + supplier
-payments); the one remaining posting gap is that *invoices* themselves don't post a journal on
-creation (only the payment against them does) — a smaller, separate item from what was tracked
-here before.
+**Just closed:** Enterprise Accounting — Period, Fiscal Year and Closing Management. Added
+`FinancialYear`/`AccountingPeriod` with lock/unlock/close/reopen and a shared
+`FinancialPeriodAuditLog` for every status change; a single `PeriodLockGuard` enforces period
+locking at the one GL posting choke point (`JournalPostingServiceImpl.validatePostingPeriod`)
+plus `JournalServiceImpl.reverse()`, so manual journals, AR payments, AP bills/supplier payments
+and reversals all respect a locked or permanently closed period without touching each module
+individually. Added a one-time `OpeningBalanceService` per Financial Year, a
+`YearEndClosingService` that zeroes INCOME/EXPENSE accounts into a configurable Retained Earnings
+account via a posted `CLOSING` journal and auto-locks remaining open periods (with a controlled,
+reason-required reopen), and a `RecurringJournalTemplate`/`RecurringJournalOccurrence` system with
+a daily scheduled generation job that defers rather than skips occurrences whose date falls in a
+locked period. Frontend: `FinancialYearsPage` (list/create/activate), `FinancialYearDetailPage`
+(tabbed Accounting Periods / Opening Balance / Year-End Closing), and `RecurringJournalsPage`
+(create/pause/resume/stop/archive/occurrence history/generate-due-now), all wired into the
+Accounting section of the sidebar. Manual browser QA against a live backend was not performed in
+this session (typecheck + production build both pass); the earlier AR Payment GL posting note
+this replaced remains true — invoice creation itself still doesn't post its own journal.

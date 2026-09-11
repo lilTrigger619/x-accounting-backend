@@ -514,12 +514,12 @@ and Recurring Journal Entries.
 
 ## 10. FINANCIAL REPORTING
 
-- [x] Dashboard (FE: `DashboardPage`, `Dashboard.tsx`)
+- [x] Dashboard (BE: `DashboardService`/`DashboardController` — cash balance, AR/AP totals, YTD net profit, 12-month revenue/expense trend, recent transactions, accounting health; FE: `Dashboard.tsx`) — **fixed**: this previously rendered 100% hardcoded 2021/2022 mock data (a fake "$20,700.00 net profit", fake transactions) with no backend call at all; now wired to live data.
 - [x] General Ledger concepts (BE: `FinancialReportEngine`, GL data feeding reports)
-- [x] Trial Balance (BE + FE `ReportsController` / `/api/reports/trial-balance`)
-- [x] Profit & Loss (BE: `ProfitAndLossService`/`ProfitAndLossController`)
-- [x] Balance Sheet (BE: `/api/reports/balance-sheet`)
-- [x] Cash Flow Statement (BE: `/api/reports/cash-flow`)
+- [x] Trial Balance (BE: `TrialBalanceService`/`TrialBalanceController` at `/api/reports/trial-balance`; FE: `TrialBalancePage`) — **fixed**: the line previously here (`ReportsController` / same URL) pointed at a dead stub that routed through the generic report-template engine for a `"TRIAL_BALANCE"` template that was never seeded, and used a from/to date range rather than true as-of-date cumulative balances — it could never have returned a real trial balance. Removed; replaced with a dedicated implementation whose totals are verified to balance to zero against live seeded data.
+- [x] Profit & Loss (BE: `ProfitAndLossService`/`ProfitAndLossController`; FE: `ProfitAndLossPage`) — the backend endpoint existed with no frontend page consuming it at all; added one.
+- [x] Balance Sheet (BE: `BalanceSheetService`/`BalanceSheetController` at `/api/reports/balance-sheet`; FE: `BalanceSheetPage`) — **fixed**: same dead-stub situation as Trial Balance above (wrong report-engine semantics, no seeded template, would never have returned real data). The real implementation uses true as-of-date cumulative balances (not the P&L engine's period-activity semantics) and includes a Current Year Earnings line computed from the active Financial Year's year-to-date P&L, so Assets = Liabilities + Equity holds true mid-year, before the next Year-End Closing sweeps it into Retained Earnings. Verified to balance to zero against live seeded data.
+- [ ] Cash Flow Statement — `ReportsController#cashFlow` exists at `/api/reports/cash-flow` but is the same class of non-functional stub as the old Trial Balance/Balance Sheet endpoints were (routes through the generic report engine for a `"CASH_FLOW"` template that was never seeded); left as-is this pass since a correct cash flow statement (indirect method reconciling net income to operating cash) is a larger, separate piece of work.
 - [x] Report Engine (reusable templates, not hard-coded) (BE: full `ReportTemplate` designer subsystem — sections, formulas, draft locks, versioning/history, publish lifecycle; FE: `ReportDesigner`, `FormulaBuilder`, `SectionTree`, wizard, versions)
 - [ ] Account Statements (single-account activity view for end users) — GL data exists but no dedicated statement endpoint/page (customer/supplier statements now exist, see §2/§3; a per-GL-account statement is still open)
 - [x] Accounts Receivable Aging (see §2)
@@ -614,8 +614,8 @@ and Recurring Journal Entries.
 ## 17. ACCOUNTING DATA INTEGRITY
 
 - [x] Double-Entry Enforcement (BE: journal line balancing on post)
-- [x] Automatic Accounting — **fixed**: `PaymentServiceImpl.createPayment` now calls `PaymentJournalService.postPaymentJournal`, and `PaymentAllocationServiceImpl` calls `postAdditionalAllocationJournal`/`postRemoveAllocationJournal` on allocate (incl. auto-allocate), remove, and clear — matching the pattern the new AP module (`APJournalService`) already used. Customer *invoices* still don't post a journal on their own (no `InvoiceJournalService` exists — an invoice only affects the AR subledger fields on the `Invoice` entity itself, not the GL, until a payment against it posts); that's a separate, smaller gap than the payment-side one that's now closed.
-- [x] Source Traceability (entries reference originating transaction) — present for AP (bills/supplier payments via `sourceModule`/`sourceEntityId`) and now for AR payments too (`sourceModule="PAYMENT"`); invoice creation still isn't source-traceable to a journal since none is posted for it (see above)
+- [x] Automatic Accounting — **fixed further**: `PaymentServiceImpl.createPayment` calls `PaymentJournalService.postPaymentJournal`, `PaymentAllocationServiceImpl` calls `postAdditionalAllocationJournal`/`postRemoveAllocationJournal` on allocate/remove/clear, and `APJournalService` covers bills and supplier payments. The remaining gap noted here previously — customer invoices never posted a journal at all, so the Accounts Receivable control account was only ever credited (by payments) and never debited (by the sales that created the receivable), driving it permanently negative — is now closed: `InvoiceJournalService` posts Dr Accounts Receivable / Cr Revenue / Cr Sales Tax Payable when an invoice is first sent. Verified against live data: the Balance Sheet's AR figure and `balanceCheck` are both now correct (previously confirmed negative and non-balancing when this was traced end-to-end against a real database for the first time).
+- [x] Source Traceability (entries reference originating transaction) — present for AP (bills/supplier payments), AR payments (`sourceModule="PAYMENT"`), and now invoices too (`sourceModule="INVOICE"`)
 - [x] No Silent Financial Changes (draft-vs-posted edit protection)
 - [x] Reversal Rather Than Destruction (Journal Reversal implemented)
 - [~] Balance Consistency across subledgers — holds for customer/GL today; will need re-validation once supplier bills, banking, and inventory modules are added
@@ -633,11 +633,11 @@ and Recurring Journal Entries.
 - [ ] Scheduled Reports — not implemented (`SchedulingConfig` exists for infra but no scheduled report job found)
 - [ ] Automatic Reconciliation Suggestions — not implemented (no banking module)
 - [ ] Automatic Tax Calculations — not implemented (no tax engine)
-- [x] Automatic Accounting Entries — implemented for AR payments and AP (bills + supplier payments); invoice creation itself still doesn't post a journal (see §17)
+- [x] Automatic Accounting Entries — implemented for AR payments, AP (bills + supplier payments), and now invoice sending too (see §17)
 
 ## 19. BUSINESS INTELLIGENCE
 
-- [~] Executive Dashboard — FE `Dashboard.tsx` exists; confirm data depth (revenue/expense/cash/AR/AP indicators) vs. placeholder
+- [x] Executive Dashboard — confirmed and fixed: it was 100% hardcoded 2021/2022 placeholder data with no backend call. Now backed by `DashboardService` (cash, AR/AP, YTD net profit, 12-month revenue/expense trend, recent transactions, accounting health).
 - [ ] Revenue Trends — not implemented
 - [ ] Expense Trends — not implemented
 - [ ] Profitability Analysis (beyond raw P&L) — not implemented
@@ -732,3 +732,39 @@ locked period. Frontend: `FinancialYearsPage` (list/create/activate), `Financial
 Accounting section of the sidebar. Manual browser QA against a live backend was not performed in
 this session (typecheck + production build both pass); the earlier AR Payment GL posting note
 this replaced remains true — invoice creation itself still doesn't post its own journal.
+
+**Just closed (investor-demo pass):** A full backend-up, real-Postgres verification pass (this
+project's data had never previously been exercised against a genuinely empty database end to end)
+surfaced and fixed five previously-undiscovered, cascading GL-posting bugs — each one had been
+masking the next, so none had ever been reached before: (1) `application.properties`'s AR/AP
+journal account-id settings held raw placeholder integers (1-6) instead of real chart-of-account
+codes; (2) a fresh database crashed on boot because a chart-of-account "clear to" row referenced by
+`DatabaseSeeder` had been left commented out; (3) `JournalEntry.status` defaulted to `POSTED`
+instead of `DRAFT`, so every journal creation failed with "Only draft journals can be posted"; (4)
+`journal_entries.reference` has a DB-level unique constraint, but `PaymentJournalServiceImpl` and
+`APJournalService` both hardcoded the same reference for every journal a single payment could post
+(primary + allocation + unallocation + refund), so a second journal on the same payment always
+violated it; (5) `Invoice.balance` was never set on creation (unlike the equivalent, correct
+`Bill.balance` logic), which made `PaymentAllocationServiceImpl` reject allocations against
+brand-new invoices as "already fully paid." All five are fixed at the root cause, not worked
+around. Closing the architectural gap flagged in the paragraph above, `InvoiceJournalService` now
+posts Dr Accounts Receivable / Cr Revenue / Cr Sales Tax Payable when an invoice is first sent —
+previously invoices never touched the GL at all, so the AR control account was only ever credited
+(by payments) and never debited (by the sales that created the receivable), driving it permanently
+negative. Also removed two dead `ReportsController` stub endpoints (`trialBalance()`,
+`balanceSheet()`) that collided with, and were shadowed by, real `TrialBalanceService`/
+`BalanceSheetService` implementations built this pass — the stubs routed through the generic
+report-template engine for templates that were never seeded and used the wrong date-range
+semantics, so they could never have returned correct figures; `cashFlow()` is the same class of
+dead stub and is documented as still broken in §10 rather than silently left as "done." Fixed a
+Jackson serialization bug where `FinancialYearResponse.isCurrent`/`AccountingPeriodResponse.isActive`
+were being emitted as `"current"`/`"active"` (Lombok's `is`-getter naming vs. Jackson's default
+bean introspection stripped the prefix) via `@Getter(AccessLevel.NONE)` plus a hand-written
+`@JsonProperty`-annotated getter. Built a comprehensive, idempotent `DemoDataSeeder` (8 customers,
+5 suppliers, 6 products, an opening balance, a full year of monthly invoices/bills with a realistic
+mix of paid/partially-paid/unpaid outcomes, two recurring journal templates backfilled across their
+whole history, a manual adjusting journal, a completed year-end close into a second, partially
+locked financial year) so the app now demos with a full, realistic operating history instead of an
+empty database. Verified end-to-end against the live seeded data: Balance Sheet `balanceCheck: 0.0`
+and Trial Balance `difference: 0.0` (both exactly zero), Dashboard AR/net-profit/revenue figures
+all correct and positive where they had previously been negative or zero.

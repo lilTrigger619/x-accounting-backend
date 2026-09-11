@@ -29,4 +29,6 @@ public interface AccountingPeriodRepository extends JpaRepository<AccountingPeri
     long countByFinancialYearId(Long financialYearId);
 
     long countByFinancialYearIdAndStatus(Long financialYearId, com.unionsg.xaccounting.enums.AccountingPeriodStatus status);
+
+    long countByStatus(com.unionsg.xaccounting.enums.AccountingPeriodStatus status);
 }

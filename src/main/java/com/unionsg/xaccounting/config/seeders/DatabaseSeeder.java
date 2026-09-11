@@ -362,6 +362,49 @@ public class DatabaseSeeder implements ApplicationRunner {
             taxCategoryRepository.save(TaxCategory.builder().name("Withholding Tax 10%").type(TaxCategoryType.WITHHOLDING_TAX).rate(new BigDecimal("10.00")).build());
         }
 
+        // Runs unconditionally (each guarded individually by existsByAccountId) so these two
+        // control accounts get added even on a database that was already seeded before they
+        // existed - unlike the blocks above, which only ever run once on a brand-new database.
+        seedAdditionalControlAccountsIfMissing();
+    }
+
+    /**
+     * Supplier Advances (a prepayment asset) and Customer Deposits (unearned-revenue liability)
+     * are referenced by {@code supplierpayment.journal.supplier-advances-account-id} and
+     * {@code payment.journal.customer-advances-account-id} in application.properties, but were
+     * missing from the original chart-of-accounts seed - meaning every AR/AP posting involving an
+     * over/under-payment failed with "Account not found". Added under the existing Asset/Liability
+     * ChartOfAccount groupings rather than a new chart type.
+     */
+    private void seedAdditionalControlAccountsIfMissing() {
+        ChartOfAccount assetChart = chartOfAccountRepo.findByCoaCode(1L).orElse(null);
+        ChartOfAccount liabilityChart = chartOfAccountRepo.findByCoaCode(2L).orElse(null);
+        if (assetChart == null || liabilityChart == null) {
+            log.warn("Asset/Liability chart-of-account groupings not found; skipping control account seeding");
+            return;
+        }
+
+        if (!accountRepository.existsByAccountId("1740")) {
+            ChartOfAccountClearTo_ENTITY supplierAdvancesClearTo = chartOfAccountClearToRepo.findByClearToCode(46L)
+                    .orElseGet(() -> chartOfAccountClearToRepo.save(
+                            ChartOfAccountClearTo_ENTITY.builder()
+                                    .clearToCode(46L)
+                                    .description("Supplier Advances")
+                                    .chartOfAccount(assetChart)
+                                    .build()));
+            createAccount("1740", "Supplier Advances", supplierAdvancesClearTo.getClearToCode(), chartOfAccountClearToRepo);
+        }
+
+        if (!accountRepository.existsByAccountId("2080")) {
+            ChartOfAccountClearTo_ENTITY customerDepositsClearTo = chartOfAccountClearToRepo.findByClearToCode(47L)
+                    .orElseGet(() -> chartOfAccountClearToRepo.save(
+                            ChartOfAccountClearTo_ENTITY.builder()
+                                    .clearToCode(47L)
+                                    .description("Customer Deposits")
+                                    .chartOfAccount(liabilityChart)
+                                    .build()));
+            createAccount("2080", "Customer Deposits", customerDepositsClearTo.getClearToCode(), chartOfAccountClearToRepo);
+        }
     }
 
     // =============================

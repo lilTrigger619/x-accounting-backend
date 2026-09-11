@@ -28,27 +28,13 @@ public class ReportsController {
 
     private final Clock clock = Clock.systemDefaultZone();
 
-    @GetMapping("/api/reports/trial-balance")
-    @Operation(summary = "Trial Balance")
-    public ResponseEntity<FinancialReportSectionsResponseDto> trialBalance(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
-    ) {
-        return handle("TRIAL_BALANCE", "Trial Balance", fromDate, toDate);
-    }
-
 // Intentionally not exposing profit-loss endpoint here because ProfitAndLossController already provides it.
-
-
-    @GetMapping("/api/reports/balance-sheet")
-    @Operation(summary = "Balance Sheet")
-    public ResponseEntity<FinancialReportSectionsResponseDto> balanceSheet(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
-    ) {
-        System.out.println("Okya");
-        return handle("BALANCE_SHEET", "Balance Sheet", fromDate, toDate);
-    }
+// Trial Balance and Balance Sheet are likewise not exposed here: BalanceSheetController and
+// TrialBalanceController provide the real, working implementations (true as-of-date cumulative
+// balances). Routing either through this generic template engine would require a "TRIAL_BALANCE"/
+// "BALANCE_SHEET" ReportTemplate that was never seeded, and would apply the engine's period-activity
+// semantics - correct for Profit & Loss, but wrong for a balance-sheet-family report, which needs
+// every transaction since inception rather than only what falls inside an arbitrary date range.
 
     @GetMapping("/api/reports/cash-flow")
     @Operation(summary = "Cash Flow")

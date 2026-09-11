@@ -154,7 +154,7 @@ public class APJournalService {
                 + (payment.getSupplier() != null ? payment.getSupplier().getDisplayName() : "Unknown")
                 + ".";
 
-        JournalResponse posted = createAndPostSupplierPaymentJournal(payment, lines, description);
+        JournalResponse posted = createAndPostSupplierPaymentJournal(payment, lines, "", description);
 
         payment.setJournal(journalEntryRepository.findById(posted.getId())
                 .orElseThrow(() -> new BusinessException("Journal not found after posting")));
@@ -193,7 +193,7 @@ public class APJournalService {
         String description = "Additional allocation of " + allocation.getAllocatedAmount()
                 + " for " + payment.getPaymentNumber() + ".";
 
-        createAndPostSupplierPaymentJournal(payment, lines, description);
+        createAndPostSupplierPaymentJournal(payment, lines, "-ALLOC-" + allocation.getId(), description);
 
         log.info("Additional allocation journal posted for supplier payment: {}", payment.getPaymentNumber());
     }
@@ -224,7 +224,7 @@ public class APJournalService {
         String description = "Removal of allocation of " + allocation.getAllocatedAmount()
                 + " for " + payment.getPaymentNumber() + ".";
 
-        createAndPostSupplierPaymentJournal(payment, lines, description);
+        createAndPostSupplierPaymentJournal(payment, lines, "-UNALLOC-" + allocation.getId(), description);
 
         log.info("Allocation removal journal posted for supplier payment: {}", payment.getPaymentNumber());
     }
@@ -264,11 +264,16 @@ public class APJournalService {
     private JournalResponse createAndPostSupplierPaymentJournal(
             SupplierPaymentEntity payment,
             List<CreateJournalLineRequest> lines,
+            String referenceSuffix,
             String description
     ) {
+        // journal_entries.reference is unique, and a single supplier payment can post more than
+        // one journal over its lifecycle (initial + allocation adjustments) - referenceSuffix
+        // keeps each one distinct while leaving the primary payment journal's reference unchanged
+        // (referenceSuffix == "").
         CreateJournalRequest request = CreateJournalRequest.builder()
                 .journalDate(LocalDate.now())
-                .reference(payment.getPaymentNumber())
+                .reference(payment.getPaymentNumber() + referenceSuffix)
                 .description(description)
                 .journalType(JournalType.PURCHASE)
                 .currencyCode(payment.getCurrency() != null ? payment.getCurrency().name() : "USD")

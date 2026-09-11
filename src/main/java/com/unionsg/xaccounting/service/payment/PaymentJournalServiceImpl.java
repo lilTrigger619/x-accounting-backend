@@ -86,7 +86,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
                     .build());
         }
 
-        JournalResponse journalResponse = createAndPostJournal(payment, lines,
+        JournalResponse journalResponse = createAndPostJournal(payment, lines, "",
                 "Receipt " + payment.getReceiptNumber() + " received from "
                         + (payment.getCustomer() != null ? payment.getCustomer().getDisplayName() : "Unknown")
                         + ".");
@@ -132,7 +132,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
         String description = "Additional allocation of " + allocation.getAllocatedAmount()
                 + " for " + payment.getReceiptNumber() + ".";
 
-        createAndPostJournal(payment, lines, description);
+        createAndPostJournal(payment, lines, "-ALLOC-" + allocation.getId(), description);
 
         log.info("Additional allocation journal posted for payment: {}", payment.getReceiptNumber());
     }
@@ -170,7 +170,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
         String description = "Removal of allocation of " + allocation.getAllocatedAmount()
                 + " for " + payment.getReceiptNumber() + ".";
 
-        createAndPostJournal(payment, lines, description);
+        createAndPostJournal(payment, lines, "-UNALLOC-" + allocation.getId(), description);
 
         log.info("Allocation removal journal posted for payment: {}", payment.getReceiptNumber());
     }
@@ -226,7 +226,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
         String description = "Refund of " + refundAmount + " for " + payment.getReceiptNumber()
                 + ". Reason: " + (refund.getReason() != null ? refund.getReason() : "N/A") + ".";
 
-        createAndPostJournal(payment, lines, description);
+        createAndPostJournal(payment, lines, "-REFUND-" + refund.getId(), description);
 
         log.info("Refund journal posted for payment: {}", payment.getReceiptNumber());
     }
@@ -276,12 +276,16 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     private JournalResponse createAndPostJournal(
             PaymentEntity payment,
             List<CreateJournalLineRequest> lines,
+            String referenceSuffix,
             String description
     ) {
-        // Build the journal request
+        // Build the journal request. journal_entries.reference is unique, and a single payment
+        // can post more than one journal over its lifecycle (initial + allocation adjustments +
+        // refunds) - referenceSuffix keeps each one distinct while leaving the primary payment
+        // journal's reference unchanged (referenceSuffix == "").
         CreateJournalRequest request = CreateJournalRequest.builder()
                 .journalDate(LocalDate.now())
-                .reference(payment.getReceiptNumber())
+                .reference(payment.getReceiptNumber() + referenceSuffix)
                 .description(description)
                 .journalType(JournalType.GENERAL)
                 .currencyCode(payment.getCurrency() != null ? payment.getCurrency().name() : "GHS")

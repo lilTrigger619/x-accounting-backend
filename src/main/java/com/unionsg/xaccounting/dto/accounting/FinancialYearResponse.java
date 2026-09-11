@@ -1,6 +1,8 @@
 package com.unionsg.xaccounting.dto.accounting;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.unionsg.xaccounting.enums.FinancialYearStatus;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -17,6 +19,12 @@ public class FinancialYearResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private FinancialYearStatus status;
+
+    // Lombok's own isCurrent() getter is suppressed below and replaced with a hand-written,
+    // @JsonProperty-annotated one - otherwise Jackson discovers both the field and the Lombok
+    // getter as separate properties and emits both "isCurrent" and a stray "current" key
+    // (it strips the leading "is" from an is-prefixed boolean getter by default).
+    @Getter(AccessLevel.NONE)
     private boolean isCurrent;
     private boolean hasOpeningBalance;
 
@@ -38,4 +46,9 @@ public class FinancialYearResponse {
     private BigDecimal totalExpense;
     private BigDecimal netProfitLoss;
     private BigDecimal retainedEarningsMovement;
+
+    @JsonProperty("isCurrent")
+    public boolean isCurrent() {
+        return isCurrent;
+    }
 }

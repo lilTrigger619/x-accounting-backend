@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@Order(1)
 public class DatabaseSeeder implements ApplicationRunner {
 
     private final PermissionRepository permissionRepository;
@@ -170,7 +172,7 @@ public class DatabaseSeeder implements ApplicationRunner {
             liabilityClearTo.add(createChartClearToCode(13, "Long term liability"));
             liabilityClearTo.add(createChartClearToCode(14, "Current liability"));
             liabilityClearTo.add(createChartClearToCode(15, "Accounts payable"));
-//            liabilityClearTo.add(createChartClearToCode(16, "Credit card"));
+            liabilityClearTo.add(createChartClearToCode(16, "Credit card"));
             liabilityClearTo.add(createChartClearToCode(17, "Other liability"));
 
 // Equity clear to codes
@@ -369,12 +371,13 @@ public class DatabaseSeeder implements ApplicationRunner {
     }
 
     /**
-     * Supplier Advances (a prepayment asset) and Customer Deposits (unearned-revenue liability)
-     * are referenced by {@code supplierpayment.journal.supplier-advances-account-id} and
-     * {@code payment.journal.customer-advances-account-id} in application.properties, but were
+     * Supplier Advances (a prepayment asset), Customer Deposits (unearned-revenue liability), and
+     * Sales Tax Payable are referenced by {@code supplierpayment.journal.supplier-advances-account-id},
+     * {@code payment.journal.customer-advances-account-id}, and
+     * {@code invoice.journal.sales-tax-payable-account-id} in application.properties, but were
      * missing from the original chart-of-accounts seed - meaning every AR/AP posting involving an
-     * over/under-payment failed with "Account not found". Added under the existing Asset/Liability
-     * ChartOfAccount groupings rather than a new chart type.
+     * over/under-payment (and every invoice GL posting) failed with "Account not found". Added
+     * under the existing Asset/Liability ChartOfAccount groupings rather than a new chart type.
      */
     private void seedAdditionalControlAccountsIfMissing() {
         ChartOfAccount assetChart = chartOfAccountRepo.findByCoaCode(1L).orElse(null);
@@ -404,6 +407,17 @@ public class DatabaseSeeder implements ApplicationRunner {
                                     .chartOfAccount(liabilityChart)
                                     .build()));
             createAccount("2080", "Customer Deposits", customerDepositsClearTo.getClearToCode(), chartOfAccountClearToRepo);
+        }
+
+        if (!accountRepository.existsByAccountId("2090")) {
+            ChartOfAccountClearTo_ENTITY salesTaxPayableClearTo = chartOfAccountClearToRepo.findByClearToCode(48L)
+                    .orElseGet(() -> chartOfAccountClearToRepo.save(
+                            ChartOfAccountClearTo_ENTITY.builder()
+                                    .clearToCode(48L)
+                                    .description("Sales Tax Payable")
+                                    .chartOfAccount(liabilityChart)
+                                    .build()));
+            createAccount("2090", "Sales Tax Payable", salesTaxPayableClearTo.getClearToCode(), chartOfAccountClearToRepo);
         }
     }
 

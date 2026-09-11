@@ -48,7 +48,7 @@ public class JournalEntry extends BaseEntity {
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private JournalStatus status = JournalStatus.POSTED;
+    private JournalStatus status = JournalStatus.DRAFT;
 
     @Column(name = "journal_date", nullable = false)
     private LocalDate journalDate;

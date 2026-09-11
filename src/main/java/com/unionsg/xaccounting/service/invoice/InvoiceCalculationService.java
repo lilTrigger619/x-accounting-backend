@@ -56,7 +56,12 @@ public class InvoiceCalculationService {
                         .subtract(invoice.getDiscountAmount());
 
         invoice.setTotalAmount(scale(total));
+
+        BigDecimal alreadyPaid = invoice.getAmountPaid() != null ? invoice.getAmountPaid() : BigDecimal.ZERO;
+        BigDecimal outstanding = scale(total).subtract(alreadyPaid);
+
         invoice.setTotalDue(scale(total));
+        invoice.setBalance(outstanding.max(BigDecimal.ZERO));
     }
 
 

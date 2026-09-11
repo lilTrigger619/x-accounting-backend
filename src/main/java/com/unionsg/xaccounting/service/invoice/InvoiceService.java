@@ -44,6 +44,7 @@ public class InvoiceService {
     private final DocumentNumberGeneratorService generator;
     private final FileService fileService;
     private final CustomerActivityLogService customerActivityLogService;
+    private final InvoiceJournalService invoiceJournalService;
 
     @Transactional
     public InvoiceResponse createInvoice(
@@ -228,12 +229,20 @@ public class InvoiceService {
                         .orElseThrow(() ->
                                 new RuntimeException("Invoice not found"));
 
+        boolean firstSend = invoice.getStatus() == InvoiceStatus.DRAFT;
+
         invoice.setStatus(InvoiceStatus.SENT);
         invoice.setSentAt(LocalDateTime.now());
 
-        return InvoiceMapper.toResponse(
-                invoiceRepository.save(invoice)
-        );
+        Invoice saved = invoiceRepository.save(invoice);
+
+        // Post the GL impact only the first time an invoice is sent - re-sending (e.g. emailing
+        // it again) must stay idempotent and must not attempt to post a second journal.
+        if (firstSend) {
+            invoiceJournalService.postInvoiceJournal(saved);
+        }
+
+        return InvoiceMapper.toResponse(saved);
     }
 
 

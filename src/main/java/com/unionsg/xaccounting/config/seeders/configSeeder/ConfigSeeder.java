@@ -22,11 +22,15 @@ public class ConfigSeeder implements CommandLineRunner {
 
     }
 
+    /**
+     * Seeds each system-defined config category independently rather than short-circuiting the
+     * whole method once any config exists. The previous {@code configRepository.count() > 0}
+     * guard meant that once {@code CompanyConfigSeeder} inserted the unrelated "COMPANY" config,
+     * this seeder considered the database "already seeded" and silently skipped Payment Types,
+     * Item Categories, Expense Categories and the other five categories forever - they never
+     * existed on this database at all, which is why their settings screens 404'd.
+     */
     private void seedConfigs() {
-
-        if (configRepository.count() > 0) {
-            return;
-        }
 
         List<Config> configs = configSeedData.getConfigs();
         for (Config config : configs) {
@@ -42,7 +46,6 @@ public class ConfigSeeder implements CommandLineRunner {
             }
 
         }
-        configRepository.saveAll(configs);
 
         System.out.println("Configs seeded successfully");
 

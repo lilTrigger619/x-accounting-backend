@@ -944,3 +944,25 @@ real external Integrations, no notification-delivery infrastructure, no SMTP/ema
 screen, and no effective-dated Accounting Mappings — safe to defer because every journal line
 already stores the account it was actually posted to, so changing a mapping tomorrow can never
 rewrite yesterday's ledger.
+
+**Bugfix follow-up:** user-reported testing surfaced that the Settings Center's Audit Trail,
+System Preferences and Files & Attachments cards all silently opened the Configs screen instead
+of a real implementation — three placeholders left over from the initial pass, now built for
+real: `AuditTrailPage` reads the `SettingsAuditLogController` endpoint that existed on the backend
+with no way to actually call it; `SystemPreferencesPage` is a genuine, working Light/Dark/System
+theme toggle (new `lib/theme.ts`, applied on app boot, persisted to `localStorage` — the app
+already shipped `.dark` CSS tokens and `darkMode: ["class"]` in Tailwind, just no UI ever used
+them); `FilesAttachmentsPage` lists every uploaded file via the existing `/api/files` endpoint,
+showing an image thumbnail or a file-type icon. Also found and fixed the actual reason Item
+Categories/Payment Types/Expense Categories opened to a blank page: `ConfigSeeder`'s
+`configRepository.count() > 0` guard treated the database as "already seeded" the moment the
+unrelated `CompanyConfigSeeder` inserted its one COMPANY row, silently skipping the other eight
+config categories forever — they had never existed on this database at all. Fixed to seed each
+category independently; restarting the backend immediately seeded all eight, and a second latent
+bug surfaced the moment they did: `ConfigListPage` called `valueFieldLabel.toLowerCase()`
+unconditionally in the file-picker dialog's JSX, and the backend returns `valueFieldLabel: null`
+for every config that doesn't use a value field (i.e. all eight) — invisible before only because
+no config had ever actually loaded any items to trigger that render path. Both fixes verified live:
+Payment Types/Item Categories/Expense Categories all render their real seeded items with zero
+console errors, and the theme toggle was confirmed to actually flip `document.documentElement`'s
+class and repaint the whole app.

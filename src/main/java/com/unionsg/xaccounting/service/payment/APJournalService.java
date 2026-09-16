@@ -10,14 +10,15 @@ import com.unionsg.xaccounting.entity.payment.SupplierPaymentEntity;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.exception.BusinessException;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.bill.BillRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.repository.payment.SupplierPaymentRepository;
 import com.unionsg.xaccounting.service.journal.JournalService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,18 +42,7 @@ public class APJournalService {
     private final AccountRepository accountRepository;
     private final BillRepository billRepository;
     private final SupplierPaymentRepository supplierPaymentRepository;
-
-    @Value("${bill.journal.accounts-payable-account-id}")
-    private String accountsPayableAccountId;
-
-    @Value("${bill.journal.default-expense-account-id}")
-    private String defaultExpenseAccountId;
-
-    @Value("${supplierpayment.journal.bank-account-id}")
-    private String bankAccountId;
-
-    @Value("${supplierpayment.journal.supplier-advances-account-id}")
-    private String supplierAdvancesAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     // ========================================================================
     // BILL RECORDED  (Dr Expense, Cr Accounts Payable)
@@ -62,8 +52,8 @@ public class APJournalService {
     public void postBillJournal(Bill bill) {
         checkNoExistingBillJournal(bill);
 
-        Long expenseAccountIdResolved = resolveAccountId(defaultExpenseAccountId);
-        Long apAccountIdResolved = resolveAccountId(accountsPayableAccountId);
+        Long expenseAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_DEFAULT_EXPENSE);
+        Long apAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_ACCOUNTS_PAYABLE);
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
@@ -119,9 +109,9 @@ public class APJournalService {
     public void postSupplierPaymentJournal(SupplierPaymentEntity payment) {
         checkNoExistingPaymentJournal(payment);
 
-        Long bankAccountIdResolved = resolveAccountId(bankAccountId);
-        Long apAccountIdResolved = resolveAccountId(accountsPayableAccountId);
-        Long advancesAccountIdResolved = resolveAccountId(supplierAdvancesAccountId);
+        Long bankAccountIdResolved = resolveMappedAccountId(MappingKey.SUPPLIER_PAYMENT_BANK_ACCOUNT);
+        Long apAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_ACCOUNTS_PAYABLE);
+        Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.SUPPLIER_PAYMENT_ADVANCES);
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
@@ -171,8 +161,8 @@ public class APJournalService {
     public void postAdditionalAllocationJournal(SupplierPaymentEntity payment, SupplierPaymentAllocationEntity allocation) {
         checkPaymentHasJournal(payment);
 
-        Long apAccountIdResolved = resolveAccountId(accountsPayableAccountId);
-        Long advancesAccountIdResolved = resolveAccountId(supplierAdvancesAccountId);
+        Long apAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_ACCOUNTS_PAYABLE);
+        Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.SUPPLIER_PAYMENT_ADVANCES);
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
@@ -202,8 +192,8 @@ public class APJournalService {
     public void postRemoveAllocationJournal(SupplierPaymentEntity payment, SupplierPaymentAllocationEntity allocation) {
         checkPaymentHasJournal(payment);
 
-        Long apAccountIdResolved = resolveAccountId(accountsPayableAccountId);
-        Long advancesAccountIdResolved = resolveAccountId(supplierAdvancesAccountId);
+        Long apAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_ACCOUNTS_PAYABLE);
+        Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.SUPPLIER_PAYMENT_ADVANCES);
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
@@ -296,5 +286,9 @@ public class APJournalService {
                 .map(account -> Long.valueOf(account.getAccountId()))
                 .orElseThrow(() -> new BusinessException(
                         "Account not found with ID: " + accountId));
+    }
+
+    private Long resolveMappedAccountId(MappingKey key) {
+        return resolveAccountId(accountingMappingService.resolve(key));
     }
 }

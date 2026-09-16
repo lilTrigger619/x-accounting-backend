@@ -30,7 +30,6 @@ import com.unionsg.xaccounting.security.util.SecurityUtils;
 import com.unionsg.xaccounting.service.journal.JournalPostingService;
 import com.unionsg.xaccounting.service.reports.ProfitAndLossService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,8 +59,7 @@ public class YearEndClosingService {
     private final DocumentNumberGeneratorService generalSequenceGeneratorService;
     private final FinancialPeriodAuditLogService auditLogService;
 
-    @Value("${accounting.closing.retained-earnings-account-id}")
-    private String retainedEarningsAccountId;
+    private final com.unionsg.xaccounting.service.settings.AccountingMappingService accountingMappingService;
 
     @Transactional(readOnly = true)
     public YearEndClosingPreviewResponse getClosingPreview(Long financialYearId) {
@@ -210,6 +208,8 @@ public class YearEndClosingService {
             return null;
         }
 
+        String retainedEarningsAccountId = accountingMappingService.resolve(
+                com.unionsg.xaccounting.enums.settings.MappingKey.CLOSING_RETAINED_EARNINGS);
         AccountEntity retainedEarnings = accountRepository.findByAccountId(retainedEarningsAccountId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Retained Earnings account not found (accountId " + retainedEarningsAccountId + ")"));

@@ -11,13 +11,14 @@ import com.unionsg.xaccounting.entity.payroll.PayrollRun;
 import com.unionsg.xaccounting.entity.payroll.StatutoryScheme;
 import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.enums.PayComponentSide;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.service.accounting.PeriodLockGuard;
 import com.unionsg.xaccounting.service.journal.JournalService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,21 +50,7 @@ public class PayrollJournalService {
     private final PeriodLockGuard periodLockGuard;
     private final EmployeeLoanService employeeLoanService;
     private final SalaryAdvanceService salaryAdvanceService;
-
-    @Value("${payroll.journal.salary-payable-account-id}")
-    private String salaryPayableAccountId;
-
-    @Value("${payroll.journal.default-salary-expense-account-id}")
-    private String defaultSalaryExpenseAccountId;
-
-    @Value("${payroll.journal.employee-tax-payable-account-id}")
-    private String employeeTaxPayableAccountId;
-
-    @Value("${payroll.loan.receivable-account-id}")
-    private String loanReceivableAccountId;
-
-    @Value("${payroll.advance.receivable-account-id}")
-    private String advanceReceivableAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     @Transactional
     public JournalResponse postRun(PayrollRun run) {
@@ -81,7 +68,7 @@ public class PayrollJournalService {
         }
 
         if (totalNetPay.compareTo(BigDecimal.ZERO) > 0) {
-            credits.merge(salaryPayableAccountId, totalNetPay, BigDecimal::add);
+            credits.merge(accountingMappingService.resolve(MappingKey.PAYROLL_SALARY_PAYABLE), totalNetPay, BigDecimal::add);
         }
 
         java.util.List<CreateJournalLineRequest> lines = new java.util.ArrayList<>();
@@ -171,13 +158,13 @@ public class PayrollJournalService {
         // PayrollCalculationService).
         String desc = comp.getDescription();
         if ("Basic Salary".equals(comp.getComponentName())) {
-            debits.merge(defaultSalaryExpenseAccountId, amount, BigDecimal::add);
+            debits.merge(accountingMappingService.resolve(MappingKey.PAYROLL_DEFAULT_SALARY_EXPENSE), amount, BigDecimal::add);
         } else if ("Income Tax".equals(comp.getComponentName())) {
-            credits.merge(employeeTaxPayableAccountId, amount, BigDecimal::add);
+            credits.merge(accountingMappingService.resolve(MappingKey.PAYROLL_EMPLOYEE_TAX_PAYABLE), amount, BigDecimal::add);
         } else if (desc != null && desc.startsWith("EMPLOYEE_LOAN:")) {
-            credits.merge(loanReceivableAccountId, amount, BigDecimal::add);
+            credits.merge(accountingMappingService.resolve(MappingKey.PAYROLL_LOAN_RECEIVABLE), amount, BigDecimal::add);
         } else if (desc != null && desc.startsWith("SALARY_ADVANCE:")) {
-            credits.merge(advanceReceivableAccountId, amount, BigDecimal::add);
+            credits.merge(accountingMappingService.resolve(MappingKey.PAYROLL_ADVANCE_RECEIVABLE), amount, BigDecimal::add);
         } else {
             throw new BusinessException("Payroll component \"" + comp.getComponentName()
                     + "\" has no Chart-of-Accounts mapping configured - cannot post payroll (§56)");

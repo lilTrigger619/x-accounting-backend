@@ -76,5 +76,14 @@ public class DocumentNumberController {
     public ResponseEntity<List<DocumentModule>> getAvailableModules() {
         return ResponseEntity.ok(Arrays.asList(DocumentModule.values()));
     }
+
+    /**
+     * Lists the numbering configuration for every module that actually issues document
+     * numbers today - the Numbering & Sequences settings screen (§14).
+     */
+    @GetMapping("/configs")
+    public ResponseEntity<List<DocumentNumberConfigDto>> listConfigs() {
+        return ResponseEntity.ok(documentNumberService.listConfigs());
+    }
 }
 

@@ -11,6 +11,7 @@ import com.unionsg.xaccounting.entity.payroll.Employee;
 import com.unionsg.xaccounting.entity.payroll.ReimbursementClaim;
 import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.enums.ReimbursementStatus;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.repository.AccountRepository;
@@ -18,8 +19,8 @@ import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.repository.payroll.ReimbursementClaimRepository;
 import com.unionsg.xaccounting.security.util.SecurityUtils;
 import com.unionsg.xaccounting.service.journal.JournalService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,15 +49,7 @@ public class ReimbursementClaimService {
     private final JournalService journalService;
     private final JournalEntryRepository journalEntryRepository;
     private final AccountRepository accountRepository;
-
-    @Value("${payroll.reimbursement.payable-account-id}")
-    private String reimbursementPayableAccountId;
-
-    @Value("${payroll.reimbursement.default-expense-account-id}")
-    private String defaultExpenseAccountId;
-
-    @Value("${payroll.payment.bank-account-id}")
-    private String bankAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     @Transactional
     public ReimbursementClaimResponse submit(CreateReimbursementClaimRequest request) {
@@ -109,13 +102,13 @@ public class ReimbursementClaimService {
         if (!claim.isAlreadyRecordedElsewhere()) {
             List<CreateJournalLineRequest> lines = new ArrayList<>();
             lines.add(CreateJournalLineRequest.builder()
-                    .accountId(resolveAccountId(reimbursementPayableAccountId))
+                    .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_REIMBURSEMENT_PAYABLE)))
                     .description("Reimbursement paid to " + claim.getEmployee().getFullName())
                     .debitAmount(claim.getAmount())
                     .creditAmount(BigDecimal.ZERO)
                     .build());
             lines.add(CreateJournalLineRequest.builder()
-                    .accountId(resolveAccountId(bankAccountId))
+                    .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_PAYMENT_BANK_ACCOUNT)))
                     .description("Reimbursement payment")
                     .debitAmount(BigDecimal.ZERO)
                     .creditAmount(claim.getAmount())
@@ -144,13 +137,13 @@ public class ReimbursementClaimService {
     private void postApprovalJournal(ReimbursementClaim claim) {
         List<CreateJournalLineRequest> lines = new ArrayList<>();
         lines.add(CreateJournalLineRequest.builder()
-                .accountId(resolveAccountId(defaultExpenseAccountId))
+                .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_REIMBURSEMENT_DEFAULT_EXPENSE)))
                 .description("Reimbursable expense: " + claim.getDescription())
                 .debitAmount(claim.getAmount())
                 .creditAmount(BigDecimal.ZERO)
                 .build());
         lines.add(CreateJournalLineRequest.builder()
-                .accountId(resolveAccountId(reimbursementPayableAccountId))
+                .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_REIMBURSEMENT_PAYABLE)))
                 .description("Reimbursement owed to " + claim.getEmployee().getFullName())
                 .debitAmount(BigDecimal.ZERO)
                 .creditAmount(claim.getAmount())

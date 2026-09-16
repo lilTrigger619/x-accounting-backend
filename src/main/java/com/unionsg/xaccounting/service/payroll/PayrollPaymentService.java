@@ -6,12 +6,13 @@ import com.unionsg.xaccounting.dto.journal.JournalResponse;
 import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.payroll.PayrollRun;
 import com.unionsg.xaccounting.enums.JournalType;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.service.journal.JournalService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,12 +33,7 @@ public class PayrollPaymentService {
     private final JournalService journalService;
     private final JournalEntryRepository journalEntryRepository;
     private final AccountRepository accountRepository;
-
-    @Value("${payroll.journal.salary-payable-account-id}")
-    private String salaryPayableAccountId;
-
-    @Value("${payroll.payment.bank-account-id}")
-    private String bankAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     @Transactional
     public JournalResponse payRun(PayrollRun run, LocalDate paymentDate) {
@@ -48,13 +44,13 @@ public class PayrollPaymentService {
 
         List<CreateJournalLineRequest> lines = List.of(
                 CreateJournalLineRequest.builder()
-                        .accountId(resolveAccountId(salaryPayableAccountId))
+                        .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_SALARY_PAYABLE)))
                         .description("Salary payable settled for run " + run.getRunNumber())
                         .debitAmount(amount)
                         .creditAmount(BigDecimal.ZERO)
                         .build(),
                 CreateJournalLineRequest.builder()
-                        .accountId(resolveAccountId(bankAccountId))
+                        .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_PAYMENT_BANK_ACCOUNT)))
                         .description("Payroll disbursement for run " + run.getRunNumber())
                         .debitAmount(BigDecimal.ZERO)
                         .creditAmount(amount)

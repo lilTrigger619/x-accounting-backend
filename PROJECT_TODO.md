@@ -45,6 +45,17 @@ Consolidated status across both repositories:
 > current unsaved designer configuration as a real PDF (new `POST
 > /api/document-templates/{id}/sample-preview-pdf`, reusing the same sample-data rendering
 > pipeline as the existing HTML preview).
+>
+> **Update 8:** Enterprise Payroll Module — payroll built as a full accounting subsystem (its own
+> calculation/approval/accounting/payment lifecycle, all posting through the same `JournalService`
+> every other module uses). See §9 and the "Enterprise Payroll Module" note below.
+>
+> **Update 9:** Settings & Setup Center — the four-screens-that-only-looked-like-one-system
+> Settings area now has a real center: centralized Accounting Mappings (replacing 15 scattered
+> `application.properties` GL account codes), an Organization profile, Bank Accounts, unified
+> Numbering & Sequences (bills/supplier payments/receipts joined invoices/journals on the same
+> configurable system), a Settings audit trail, and a live Setup Completeness dashboard. See §4/§15
+> and the "Settings & Setup Center" note below.
 
 This file is the single source of truth for what exists vs. what remains, verified directly
 against the code (routes, controllers, entities, services) rather than assumed. It mirrors the
@@ -442,7 +453,7 @@ and Recurring Journal Entries.
 
 ## 4. BANKING
 
-- [ ] Bank Accounts — not implemented anywhere (no entity, no BE/FE code)
+- [x] Bank Accounts (BE: `BankAccount` entity/`BankAccountService`/`BankAccountController` at `/api/settings/bank-accounts`, each tied directly to a Chart of Accounts code, with activate/deactivate; FE: `BankAccountsSettingsPage`) — a bank/cash account record, not yet a transactions ledger; see remaining items below
 - [ ] Bank Transactions — not implemented
 - [ ] Bank Reconciliation — not implemented
 - [ ] Bank Statement Import — not implemented
@@ -599,16 +610,19 @@ locking, audit trail).
 ## 15. USER & BUSINESS ADMINISTRATION
 
 - [x] Multiple Users (BE: `UserController`, `User`; FE: `UsersPage`, `UserForm`)
-- [x] Roles & Permissions (BE: `RoleController`, `PermissionController`; FE: `RolesPage`, `RoleForm`)
-- [x] Number Sequences (invoices/receipts/journals numbering) (BE: `DocumentNumberConfig`, `DocumentSequence`, `DocumentNumberGeneratorService`)
+- [x] Roles & Permissions (BE: `RoleController`, `PermissionController`; FE: `RolesPage`, `RoleForm`) — permission footprint now also covers Settings itself (`view_settings`/`manage_accounting_mappings`/`manage_organization`/`manage_bank_accounts`), not just User/Role admin
+- [x] Number Sequences (invoices/receipts/journals/bills/supplier-payments/employees/payroll-runs numbering) (BE: `DocumentNumberConfig`, `DocumentSequence`, `DocumentNumberGeneratorService`/`DocumentNumberService`; FE: `NumberingSettingsPage`) — Bills/Supplier Payments/Customer Receipts previously ran on a separate, unconfigurable per-module sequence; migrated onto the same central config, carrying over each one's already-issued number so nothing was reissued. Previously backend-only; now has a real settings screen.
 - [x] Business Preferences (generic config system) (BE: `Config`/`ConfigItem`/`ConfigController`; FE: `ConfigsPage`, `ConfigDetailPage`)
-- [ ] Business Setup Wizard (guided onboarding) — not implemented
-- [~] Company Profile — `CompanyInfo`/`CompanyInfoResolver`/`CompanyConfigSeeder` exist but are used internally for document rendering only; no dedicated company-profile settings screen/CRUD confirmed
+- [x] Accounting Mappings / Automatic Accounting Configuration (BE: `AccountingMapping`/`MappingKey`/`AccountingMappingService`/`AccountingMappingController` at `/api/settings/accounting-mappings`; FE: `AccountingMappingsPage`) — the single, central, admin-editable table every automated posting engine (invoice, bill, payment, payroll, year-end closing) resolves its GL account from, replacing 15 scattered `application.properties` values across 13 service classes
+- [x] Settings Audit Trail (BE: `SettingsAuditLog`/`SettingsAuditLogService`) — records every change to an Accounting Mapping or the Organization profile (previous value, new value, who, when, why); intentionally narrower than "every settings change" since cosmetic settings carry no financial risk
+- [x] Setup Completeness Dashboard (BE: `SetupCompletenessService` at `/api/settings/setup-status`; FE: on `SettingsCenterPage`) — checks Organization/Financial Year/open period/Chart of Accounts/base currency/tax/bank account/invoice numbering/invoice template/payroll mappings and links straight to whichever real screen is incomplete
+- [ ] Business Setup Wizard (guided onboarding) — deliberately not built; the Setup Completeness dashboard above covers "am I ready to operate" without duplicating every module's own data-entry forms inside a wizard shell
+- [x] Company Profile — replaced the ad hoc `COMPANY` Config category with a real `Organization` entity/`OrganizationService`/`OrganizationController` and an `OrganizationSettingsPage` (legal/trading name, registration/tax IDs, business type, industry, logo, primary/billing/shipping addresses); `CompanyInfoResolver` now reads from it, with a one-time migration seeder copying any existing `COMPANY` config values in
 - [ ] User Invitations (invite flow, vs. direct admin creation) — not confirmed; `UserController` supports creation, invitation flow (email + accept) not found
-- [ ] User Deactivation (soft-disable without deleting history) — `UserStatus` enum exists; confirm deactivate endpoint/UX
-- [ ] Departments — not implemented
-- [ ] Locations / Branches — not implemented
-- [ ] Currency Preferences (primary/supported currencies at business level) — only a `Currency` enum used per-record; no business-level currency settings
+- [x] User Deactivation (soft-disable without deleting history) — `UserStatus`/toggle endpoint already existed on the backend; the UI never called it. Added an activate/deactivate button (with confirmation) to `UsersList`, `UserView` and `RolesList`
+- [ ] Departments — payroll has its own `Department` entity (§9); a general business-wide org-structure dimension (branches/cost centers/business units usable across every module's postings, not just payroll) was not built this pass
+- [ ] Locations / Branches — deliberately deferred this pass; wiring a transaction dimension into every posting path (invoice, bill, journal, payroll) is a project of its own
+- [ ] Currency Preferences (primary/supported currencies at business level) — deliberately deferred; currency stays a per-record picklist, real multi-currency/FX-aware posting was not attempted
 - [ ] Date / Number Formats (business-configurable) — not implemented
 
 ## 16. SECURITY
@@ -718,7 +732,7 @@ modules (banking, inventory, payroll, budgeting, etc.) are added:
 2. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
 3. ~~**Employee module backend**~~ — done; see §9 and the "Enterprise Payroll Module" note below (built the full payroll subsystem, not just the employee record).
 4. **Supplier Credits/Refunds + Purchase Orders/Purchase-to-Bill** — completes the AP lifecycle to the same depth as AR.
-5. **Banking (Bank Accounts, Transactions, Reconciliation)** — currently zero coverage despite being claimed as "started."
+5. ~~**Banking — Bank Accounts**~~ — done (see §4 and the "Settings & Setup Center" note below); Transactions and Reconciliation are still zero coverage.
 6. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model (payroll now has its own, separate progressive income-tax engine — see §9 — but the sales/VAT tax-rate screen referenced here is still unbuilt).
 7. **Credit Notes, Customer Deposits/Credits** — completes the AR lifecycle.
 8. **Payment receipt PDF/email/attachments/activity** — pre-existing AR backend stubs, now visibly empty end-to-end via the wired-up frontend rather than hidden behind mock data.
@@ -853,3 +867,80 @@ subledger balances it had already reduced, no automatic retroactive-arrears calc
 admin CRUD screens for Departments/Positions/Pay Components/Salary Structures/Statutory
 Schemes/Tax Configurations are backend-only for now (no frontend UI) — the two screens with real
 demo value, Employees and Payroll Runs, are fully built.
+
+**Just closed: Settings & Setup Center.** A prior documentation pass (see the "Settings Module
+Reference" artifact) audited the existing Settings area and found it was four independent screens
+(Users, Roles, Configs, Document Templates) that only looked like one system, plus 15 GL account
+codes scattered across `application.properties` and 13 different service classes with no admin
+UI at all. This pass built the missing central layer rather than another isolated screen.
+
+Backend: `AccountingMapping`/`MappingKey` (19 keys covering every invoice/bill/payment/payroll/
+closing GL account) is now the single source every posting service resolves from —
+`InvoiceJournalService`, `PaymentJournalServiceImpl`, `APJournalService`, `PayrollJournalService`,
+`PayrollPaymentService`, `PayrollReportService`, `StatutoryPaymentService`, `EmployeeLoanService`,
+`SalaryAdvanceService`, `ReimbursementClaimService`, `YearEndClosingService` and
+`DashboardServiceImpl` were all rewired off `@Value`-injected properties onto
+`AccountingMappingService.resolve(key)`, which self-heals (creates a default row matching the old
+property value) so behavior is identical until an admin deliberately retargets one. Invoice
+posting's error message was upgraded from a bare "Account not found" to naming the missing
+mapping and pointing at Settings > Accounting Mappings — the one concrete example of §38's
+"required configuration validation" principle, rather than retrofitting all thirteen call sites.
+A new `Organization` entity/`OrganizationService` replaces the ad hoc `COMPANY` Config category as
+the source of truth `CompanyInfoResolver` reads for documents, with a one-time seeder migrating
+any existing config values in. A new `BankAccount` entity ties a bank/cash account directly to a
+Chart of Accounts code — nothing like it existed before. Bill, Supplier Payment and Customer
+Receipt numbering — previously three separate, unconfigurable `DocumentSequence`-only generators —
+were migrated onto the same central `DocumentNumberConfig` system invoices/journals/employees/
+payroll runs already used, with a seeder carrying over each one's already-issued number so nothing
+was reissued (confirmed: Bills continued from 21, Supplier Payments from 16, Receipts from 34). A
+new `SettingsAuditLog` records every change to a mapping or the Organization profile with old/new
+value, who, and why. A new `SetupCompletenessService` checks ten real conditions (Organization,
+active Financial Year, an open period, Chart of Accounts, base currency, tax configuration, a bank
+account, invoice numbering, a default invoice template, payroll mappings) and links straight to
+whichever screen needs attention, rather than a separate guided-wizard flow that would duplicate
+every module's own forms. Discovered and fixed a real pre-existing bug along the way:
+`DocumentNumberService.getConfig()` had no `@Transactional` annotation at all — invisible before
+because every module that called it already had one further up the call stack, until this pass's
+own `listConfigs()` aggregation called it directly and surfaced "No active transaction." Also
+extended the permission system's real footprint (previously only User/Role screens were
+`@RequirePermission`-gated) to the new Settings endpoints (`view_settings`,
+`manage_accounting_mappings`, `manage_organization`, `manage_bank_accounts`) — and added a
+one-time backfill seeder granting them to the existing "Super Admin" role, since newly-discovered
+permissions are never retroactively granted to a role that predates them.
+
+Frontend: a real `SettingsCenterPage` (23-category grouped landing page, a live Setup Completeness
+widget, a client-side settings search) replaces the sidebar's old "Overview" link, which pointed at
+a generic module-workspace page with no registered config for "settings" and silently redirected
+to the dashboard; the sidebar's "General" link, which pointed at a route that never existed, was
+removed outright rather than left dead. New `OrganizationSettingsPage`, `AccountingMappingsPage`
+(grouped by Sales/Purchases/Payroll/Closing, editable via the existing `SelectAccountModal` reused
+from Products), `NumberingSettingsPage` (prefix/padding/reset rules with a live next-number
+preview), and `BankAccountsSettingsPage`. Folded in the fixes identified during the earlier audit:
+activate/deactivate buttons (with confirmation) on `UsersList`/`UserView`/`RolesList` for a backend
+capability the UI never exposed, and `ConfigRequests.deleteConfigItem` calling `/api/configs/items`
+instead of the singular, 404ing `/api/config/items`.
+
+Verified end-to-end against live Postgres, not just compiled: restarted the backend and watched
+the seeders run correctly (migrated the existing COMPANY config, seeded a default bank account,
+carried over all three legacy numbering sequences); logged in and drove the mapping-update flow
+live — changed Invoice Revenue from 4020 to 4030, confirmed the change persisted and generated an
+audit-log row with the exact old/new values, confirmed an invalid account code is rejected before
+it can be saved, then reverted it and confirmed the revert was audited too; confirmed Setup
+Completeness reflects genuinely live state (invoice numbering read as "not configured" before the
+row existed, then flipped to configured once the numbering screen was opened); took real browser
+screenshots (Playwright) of all five new screens rendering correctly with live data. One pre-existing,
+unrelated issue was noticed in passing while in `UsersList`/`RolesList` for this work — a React key
+warning on the nested role/permission badge lists — and left as-is since it predates this change
+and is outside its scope.
+
+Deliberately scoped down this pass, documented here rather than left unstated: no organizational
+structure beyond what Payroll already has (Branch/Cost-Center/Business-Unit entities usable as a
+transaction dimension across every module's postings), no real multi-currency/FX-aware accounting
+(currency stays a per-record picklist), no generic configurable multi-stage Workflow/Approval
+engine spanning invoices/expenses/journals (Payroll keeps its own purpose-built approval
+lifecycle), no dedicated guided Setup Wizard (the Setup Completeness dashboard covers the same
+goal without duplicating every module's forms), no MFA/login-history/session-management UI, no
+real external Integrations, no notification-delivery infrastructure, no SMTP/email settings admin
+screen, and no effective-dated Accounting Mappings — safe to defer because every journal line
+already stores the account it was actually posted to, so changing a mapping tomorrow can never
+rewrite yesterday's ledger.

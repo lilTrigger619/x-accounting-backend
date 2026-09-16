@@ -12,13 +12,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.ApplicationContext;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 
+/**
+ * Runs with an explicit order (rather than the implicit "runs after every @Order-annotated
+ * runner" default) so {@code SettingsPermissionBackfillSeeder} can depend on every permission
+ * this scanner discovers - including brand new ones like the Settings group - already existing
+ * in the database by the time it runs.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@Order(5)
 public class PermissionScanner implements ApplicationRunner {
 
     private final ApplicationContext context;

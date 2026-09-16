@@ -10,6 +10,7 @@ import com.unionsg.xaccounting.entity.accounting.FinancialYear;
 import com.unionsg.xaccounting.enums.AccountType;
 import com.unionsg.xaccounting.enums.AccountingPeriodStatus;
 import com.unionsg.xaccounting.enums.JournalStatus;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.projection.ProfitLossAccountProjection;
 import com.unionsg.xaccounting.repository.accounting.AccountingPeriodRepository;
 import com.unionsg.xaccounting.repository.accounting.FinancialYearRepository;
@@ -18,6 +19,7 @@ import com.unionsg.xaccounting.repository.reports.LedgerAsOfBalanceRepository;
 import com.unionsg.xaccounting.service.journal.JournalService;
 import com.unionsg.xaccounting.service.reports.CurrentFiscalPeriodResolver;
 import com.unionsg.xaccounting.service.reports.ProfitAndLossService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -50,15 +52,10 @@ public class DashboardServiceImpl implements DashboardService {
     private final AccountingPeriodRepository accountingPeriodRepository;
     private final JournalEntryRepository journalEntryRepository;
     private final JournalService journalService;
+    private final AccountingMappingService accountingMappingService;
 
     @Value("${dashboard.cash-account-codes}")
     private String cashAccountCodesCsv;
-
-    @Value("${payment.journal.accounts-receivable-account-id}")
-    private String accountsReceivableAccountCode;
-
-    @Value("${bill.journal.accounts-payable-account-id}")
-    private String accountsPayableAccountCode;
 
     @Override
     public DashboardResponseDTO getSummary(LocalDate asOfDate) {
@@ -70,6 +67,8 @@ public class DashboardServiceImpl implements DashboardService {
         );
 
         Set<String> cashCodes = Set.of(cashAccountCodesCsv.split("\\s*,\\s*"));
+        String accountsReceivableAccountCode = accountingMappingService.resolve(MappingKey.PAYMENT_ACCOUNTS_RECEIVABLE);
+        String accountsPayableAccountCode = accountingMappingService.resolve(MappingKey.BILL_ACCOUNTS_PAYABLE);
 
         BigDecimal cashBalance = BigDecimal.ZERO;
         BigDecimal accountsReceivable = BigDecimal.ZERO;

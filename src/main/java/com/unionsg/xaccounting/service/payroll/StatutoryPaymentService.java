@@ -7,12 +7,13 @@ import com.unionsg.xaccounting.dto.payroll.RecordStatutoryPaymentRequest;
 import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.payroll.StatutoryScheme;
 import com.unionsg.xaccounting.enums.JournalType;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.service.journal.JournalService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,9 +35,7 @@ public class StatutoryPaymentService {
     private final JournalService journalService;
     private final JournalEntryRepository journalEntryRepository;
     private final AccountRepository accountRepository;
-
-    @Value("${payroll.payment.bank-account-id}")
-    private String bankAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     @Transactional
     public JournalResponse recordPayment(RecordStatutoryPaymentRequest request) {
@@ -57,7 +56,7 @@ public class StatutoryPaymentService {
                         .creditAmount(BigDecimal.ZERO)
                         .build(),
                 CreateJournalLineRequest.builder()
-                        .accountId(resolveAccountId(bankAccountId))
+                        .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_PAYMENT_BANK_ACCOUNT)))
                         .description(scheme.getName() + " remittance payment")
                         .debitAmount(BigDecimal.ZERO)
                         .creditAmount(request.getAmount())

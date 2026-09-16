@@ -1,53 +1,43 @@
 package com.unionsg.xaccounting.document.context;
 
-import com.unionsg.xaccounting.dto.config.ConfigDto;
-import com.unionsg.xaccounting.dto.config.ConfigItemDto;
-import com.unionsg.xaccounting.service.ConfigService;
+import com.unionsg.xaccounting.dto.settings.OrganizationResponse;
+import com.unionsg.xaccounting.service.settings.OrganizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 /**
- * Resolves company information from the ConfigService.
- * Reads the COMPANY config key and maps items to a CompanyInfo DTO.
+ * Resolves the company information shown on outbound documents from the Organization
+ * profile (Settings & Setup §2) - the single source of truth for invoices, quotes,
+ * receipts, statements, and payslips. Previously read from the generic "COMPANY" Config
+ * category; that data is migrated into the Organization row by {@code SettingsSeeder}.
  */
 @Component
 @RequiredArgsConstructor
 public class CompanyInfoResolver {
 
-    private final ConfigService configService;
+    private final OrganizationService organizationService;
 
     public CompanyInfo resolve() {
         try {
-            ConfigDto companyConfig = configService.getConfigByKey("COMPANY");
+            OrganizationResponse org = organizationService.get();
 
-            if (companyConfig == null || companyConfig.getItems() == null) {
-                return createDefaultCompanyInfo();
-            }
-
-            Map<String, String> configMap = companyConfig.getItems().stream()
-                    .filter(item -> item.getCode() != null && item.getValue() != null)
-                    .collect(Collectors.toMap(
-                            item -> item.getCode().toLowerCase(),
-                            ConfigItemDto::getValue,
-                            (a, b) -> b
-                    ));
+            String name = org.getTradingName() != null && !org.getTradingName().isBlank()
+                    ? org.getTradingName()
+                    : (org.getLegalName() != null && !org.getLegalName().isBlank()
+                            ? org.getLegalName() : "Your Company Name");
 
             return CompanyInfo.builder()
-                    .name(configMap.getOrDefault("name", "Your Company Name"))
-                    .logoUrl(configMap.get("logo_url"))
-                    .phone(configMap.getOrDefault("phone", ""))
-                    .email(configMap.getOrDefault("email", ""))
-                    .website(configMap.getOrDefault("website", ""))
-                    .addressLine1(configMap.get("address_line1"))
-                    .addressLine2(configMap.get("address_line2"))
-                    .city(configMap.get("city"))
-                    .state(configMap.get("state"))
-                    .postalCode(configMap.get("postal_code"))
-                    .country(configMap.get("country"))
+                    .name(name)
+                    .logoUrl(org.getLogoFileId())
+                    .phone(org.getPhone() != null ? org.getPhone() : "")
+                    .email(org.getEmail() != null ? org.getEmail() : "")
+                    .website(org.getWebsite() != null ? org.getWebsite() : "")
+                    .addressLine1(org.getPrimaryAddressLine1())
+                    .addressLine2(org.getPrimaryAddressLine2())
+                    .city(org.getPrimaryCity())
+                    .state(org.getPrimaryState())
+                    .postalCode(org.getPrimaryPostalCode())
+                    .country(org.getPrimaryCountry())
                     .build();
 
         } catch (Exception e) {

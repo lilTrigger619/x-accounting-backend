@@ -58,8 +58,11 @@ public class DocumentNumberService {
     }
 
     /**
-     * Retrieves the current numbering configuration for a module.
+     * Retrieves the current numbering configuration for a module. Needs a real (non-read-only)
+     * transaction: the repository lookup takes a pessimistic write lock, and a module with no
+     * config row yet gets one created on the spot - both fail outside an active transaction.
      */
+    @Transactional
     public DocumentNumberConfigDto getConfig(DocumentModule module) {
         String moduleName = module.name();
         DocumentNumberConfig config = configRepository
@@ -226,8 +229,30 @@ public class DocumentNumberService {
             case "INVOICE" -> "INV";
             case "JOURNAL" -> "JRN";
             case "ACCOUNT" -> "ACC";
+            case "BILL" -> "BILL";
+            case "SUPPLIER_PAYMENT" -> "SPMT";
+            case "PAYMENT" -> "RCP";
             default -> moduleName.substring(0, Math.min(moduleName.length(), 3));
         };
+    }
+
+    /**
+     * Lists the current numbering configuration for every module that actually generates
+     * document numbers today (Settings & Setup §14) - the read model for the Numbering &
+     * Sequences settings screen. Self-healing like {@link #getConfig}: a module with no
+     * config row yet gets sensible defaults rather than a 404.
+     */
+    @Transactional
+    public java.util.List<DocumentNumberConfigDto> listConfigs() {
+        return java.util.List.of(
+                DocumentModule.INVOICE,
+                DocumentModule.JOURNAL,
+                DocumentModule.EMPLOYEE,
+                DocumentModule.PAYROLL_RUN,
+                DocumentModule.BILL,
+                DocumentModule.SUPPLIER_PAYMENT,
+                DocumentModule.PAYMENT
+        ).stream().map(this::getConfig).toList();
     }
 
     /**

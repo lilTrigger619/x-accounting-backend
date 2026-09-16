@@ -10,12 +10,13 @@ import com.unionsg.xaccounting.entity.payment.PaymentRefundEntity;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.exception.BusinessException;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.service.journal.JournalService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,15 +34,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     private final JournalEntryRepository journalEntryRepository;
     private final AccountRepository accountRepository;
     private final com.unionsg.xaccounting.repository.payment.PaymentRepository paymentRepository;
-
-    @Value("${payment.journal.bank-account-id}")
-    private String bankAccountId;
-
-    @Value("${payment.journal.accounts-receivable-account-id}")
-    private String accountsReceivableAccountId;
-
-    @Value("${payment.journal.customer-advances-account-id}")
-    private String customerAdvancesAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     // ========================================================================
     // PAYMENT RECEIVED
@@ -52,9 +45,9 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     public void postPaymentJournal(PaymentEntity payment) {
         checkNoExistingJournal(payment);
 
-        Long bankAccountIdResolved = resolveAccountId(bankAccountId);
-        Long arAccountIdResolved = resolveAccountId(accountsReceivableAccountId);
-        Long advancesAccountIdResolved = resolveAccountId(customerAdvancesAccountId);
+        Long bankAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_BANK_ACCOUNT);
+        Long arAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_ACCOUNTS_RECEIVABLE);
+        Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_CUSTOMER_ADVANCES);
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
@@ -108,8 +101,8 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     public void postAdditionalAllocationJournal(PaymentEntity payment, PaymentAllocationEntity allocation) {
         checkPaymentHasJournal(payment);
 
-        Long arAccountIdResolved = resolveAccountId(accountsReceivableAccountId);
-        Long advancesAccountIdResolved = resolveAccountId(customerAdvancesAccountId);
+        Long arAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_ACCOUNTS_RECEIVABLE);
+        Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_CUSTOMER_ADVANCES);
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
@@ -146,8 +139,8 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     public void postRemoveAllocationJournal(PaymentEntity payment, PaymentAllocationEntity allocation) {
         checkPaymentHasJournal(payment);
 
-        Long arAccountIdResolved = resolveAccountId(accountsReceivableAccountId);
-        Long advancesAccountIdResolved = resolveAccountId(customerAdvancesAccountId);
+        Long arAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_ACCOUNTS_RECEIVABLE);
+        Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_CUSTOMER_ADVANCES);
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
@@ -184,9 +177,9 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     public void postRefundJournal(PaymentEntity payment, PaymentRefundEntity refund) {
         checkPaymentHasJournal(payment);
 
-        Long bankAccountIdResolved = resolveAccountId(bankAccountId);
-        Long arAccountIdResolved = resolveAccountId(accountsReceivableAccountId);
-        Long advancesAccountIdResolved = resolveAccountId(customerAdvancesAccountId);
+        Long bankAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_BANK_ACCOUNT);
+        Long arAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_ACCOUNTS_RECEIVABLE);
+        Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_CUSTOMER_ADVANCES);
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
@@ -313,5 +306,9 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
                 .map(account -> Long.valueOf(account.getAccountId()))
                 .orElseThrow(() -> new BusinessException(
                         "Account not found with ID: " + accountId));
+    }
+
+    private Long resolveMappedAccountId(com.unionsg.xaccounting.enums.settings.MappingKey key) {
+        return resolveAccountId(accountingMappingService.resolve(key));
     }
 }

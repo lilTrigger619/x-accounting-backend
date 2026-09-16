@@ -6,10 +6,11 @@ import com.unionsg.xaccounting.entity.payroll.PayrollRun;
 import com.unionsg.xaccounting.enums.AccountType;
 import com.unionsg.xaccounting.enums.PayrollRunStatus;
 import com.unionsg.xaccounting.projection.ProfitLossAccountProjection;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.repository.payroll.PayrollRunRepository;
 import com.unionsg.xaccounting.repository.reports.LedgerAsOfBalanceRepository;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,9 +30,7 @@ public class PayrollReportService {
     private final PayrollRunRepository payrollRunRepository;
     private final PayrollRunService payrollRunService;
     private final LedgerAsOfBalanceRepository ledgerAsOfBalanceRepository;
-
-    @Value("${payroll.journal.salary-payable-account-id}")
-    private String salaryPayableAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     @Transactional(readOnly = true)
     public List<EmployeePayrollRecordResponse> getRegister(Long runId) {
@@ -47,6 +46,7 @@ public class PayrollReportService {
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        String salaryPayableAccountId = accountingMappingService.resolve(MappingKey.PAYROLL_SALARY_PAYABLE);
         BigDecimal glBalance = ledgerAsOfBalanceRepository
                 .findAsOfBalances(today, List.of(AccountType.LIABILITY)).stream()
                 .filter(p -> salaryPayableAccountId.equals(p.getAccountCode()))

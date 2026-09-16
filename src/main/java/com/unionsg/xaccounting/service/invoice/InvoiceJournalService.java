@@ -8,12 +8,13 @@ import com.unionsg.xaccounting.entity.invoice.Invoice;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.exception.BusinessException;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.service.journal.JournalService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,23 +39,15 @@ public class InvoiceJournalService {
     private final JournalService journalService;
     private final JournalEntryRepository journalEntryRepository;
     private final AccountRepository accountRepository;
-
-    @Value("${invoice.journal.accounts-receivable-account-id}")
-    private String accountsReceivableAccountId;
-
-    @Value("${invoice.journal.revenue-account-id}")
-    private String revenueAccountId;
-
-    @Value("${invoice.journal.sales-tax-payable-account-id}")
-    private String salesTaxPayableAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     @Transactional
     public void postInvoiceJournal(Invoice invoice) {
         checkNoExistingInvoiceJournal(invoice);
 
-        Long arAccountIdResolved = resolveAccountId(accountsReceivableAccountId);
-        Long revenueAccountIdResolved = resolveAccountId(revenueAccountId);
-        Long salesTaxPayableAccountIdResolved = resolveAccountId(salesTaxPayableAccountId);
+        Long arAccountIdResolved = resolveMappedAccountId(MappingKey.INVOICE_ACCOUNTS_RECEIVABLE);
+        Long revenueAccountIdResolved = resolveMappedAccountId(MappingKey.INVOICE_REVENUE);
+        Long salesTaxPayableAccountIdResolved = resolveMappedAccountId(MappingKey.INVOICE_SALES_TAX_PAYABLE);
 
         BigDecimal netRevenue = invoice.getSubtotal().subtract(invoice.getDiscountAmount());
         BigDecimal salesTax = invoice.getTotalTax();
@@ -124,5 +117,21 @@ public class InvoiceJournalService {
                 .map(account -> Long.valueOf(account.getAccountId()))
                 .orElseThrow(() -> new BusinessException(
                         "Account not found with ID: " + accountId));
+    }
+
+    /**
+     * Resolves a centrally-configured mapping (Settings & Setup §8) to a postable account ID,
+     * failing with a message that tells the admin exactly what to fix rather than a bare
+     * "Account not found" (§38's "required configuration validation" applied to the one place
+     * in the app most likely to be posted before Settings has been touched: a new invoice).
+     */
+    private Long resolveMappedAccountId(MappingKey key) {
+        String code = accountingMappingService.resolve(key);
+        return accountRepository.findByAccountId(code)
+                .map(account -> Long.valueOf(account.getAccountId()))
+                .orElseThrow(() -> new BusinessException(
+                        "Required accounting configuration missing: \"" + key.getDescription() + "\" is mapped "
+                                + "to account code \"" + code + "\", which does not exist in the Chart of Accounts. "
+                                + "Configure it under Settings > Accounting Mappings before posting invoices."));
     }
 }

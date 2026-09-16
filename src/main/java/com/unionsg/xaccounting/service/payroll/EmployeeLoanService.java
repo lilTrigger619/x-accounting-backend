@@ -12,14 +12,15 @@ import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.enums.LoanStatus;
 import com.unionsg.xaccounting.enums.PayrollAuditAction;
 import com.unionsg.xaccounting.enums.PayrollAuditEntityType;
+import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.repository.payroll.EmployeeLoanRepository;
 import com.unionsg.xaccounting.service.journal.JournalService;
+import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,12 +45,7 @@ public class EmployeeLoanService {
     private final JournalEntryRepository journalEntryRepository;
     private final AccountRepository accountRepository;
     private final PayrollAuditLogService auditLogService;
-
-    @Value("${payroll.loan.receivable-account-id}")
-    private String loanReceivableAccountId;
-
-    @Value("${payroll.payment.bank-account-id}")
-    private String bankAccountId;
+    private final AccountingMappingService accountingMappingService;
 
     @Transactional
     public EmployeeLoanResponse disburse(CreateEmployeeLoanRequest request) {
@@ -68,13 +64,13 @@ public class EmployeeLoanService {
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
         lines.add(CreateJournalLineRequest.builder()
-                .accountId(resolveAccountId(loanReceivableAccountId))
+                .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_LOAN_RECEIVABLE)))
                 .description("Loan disbursed to " + employee.getFullName())
                 .debitAmount(request.getPrincipal())
                 .creditAmount(BigDecimal.ZERO)
                 .build());
         lines.add(CreateJournalLineRequest.builder()
-                .accountId(resolveAccountId(bankAccountId))
+                .accountId(resolveAccountId(accountingMappingService.resolve(MappingKey.PAYROLL_PAYMENT_BANK_ACCOUNT)))
                 .description("Loan disbursement")
                 .debitAmount(BigDecimal.ZERO)
                 .creditAmount(request.getPrincipal())

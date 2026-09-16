@@ -14,4 +14,10 @@ public interface DocumentNumberConfigRepository extends JpaRepository<DocumentNu
             Long companyId,
             Long branchId
     );
+
+    boolean existsByModuleAndCompanyIdAndBranchId(
+            String module,
+            Long companyId,
+            Long branchId
+    );
 }

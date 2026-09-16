@@ -368,6 +368,7 @@ public class DatabaseSeeder implements ApplicationRunner {
         // control accounts get added even on a database that was already seeded before they
         // existed - unlike the blocks above, which only ever run once on a brand-new database.
         seedAdditionalControlAccountsIfMissing();
+        seedPayrollDocumentConfigsIfMissing();
     }
 
     /**
@@ -382,8 +383,9 @@ public class DatabaseSeeder implements ApplicationRunner {
     private void seedAdditionalControlAccountsIfMissing() {
         ChartOfAccount assetChart = chartOfAccountRepo.findByCoaCode(1L).orElse(null);
         ChartOfAccount liabilityChart = chartOfAccountRepo.findByCoaCode(2L).orElse(null);
-        if (assetChart == null || liabilityChart == null) {
-            log.warn("Asset/Liability chart-of-account groupings not found; skipping control account seeding");
+        ChartOfAccount expenseChart = chartOfAccountRepo.findByCoaCode(5L).orElse(null);
+        if (assetChart == null || liabilityChart == null || expenseChart == null) {
+            log.warn("Asset/Liability/Expense chart-of-account groupings not found; skipping control account seeding");
             return;
         }
 
@@ -418,6 +420,80 @@ public class DatabaseSeeder implements ApplicationRunner {
                                     .chartOfAccount(liabilityChart)
                                     .build()));
             createAccount("2090", "Sales Tax Payable", salesTaxPayableClearTo.getClearToCode(), chartOfAccountClearToRepo);
+        }
+
+        seedPayrollControlAccountsIfMissing(assetChart, liabilityChart, expenseChart);
+    }
+
+    /**
+     * The payroll module's control accounts (§23-§26, §33, §53) - Salary Payable and the two
+     * employee-balance receivables are single control accounts referenced from
+     * application.properties; the expense/liability accounts are the defaults new PayComponent
+     * and StatutoryScheme rows can point at out of the box. Added the same way the AR/AP control
+     * accounts above were: idempotently, so an already-seeded database picks these up too.
+     */
+    private void seedPayrollControlAccountsIfMissing(ChartOfAccount assetChart, ChartOfAccount liabilityChart, ChartOfAccount expenseChart) {
+        addAccountIfMissing("1750", "Employee Loans Receivable", assetChart, 49L);
+        addAccountIfMissing("1760", "Salary Advances Receivable", assetChart, 50L);
+        addAccountIfMissing("2100", "Salary Payable", liabilityChart, 51L);
+        addAccountIfMissing("2110", "Employee Income Tax Payable", liabilityChart, 52L);
+        addAccountIfMissing("2120", "Statutory Contributions Payable - Employee", liabilityChart, 53L);
+        addAccountIfMissing("2130", "Statutory Contributions Payable - Employer", liabilityChart, 54L);
+        addAccountIfMissing("2140", "Employee Reimbursements Payable", liabilityChart, 55L);
+        addAccountIfMissing("5040", "Salaries and Wages Expense", expenseChart, 56L);
+        addAccountIfMissing("5050", "Employer Statutory Contributions Expense", expenseChart, 57L);
+        addAccountIfMissing("5060", "Employee Benefits Expense", expenseChart, 58L);
+        addAccountIfMissing("5070", "Employee Reimbursement Expense", expenseChart, 59L);
+    }
+
+    private void addAccountIfMissing(String accountCode, String accountName, ChartOfAccount chart, Long clearToCode) {
+        if (accountRepository.existsByAccountId(accountCode)) {
+            return;
+        }
+        ChartOfAccountClearTo_ENTITY clearTo = chartOfAccountClearToRepo.findByClearToCode(clearToCode)
+                .orElseGet(() -> chartOfAccountClearToRepo.save(
+                        ChartOfAccountClearTo_ENTITY.builder()
+                                .clearToCode(clearToCode)
+                                .description(accountName)
+                                .chartOfAccount(chart)
+                                .build()));
+        createAccount(accountCode, accountName, clearTo.getClearToCode(), chartOfAccountClearToRepo);
+    }
+
+    /** Idempotently seeds the EMPLOYEE and PAYROLL_RUN document-numbering configs (§20, §2). */
+    private void seedPayrollDocumentConfigsIfMissing() {
+        if (!docConfigRepo.existsByModuleAndCompanyIdAndBranchId("EMPLOYEE", 1L, 1L)) {
+            DocumentNumberConfig employeeConfig = new DocumentNumberConfig();
+            employeeConfig.setModule("EMPLOYEE");
+            employeeConfig.setPrefix("EMP");
+            employeeConfig.setPadding(4);
+            employeeConfig.setLastNumber(0L);
+            employeeConfig.setSeparator("-");
+            employeeConfig.setIncludeYear(false);
+            employeeConfig.setIncludeMonth(false);
+            employeeConfig.setResetMonthly(false);
+            employeeConfig.setResetYearly(false);
+            employeeConfig.setCompanyId(1L);
+            employeeConfig.setBranchId(1L);
+            employeeConfig.setCreatedAt(LocalDateTime.now());
+            docConfigRepo.save(employeeConfig);
+        }
+
+        if (!docConfigRepo.existsByModuleAndCompanyIdAndBranchId("PAYROLL_RUN", 1L, 1L)) {
+            DocumentNumberConfig payrollRunConfig = new DocumentNumberConfig();
+            payrollRunConfig.setModule("PAYROLL_RUN");
+            payrollRunConfig.setPrefix("PR");
+            payrollRunConfig.setPadding(5);
+            payrollRunConfig.setLastNumber(0L);
+            payrollRunConfig.setSeparator("-");
+            payrollRunConfig.setIncludeYear(true);
+            payrollRunConfig.setIncludeMonth(false);
+            payrollRunConfig.setResetMonthly(false);
+            payrollRunConfig.setResetYearly(true);
+            payrollRunConfig.setCompanyId(1L);
+            payrollRunConfig.setBranchId(1L);
+            payrollRunConfig.setCreatedAt(LocalDateTime.now());
+            docConfigRepo.save(payrollRunConfig);
         }
     }
 

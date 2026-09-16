@@ -505,12 +505,23 @@ and Recurring Journal Entries.
 
 ## 9. PAYROLL / EMPLOYEE ACCOUNTING
 
-- [~] Employee Management — **FE UI only** (`EmployeeForm`, `EmployeesList`); **no BE `Employee` entity/controller**
-- [ ] Payroll processing — not implemented (only a `PAYROLL_JOURNAL` enum value exists)
-- [ ] Salary Components (earnings/deductions/benefits) — not implemented
-- [ ] Payroll Journal (auto-post to GL) — not implemented
-- [ ] Employee Advances — not implemented
-- [ ] Employee Reimbursements — not implemented
+Built from scratch this pass as a full accounting subsystem, not a salary calculator — see the
+"Enterprise Payroll Module (this pass)" changelog entry below for the complete design rationale
+(the calculation/approval/accounting/payment/reconciliation separation, GL integration, period
+locking, audit trail).
+
+- [x] Employee Management (BE: `Employee`/`Department`/`Position`/`WorkLocation`/`PayrollGroup` entities + `EmployeeService`/`EmployeeController`; FE: `EmployeesList`/`EmployeeForm` rewired off mock data onto the real API) — was previously FE-only with zero backend; employment status (Active/Inactive/Suspended/Terminated) now genuinely gates who a payroll run picks up.
+- [x] Salary Structures & Pay Components (BE: `SalaryStructure`/`SalaryStructureLine`/`PayComponent`, each carrying its own Chart-of-Accounts debit/credit mapping — earnings, employee deductions, employer contributions, benefits all configurable without touching code) — `EmployeeSalaryStructure` is effective-dated, so a raise never rewrites how a past period was calculated.
+- [x] Statutory Contributions & Tax (BE: `StatutoryScheme` — employee/employer rates and accounts, versioned by effective date; `TaxConfiguration`/`TaxBracket` — a real progressive-bracket calculator, also versioned) — a rate or bracket change never retroactively alters an already-posted run.
+- [x] Employee Loans (BE: `EmployeeLoanService` — disbursement books an Employee Loans Receivable asset, not an expense; payroll repayments reduce it) and Salary Advances (BE: `SalaryAdvanceService`, same asset-not-expense treatment) — both exercised end-to-end in the demo seeder.
+- [x] Employee Reimbursements (BE: `ReimbursementClaimService` — claim → approve → pay, with an `alreadyRecordedElsewhere` flag that skips re-expensing a cost already booked elsewhere).
+- [x] Variable Payroll Inputs (BE: `PayrollInput` — overtime/bonus/commission/one-off allowance/adjustment, each requiring approval before a calculation will pick it up, and stamped with the run it was applied to so it can never be paid twice).
+- [x] Payroll Run lifecycle (BE: `PayrollRunService` — DRAFT → CALCULATED → UNDER_REVIEW → APPROVED → POSTED → PAID, plus REVERSED/CANCELLED; segregation-of-duties check blocks the preparer/reviewer from also approving) — calculation, approval, GL posting and cash payment are five separate, independently-authorized events, never one button.
+- [x] Payroll Journal / GL integration (BE: `PayrollJournalService` — posts Dr Salary/Benefit/Employer-contribution expense, Cr Salary Payable/statutory & tax payables/loan-advance-receivable-reduction, respecting `PeriodLockGuard` exactly like every other posting path) and Payroll Payment (BE: `PayrollPaymentService` — Dr Salary Payable / Cr Bank, never re-expensing) and Statutory Payment (BE: `StatutoryPaymentService` — a separate remittance flow, since posting payroll never by itself settles a statutory liability).
+- [x] Payroll Reversal (BE: `PayrollReversalService`, built on the same `JournalService.reverse()` every other module uses) and a full payroll audit trail (BE: `PayrollAuditLog`, mirroring `FinancialPeriodAuditLog`).
+- [x] Payslips (BE: `PayslipController` — always exactly what the run calculated; FE: payslip dialog on the Payroll Run detail page) and a Payroll Register + Payroll-to-GL Reconciliation report (BE: `PayrollReportController`, comparing the subledger's unpaid Salary Payable to the GL's own balance for that account).
+- [x] Demo data (BE: `PayrollDemoSeeder` — org structure, pay components, a statutory scheme, a progressive tax table, 5 employees, a mid-year raise, an active loan, an outstanding advance, an approved overtime input, and one run driven all the way through calculate→review→approve→post→pay) — verified against live Postgres: the posted journal balances to the cent (debits = credits = $29,265.00), the payment journal correctly moves Salary Payable to Bank with no double-expensing, the loan/advance subledger balances update in lockstep with the GL, and the **global** trial balance across the entire ledger (AR, AP, and payroll together) still ties to $0.00 difference.
+- [~] Deliberately scoped down this pass — stated plainly rather than silently under-built: no full leave-management module (a paid/unpaid leave input can be modeled as a `PayrollInput` today, but there's no leave-balance tracking); no multi-entity/intercompany payroll (single entity only); cost-center/department is captured on every payroll record for reporting but the GL posting itself is not split by department; a loan/advance repayment is not divided into principal vs. interest by the calculation engine (the entity distinguishes them, the calculator does not yet); reversing a paid run does not restore loan/advance subledger balances it had already reduced; no automatic retroactive-arrears calculator (a raise's back-pay must be entered as a manual `PayrollInput` adjustment); admin CRUD screens for Departments/Positions/Pay Components/Salary Structures/Statutory Schemes/Tax Configurations exist as backend APIs only — no frontend UI yet (Employees and Payroll Runs, the two screens with real demo value, are fully wired).
 
 ## 10. FINANCIAL REPORTING
 
@@ -705,15 +716,15 @@ modules (banking, inventory, payroll, budgeting, etc.) are added:
 
 1. ~~**Accounting Periods + Period Locking**~~ — done; see §1 and the note below.
 2. **Expense module backend** — FE already built; wire it to a real `Expense` entity/controller/service and post it to the GL.
-3. **Employee module backend** — same situation as Expenses.
+3. ~~**Employee module backend**~~ — done; see §9 and the "Enterprise Payroll Module" note below (built the full payroll subsystem, not just the employee record).
 4. **Supplier Credits/Refunds + Purchase Orders/Purchase-to-Bill** — completes the AP lifecycle to the same depth as AR.
 5. **Banking (Bank Accounts, Transactions, Reconciliation)** — currently zero coverage despite being claimed as "started."
-6. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model.
+6. **Tax engine (Tax Rates/Codes, VAT reporting)** — FE has a screen with no real backend model (payroll now has its own, separate progressive income-tax engine — see §9 — but the sales/VAT tax-rate screen referenced here is still unbuilt).
 7. **Credit Notes, Customer Deposits/Credits** — completes the AR lifecycle.
 8. **Payment receipt PDF/email/attachments/activity** — pre-existing AR backend stubs, now visibly empty end-to-end via the wired-up frontend rather than hidden behind mock data.
 9. **Recurring Invoices/Bills/Journals + reminders** — automation layer, depends on 1–3 existing first.
 10. **Approval workflow engine** — generic enough to apply to journals, invoices, bills, expenses, payments at once.
-11. **Inventory, Fixed Assets, Payroll, Budgeting** — large standalone modules, tackle after the above core gaps are closed.
+11. **Inventory, Fixed Assets, Budgeting** — large standalone modules, tackle after the above core gaps are closed.
 
 **Just closed:** Enterprise Accounting — Period, Fiscal Year and Closing Management. Added
 `FinancialYear`/`AccountingPeriod` with lock/unlock/close/reopen and a shared
@@ -768,3 +779,77 @@ locked financial year) so the app now demos with a full, realistic operating his
 empty database. Verified end-to-end against the live seeded data: Balance Sheet `balanceCheck: 0.0`
 and Trial Balance `difference: 0.0` (both exactly zero), Dashboard AR/net-profit/revenue figures
 all correct and positive where they had previously been negative or zero.
+
+**Just closed: Enterprise Payroll Module.** Built payroll as a full accounting subsystem rather
+than a salary calculator, around one central rule: every payroll transaction with a financial
+impact is represented in the accounting records through a controlled journal, and calculation,
+approval, accounting and payment are five separate, independently-authorized events — reaching
+`CALCULATED` never implies employees were paid, or even that the GL was touched.
+
+Backend: 20 new entities across org structure (`Department`/`Position`/`WorkLocation`/
+`PayrollGroup`), compensation (`PayComponent` — each carrying its own configurable
+Chart-of-Accounts debit/credit mapping so a new allowance or deduction never requires a code
+change; `SalaryStructure`/`SalaryStructureLine`; `EmployeeSalaryStructure`, effective-dated so a
+raise never rewrites a past period's calculation), statutory/tax (`StatutoryScheme`,
+`TaxConfiguration`/`TaxBracket` — a real progressive-bracket calculator, both versioned by
+effective date), employee balances (`EmployeeLoan`, `SalaryAdvance` — both booked as receivables
+at issuance, never expensed twice when repaid through payroll; `ReimbursementClaim`, with an
+`alreadyRecordedElsewhere` flag guarding against double expense recognition; `PayrollInput` for
+approved variable overtime/bonus/commission/allowance/adjustment amounts), and the run itself
+(`PayrollCalendarPeriod`, resolved against the existing `AccountingPeriod`/`FinancialYear` the
+moment it's created; `PayrollRun`/`EmployeePayrollRecord`/`PayrollRecordComponent`;
+`PayrollAuditLog`, mirroring `FinancialPeriodAuditLog`). `PayrollCalculationService` computes
+gross pay, statutory contributions (employee and employer split), progressive income tax, and
+loan/advance repayments per employee, clamping (and flagging) a negative net pay rather than
+posting one. `PayrollRunService` orchestrates the full lifecycle
+(DRAFT→CALCULATED→UNDER_REVIEW→APPROVED→POSTED→PAID, plus REVERSED/CANCELLED) and enforces
+segregation of duties — a run's preparer or reviewer cannot also approve it. `PayrollJournalService`
+posts the calculated result through the same `JournalService`/`PeriodLockGuard` every other module
+uses (a payroll run dated into a locked period is refused, exactly like an AR payment or AP bill
+would be), crediting the whole run's net pay to a single Salary Payable control account rather than
+per-component, matching how AR/AP already roll subledger detail into one control account.
+`PayrollPaymentService` and `StatutoryPaymentService` are separate settlement flows — paying
+salary never re-debits the expense already recognized at posting, and a statutory liability is
+never cleared just because payroll ran. `PayrollReversalService` reverses a posted/paid run through
+`JournalService.reverse()`, preserving the original record. Added 11 new Chart-of-Accounts control
+accounts (Employee Loans/Salary Advances Receivable, Salary Payable, Employee Income Tax Payable,
+Employee/Employer Statutory Contributions Payable, Employee Reimbursements Payable, Salaries &
+Wages/Employer Statutory Contributions/Employee Benefits/Employee Reimbursement Expense) via the
+same idempotent seeder pattern used for the AR/AP control accounts, plus `EMPLOYEE` and
+`PAYROLL_RUN` document-numbering configs.
+
+Frontend: `EmployeesList`/`EmployeeForm` rewired from 100% mock data onto the real API (department/
+position/payroll group/salary structure dropdowns, initial compensation on hire); new
+`PayrollRunsPage` (list + a create dialog that can pick an existing payroll period or create one
+inline) and `PayrollRunDetailPage` (the full lifecycle as explicit action buttons — Calculate,
+Submit for Review, Approve, Post to Ledger, Pay Employees, Reverse with a mandatory reason — plus
+the payroll register table and a per-employee payslip dialog), wired into the sidebar's existing
+Payroll section (`Employee Setup`, `Run Payroll`, `Payroll History`).
+
+Verified end-to-end against live Postgres via a new `PayrollDemoSeeder`: 5 employees, a mid-year
+raise (proving compensation history resolves correctly by date), an active employee loan, an
+outstanding salary advance, an approved overtime input, one run driven all the way through
+calculate→review→approve→post→pay. Confirmed by direct database inspection — not just that it ran
+without throwing — that the posted journal is genuinely correct: it balances to the cent
+(debits = credits = $29,265.00), splits gross pay ($27,425), employer statutory cost ($1,840),
+employee statutory/tax/loan/advance deductions ($5,694 total) and net pay ($21,731) into exactly
+the right accounts; the payment journal moves Salary Payable to Bank without re-touching any
+expense account; the loan and advance subledger balances decremented in lockstep with the GL
+lines that credited their receivable accounts; and the **global** trial balance across the entire
+ledger — AR, AP, and payroll together — still ties to exactly $0.00 difference. Also caught a real
+bug this way: the first seeder draft dated the loan disbursement inside a period `DemoDataSeeder`
+had already closed and locked, and `PeriodLockGuard` correctly refused to post it — confirming the
+period-lock control genuinely blocks a payroll posting the same way it blocks every other module,
+not just AR/AP. Manually verified in a real browser (Playwright against the built frontend and a
+live backend): logged in, viewed the Employees list (showing the mid-year raise), opened the
+payroll run detail page, and opened an itemized payslip — all rendered correctly and matched the
+backend's calculated figures exactly.
+
+Deliberately scoped down this pass, documented in §9 rather than left unstated: no full
+leave-management module, no multi-entity/intercompany payroll, no departmental split of the GL
+posting itself (department is captured for reporting), loan/advance repayments aren't split into
+principal vs. interest by the calculator yet, reversing a paid run doesn't restore loan/advance
+subledger balances it had already reduced, no automatic retroactive-arrears calculator, and the
+admin CRUD screens for Departments/Positions/Pay Components/Salary Structures/Statutory
+Schemes/Tax Configurations are backend-only for now (no frontend UI) — the two screens with real
+demo value, Employees and Payroll Runs, are fully built.

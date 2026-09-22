@@ -47,6 +47,8 @@ public class User extends AuditableBase {
 
     private Instant lastLoginAt;
 
+    private String photoFileId;
+
     // USER → ROLES
     @ManyToMany(fetch = FetchType.LAZY)
 //    @JoinTable(

@@ -25,6 +25,21 @@ public class WorkLocationService {
         return toResponse(workLocationRepository.save(location));
     }
 
+    @Transactional
+    public WorkLocationResponse update(Long id, CreateWorkLocationRequest request) {
+        WorkLocation location = getEntity(id);
+        location.setName(request.getName());
+        location.setAddress(request.getAddress());
+        return toResponse(workLocationRepository.save(location));
+    }
+
+    @Transactional
+    public WorkLocationResponse setActive(Long id, boolean active) {
+        WorkLocation location = getEntity(id);
+        location.setActive(active);
+        return toResponse(workLocationRepository.save(location));
+    }
+
     @Transactional(readOnly = true)
     public List<WorkLocationResponse> getAll() {
         return workLocationRepository.findAll().stream().map(this::toResponse).toList();

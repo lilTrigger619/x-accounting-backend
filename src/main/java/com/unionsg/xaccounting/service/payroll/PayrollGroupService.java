@@ -26,6 +26,22 @@ public class PayrollGroupService {
         return toResponse(payrollGroupRepository.save(group));
     }
 
+    @Transactional
+    public PayrollGroupResponse update(Long id, CreatePayrollGroupRequest request) {
+        PayrollGroup group = getEntity(id);
+        group.setName(request.getName());
+        group.setPayFrequency(request.getPayFrequency());
+        group.setDescription(request.getDescription());
+        return toResponse(payrollGroupRepository.save(group));
+    }
+
+    @Transactional
+    public PayrollGroupResponse setActive(Long id, boolean active) {
+        PayrollGroup group = getEntity(id);
+        group.setActive(active);
+        return toResponse(payrollGroupRepository.save(group));
+    }
+
     @Transactional(readOnly = true)
     public List<PayrollGroupResponse> getAll() {
         return payrollGroupRepository.findAll().stream().map(this::toResponse).toList();

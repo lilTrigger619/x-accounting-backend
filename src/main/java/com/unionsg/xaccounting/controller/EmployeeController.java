@@ -9,8 +9,10 @@ import com.unionsg.xaccounting.dto.payroll.UpdateEmployeeRequest;
 import com.unionsg.xaccounting.service.payroll.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -54,5 +56,15 @@ public class EmployeeController {
     @GetMapping("/{id}/compensation-history")
     public ResponseEntity<List<EmployeeCompensationResponse>> getCompensationHistory(@PathVariable Long id) {
         return ResponseEntity.ok(employeeService.getCompensationHistory(id));
+    }
+
+    @PostMapping(value = "/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<EmployeeResponse> uploadPhoto(@PathVariable Long id, @RequestPart("photo") MultipartFile photo) {
+        return ResponseEntity.ok(employeeService.uploadPhoto(id, photo));
+    }
+
+    @DeleteMapping("/{id}/photo")
+    public ResponseEntity<EmployeeResponse> deletePhoto(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeService.deletePhoto(id));
     }
 }

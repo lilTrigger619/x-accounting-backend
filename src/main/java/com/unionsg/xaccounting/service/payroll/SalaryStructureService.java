@@ -44,6 +44,33 @@ public class SalaryStructureService {
         return toResponse(salaryStructureRepository.save(structure));
     }
 
+    @Transactional
+    public SalaryStructureResponse update(Long id, CreateSalaryStructureRequest request) {
+        SalaryStructure structure = getEntity(id);
+        structure.setName(request.getName());
+        structure.setDescription(request.getDescription());
+
+        structure.getLines().clear();
+        if (request.getLines() != null) {
+            for (SalaryStructureLineRequest lineRequest : request.getLines()) {
+                SalaryStructureLine line = new SalaryStructureLine();
+                line.setSalaryStructure(structure);
+                line.setPayComponent(payComponentService.getEntity(lineRequest.getPayComponentId()));
+                line.setValue(lineRequest.getValue());
+                structure.getLines().add(line);
+            }
+        }
+
+        return toResponse(salaryStructureRepository.save(structure));
+    }
+
+    @Transactional
+    public SalaryStructureResponse setActive(Long id, boolean active) {
+        SalaryStructure structure = getEntity(id);
+        structure.setActive(active);
+        return toResponse(salaryStructureRepository.save(structure));
+    }
+
     @Transactional(readOnly = true)
     public List<SalaryStructureResponse> getAll() {
         return salaryStructureRepository.findAll().stream().map(this::toResponse).toList();

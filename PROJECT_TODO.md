@@ -966,3 +966,73 @@ no config had ever actually loaded any items to trigger that render path. Both f
 Payment Types/Item Categories/Expense Categories all render their real seeded items with zero
 console errors, and the theme toggle was confirmed to actually flip `document.documentElement`'s
 class and repaint the whole app.
+
+**Employee profile/documents, full Payroll setup, and real user identity:** user-reported gaps —
+no employee view/edit screen, no employee photo, no way to upload employee documents, no setup
+screens for Department/Position/Work Location/Pay Component/Salary Structure/Payroll Group (only
+Payroll Run's create dialog let you *pick* an existing Payroll Group, never manage one), and the
+frontend still hardcoding a stock "Elon Musk" identity instead of the logged-in user.
+
+Backend: added `EntityType.EMPLOYEE` and reused the existing generic `FileService`/`/api/files`
+system rather than inventing a parallel one — `Employee.photoFileId` plus dedicated
+`POST/DELETE /api/payroll/employees/{id}/photo` endpoints for the profile-picture slot (mirroring
+`ProductService.uploadImage`'s replace-on-reupload pattern exactly), and employee *documents* go
+through the existing generic multipart `/api/files` endpoint untouched, tagged via its existing
+free-text `description` field — no new schema needed since the field already existed and just
+wasn't used for a controlled vocabulary before. Same self-service pattern for the logged-in user:
+`User.photoFileId`, a new `GET /api/auth/me` (`CurrentUserResponse`: name, email, roles, photo),
+`POST/DELETE /api/auth/me/photo`. Closed a real CRUD gap across Department/Position/Work
+Location/Payroll Group — each had create+list but no update endpoint at all, so nothing already
+onboarded could ever be corrected; added `PUT /{id}` (mirroring `PayComponent`'s existing
+update pattern) and a `PATCH /{id}/active` toggle to all four, plus the same pair for
+`SalaryStructure` (its update wholesale-replaces the pay-component lines, relying on the
+entity's existing `orphanRemoval=true` cascade). "Tying a salary structure to an employee" needed
+no new endpoint — the existing `changeCompensation` endpoint already does exactly this; the new
+Salary Structures screen just adds an "Assign to Employee" action that calls it.
+
+Frontend: real `EmployeeViewPage` (photo with upload/remove, employment/compensation/bank-details
+cards, a Documents section) and `EmployeeForm` extended to a genuine edit mode (was create-only),
+adding the Work Location dropdown it was missing entirely. Document upload dialog offers a
+dropdown of CV/Resume, National ID Card, Birth Certificate, Passport, Academic
+Certificate/Diploma, Employment Contract, Offer Letter, Reference Letter, Medical Certificate, Tax
+Document, Bank Confirmation Letter, Proof of Address, Next of Kin Form, plus "Other" revealing a
+free-text box — exactly the dropdown-plus-custom-text shape asked for. New setup pages for
+Departments, Positions, Work Locations, Pay Components (category/side/calculation-method/GL
+mapping/taxable-pensionable-statutory-recurring flags), Salary Structures (dynamic pay-component
+line editor plus the assign-to-employee dialog), and Payroll Groups — all wired into a new sidebar
+Payroll submenu, and a "Manage payroll groups" link added directly inside the Payroll Run creation
+dialog so the gap the user pointed at specifically is one click away, not a separate hunt through
+Settings. New `AuthContext`/`useAuth()` (previously no auth/identity state existed anywhere in the
+frontend) replaces every hardcoded "Elon Musk"/stock-photo instance in `TopBar` and `Sidebar` with
+the real logged-in user's name, email and photo (falling back to initials when no photo is set),
+wires the previously-inert "Log out" button to actually clear the stored token, call
+`/api/auth/logout`, and redirect, and a new `MyProfilePage` lets the current user set their own
+photo. `LoginPage` now calls `refresh()` on the auth context immediately after login so the
+identity is live without waiting for a remount.
+
+Verified end-to-end against live Postgres, not just compiled: found and fixed a real latent bug
+the same shape as the two previous ones in this log — `files.entity_type` has a Postgres CHECK
+constraint that Hibernate's `ddl-auto=update` wrote once, at table-creation time, listing only the
+`EntityType` values that existed then; adding `EMPLOYEE` to the Java enum did nothing to widen it,
+so every employee photo/document upload failed with `violates check constraint
+"files_entity_type_check"` until a new manual migration
+(`003_add_employee_to_files_entity_type_check.sql`, same pattern as `002`) was written and applied.
+After that fix, live-drove the full loop: created and then edited a Department through the real
+UI and confirmed both persisted; uploaded an employee document with a real document-type tag and
+confirmed it appears correctly tagged and downloadable; uploaded and replaced an employee's photo
+and confirmed the old file is soft-deleted while the new one becomes current; assigned a Salary
+Structure to an employee from the new screen and confirmed the employee's Current Basic Salary
+updated live; uploaded the logged-in user's own profile photo and confirmed it immediately
+replaced the initials avatar in both the Sidebar and TopBar; logged out and confirmed the token
+was cleared and the browser landed back on `/login`. Screenshotted every new screen with real
+seeded data. Confirmed a related non-bug while investigating: a 1x1-pixel test PNG made the
+shadcn/Radix `Avatar` component's image-load detection fail and fall back to initials even though
+the upload succeeded — reproduced cleanly with a normal-sized image and confirmed it renders
+correctly, so this was a test-fixture artifact, not a product defect, and needed no code change.
+
+Deliberately scoped down this pass: employee documents reuse the existing single-file-per-request
+upload endpoint (looped client-side once per document, since each needs its own tag) rather than
+extending the batch endpoint to accept a tag per file in one request; Payroll Calendar Periods
+still don't have their own dedicated setup screen (they're created inline from the Payroll Run
+dialog, which already covers the workflow); no photo/document virus scanning or file-type
+allowlisting beyond what the existing generic file system already does.

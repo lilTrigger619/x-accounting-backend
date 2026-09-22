@@ -26,6 +26,22 @@ public class DepartmentService {
         return toResponse(departmentRepository.save(department));
     }
 
+    @Transactional
+    public DepartmentResponse update(Long id, CreateDepartmentRequest request) {
+        Department department = getEntity(id);
+        department.setName(request.getName());
+        department.setCostCenterCode(request.getCostCenterCode());
+        department.setDescription(request.getDescription());
+        return toResponse(departmentRepository.save(department));
+    }
+
+    @Transactional
+    public DepartmentResponse setActive(Long id, boolean active) {
+        Department department = getEntity(id);
+        department.setActive(active);
+        return toResponse(departmentRepository.save(department));
+    }
+
     @Transactional(readOnly = true)
     public List<DepartmentResponse> getAll() {
         return departmentRepository.findAll().stream().map(this::toResponse).toList();

@@ -22,6 +22,16 @@ public class DepartmentController {
         return ResponseEntity.ok(departmentService.create(request));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<DepartmentResponse> update(@PathVariable Long id, @Valid @RequestBody CreateDepartmentRequest request) {
+        return ResponseEntity.ok(departmentService.update(id, request));
+    }
+
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<DepartmentResponse> setActive(@PathVariable Long id, @RequestParam boolean active) {
+        return ResponseEntity.ok(departmentService.setActive(id, active));
+    }
+
     @GetMapping
     public ResponseEntity<List<DepartmentResponse>> getAll() {
         return ResponseEntity.ok(departmentService.getAll());

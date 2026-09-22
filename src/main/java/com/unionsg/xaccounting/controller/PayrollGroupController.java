@@ -22,6 +22,16 @@ public class PayrollGroupController {
         return ResponseEntity.ok(payrollGroupService.create(request));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<PayrollGroupResponse> update(@PathVariable Long id, @Valid @RequestBody CreatePayrollGroupRequest request) {
+        return ResponseEntity.ok(payrollGroupService.update(id, request));
+    }
+
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<PayrollGroupResponse> setActive(@PathVariable Long id, @RequestParam boolean active) {
+        return ResponseEntity.ok(payrollGroupService.setActive(id, active));
+    }
+
     @GetMapping
     public ResponseEntity<List<PayrollGroupResponse>> getAll() {
         return ResponseEntity.ok(payrollGroupService.getAll());

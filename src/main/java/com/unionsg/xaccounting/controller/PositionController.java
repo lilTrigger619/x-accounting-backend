@@ -22,6 +22,16 @@ public class PositionController {
         return ResponseEntity.ok(positionService.create(request));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<PositionResponse> update(@PathVariable Long id, @Valid @RequestBody CreatePositionRequest request) {
+        return ResponseEntity.ok(positionService.update(id, request));
+    }
+
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<PositionResponse> setActive(@PathVariable Long id, @RequestParam boolean active) {
+        return ResponseEntity.ok(positionService.setActive(id, active));
+    }
+
     @GetMapping
     public ResponseEntity<List<PositionResponse>> getAll() {
         return ResponseEntity.ok(positionService.getAll());

@@ -83,6 +83,8 @@ public class Employee extends BaseEntity {
 
     private String notes;
 
+    private String photoFileId;
+
     public String getFullName() {
         return (firstName == null ? "" : firstName) + " " + (lastName == null ? "" : lastName);
     }

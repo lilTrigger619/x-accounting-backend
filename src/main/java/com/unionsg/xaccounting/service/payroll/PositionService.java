@@ -30,6 +30,24 @@ public class PositionService {
         return toResponse(positionRepository.save(position));
     }
 
+    @Transactional
+    public PositionResponse update(Long id, CreatePositionRequest request) {
+        Position position = getEntity(id);
+        position.setTitle(request.getTitle());
+        position.setDescription(request.getDescription());
+        position.setDepartment(request.getDepartmentId() != null
+                ? departmentService.getEntity(request.getDepartmentId())
+                : null);
+        return toResponse(positionRepository.save(position));
+    }
+
+    @Transactional
+    public PositionResponse setActive(Long id, boolean active) {
+        Position position = getEntity(id);
+        position.setActive(active);
+        return toResponse(positionRepository.save(position));
+    }
+
     @Transactional(readOnly = true)
     public List<PositionResponse> getAll() {
         return positionRepository.findAll().stream().map(this::toResponse).toList();

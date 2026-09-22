@@ -49,4 +49,7 @@ public class EmployeeResponse {
 
     private BigDecimal currentBasicSalary;
     private String currentSalaryStructureName;
+
+    private String photoFileId;
+    private String photoUrl;
 }

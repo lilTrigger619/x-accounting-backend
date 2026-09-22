@@ -1,5 +1,7 @@
 package com.unionsg.xaccounting.service.auth;
 
+import com.unionsg.xaccounting.dto.FileUploadRequestDto;
+import com.unionsg.xaccounting.dto.auth.CurrentUserResponse;
 import com.unionsg.xaccounting.dto.auth.LoginRequest;
 import com.unionsg.xaccounting.dto.auth.LoginResponse;
 import com.unionsg.xaccounting.dto.auth.RoleResponse;
@@ -7,16 +9,21 @@ import com.unionsg.xaccounting.entity.RefreshToken;
 import com.unionsg.xaccounting.entity.User.Permission;
 import com.unionsg.xaccounting.entity.User.Role;
 import com.unionsg.xaccounting.entity.User.User;
+import com.unionsg.xaccounting.enums.EntityType;
 import com.unionsg.xaccounting.enums.UserStatus;
+import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.repository.RefreshTokenRepository;
 import com.unionsg.xaccounting.repository.UserRepository;
 import com.unionsg.xaccounting.security.JwtService;
+import com.unionsg.xaccounting.security.util.SecurityUtils;
+import com.unionsg.xaccounting.service.FileService.FileService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.*;
@@ -29,15 +36,18 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final FileService fileService;
 
     public AuthService(UserRepository userRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        JwtService jwtService,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       FileService fileService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtService = jwtService;
         this.passwordEncoder = passwordEncoder;
+        this.fileService = fileService;
     }
 
     // ── LOGIN ─────────────────────────────────────────────────────────────────
@@ -159,6 +169,85 @@ public class AuthService {
 
         String userId = jwtService.extractUserIdFromRefreshToken(refreshToken);
         return jwtService.generateAccessToken(userId);
+    }
+
+    // ── CURRENT USER ──────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public CurrentUserResponse getCurrentUser() {
+        User user = SecurityUtils.getCurrentUser();
+        if (user == null) {
+            throw new ResourceNotFoundException("No authenticated user");
+        }
+        return toCurrentUserResponse(user);
+    }
+
+    @Transactional
+    public CurrentUserResponse uploadPhoto(MultipartFile photo) {
+        User user = SecurityUtils.getCurrentUser();
+        if (user == null) {
+            throw new ResourceNotFoundException("No authenticated user");
+        }
+        if (user.getPhotoFileId() != null) {
+            fileService.deleteFile(user.getPhotoFileId());
+        }
+        FileUploadRequestDto uploadRequest = new FileUploadRequestDto();
+        uploadRequest.setEntityType(EntityType.USER);
+        uploadRequest.setEntityId(user.getId().toString());
+        uploadRequest.setDescription("Profile Photo");
+        uploadRequest.setUploadedBy(user.getId());
+        String photoFileId = fileService.uploadFile(new MultipartFile[]{photo}, uploadRequest)
+                .get(0)
+                .getId();
+        user.setPhotoFileId(photoFileId);
+        return toCurrentUserResponse(userRepository.save(user));
+    }
+
+    @Transactional
+    public CurrentUserResponse deletePhoto() {
+        User user = SecurityUtils.getCurrentUser();
+        if (user == null) {
+            throw new ResourceNotFoundException("No authenticated user");
+        }
+        if (user.getPhotoFileId() != null) {
+            fileService.deleteFile(user.getPhotoFileId());
+            user.setPhotoFileId(null);
+        }
+        return toCurrentUserResponse(userRepository.save(user));
+    }
+
+    private CurrentUserResponse toCurrentUserResponse(User user) {
+        List<RoleResponse> roles = user.getRoles() == null ? Collections.emptyList()
+                : user.getRoles().stream()
+                        .map(role -> RoleResponse.builder()
+                                .name(role.getName())
+                                .permissions(
+                                        role.getPermissions() == null ? Collections.emptySet()
+                                                : role.getPermissions().stream()
+                                                        .map(Permission::getName)
+                                                        .collect(Collectors.toSet())
+                                )
+                                .build())
+                        .collect(Collectors.toList());
+
+        Set<String> directPermissions = user.getPermissions() == null ? Collections.emptySet()
+                : user.getPermissions().stream()
+                        .map(Permission::getName)
+                        .collect(Collectors.toSet());
+
+        return CurrentUserResponse.builder()
+                .id(user.getId().toString())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .fullName(user.getFullName())
+                .roles(roles)
+                .directPermissions(directPermissions)
+                .photoFileId(user.getPhotoFileId())
+                .photoUrl(user.getPhotoFileId() != null
+                        ? "/api/files/" + user.getPhotoFileId() + "/download"
+                        : null)
+                .build();
     }
 
     // ── HELPER ────────────────────────────────────────────────────────────────

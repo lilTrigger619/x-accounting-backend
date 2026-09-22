@@ -10,21 +10,27 @@ import com.unionsg.xaccounting.entity.payroll.Employee;
 import com.unionsg.xaccounting.entity.payroll.EmployeeSalaryStructure;
 import com.unionsg.xaccounting.entity.payroll.SalaryStructure;
 import com.unionsg.xaccounting.enums.EmploymentStatus;
+import com.unionsg.xaccounting.enums.EntityType;
 import com.unionsg.xaccounting.enums.PayrollAuditAction;
 import com.unionsg.xaccounting.enums.PayrollAuditEntityType;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.exception.ResourceNotFoundException;
+import com.unionsg.xaccounting.dto.FileUploadRequestDto;
 import com.unionsg.xaccounting.repository.payroll.EmployeeRepository;
 import com.unionsg.xaccounting.repository.payroll.EmployeeSalaryStructureRepository;
 import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.security.util.SecurityUtils;
+import com.unionsg.xaccounting.service.FileService.FileService;
 import com.unionsg.xaccounting.enums.DocumentModule;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * The employee payroll master (§2). Employment-status transitions and compensation changes are
@@ -45,6 +51,7 @@ public class EmployeeService {
     private final SalaryStructureService salaryStructureService;
     private final DocumentNumberGeneratorService documentNumberGeneratorService;
     private final PayrollAuditLogService auditLogService;
+    private final FileService fileService;
 
     @Transactional
     public EmployeeResponse create(CreateEmployeeRequest request) {
@@ -273,7 +280,40 @@ public class EmployeeService {
                 .notes(employee.getNotes())
                 .currentBasicSalary(current.map(EmployeeSalaryStructure::getBasicSalary).orElse(null))
                 .currentSalaryStructureName(current.map(c -> c.getSalaryStructure().getName()).orElse(null))
+                .photoFileId(employee.getPhotoFileId())
+                .photoUrl(employee.getPhotoFileId() != null
+                        ? "/api/files/" + employee.getPhotoFileId() + "/download"
+                        : null)
                 .build();
+    }
+
+    @Transactional
+    public EmployeeResponse uploadPhoto(Long id, MultipartFile photo) {
+        Employee employee = getEntity(id);
+        if (employee.getPhotoFileId() != null) {
+            fileService.deleteFile(employee.getPhotoFileId());
+        }
+        FileUploadRequestDto uploadRequest = new FileUploadRequestDto();
+        uploadRequest.setEntityType(EntityType.EMPLOYEE);
+        uploadRequest.setEntityId(employee.getId().toString());
+        uploadRequest.setDescription("Employee Photo");
+        UUID currentUserId = SecurityUtils.getCurrentUser().getId();
+        uploadRequest.setUploadedBy(currentUserId);
+        String photoFileId = fileService.uploadFile(new MultipartFile[]{photo}, uploadRequest)
+                .get(0)
+                .getId();
+        employee.setPhotoFileId(photoFileId);
+        return toResponse(employeeRepository.save(employee));
+    }
+
+    @Transactional
+    public EmployeeResponse deletePhoto(Long id) {
+        Employee employee = getEntity(id);
+        if (employee.getPhotoFileId() != null) {
+            fileService.deleteFile(employee.getPhotoFileId());
+            employee.setPhotoFileId(null);
+        }
+        return toResponse(employeeRepository.save(employee));
     }
 
     private EmployeeCompensationResponse toCompensationResponse(EmployeeSalaryStructure assignment) {

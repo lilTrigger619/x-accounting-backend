@@ -5,6 +5,7 @@ import com.unionsg.xaccounting.dto.journal.CreateJournalRequest;
 import com.unionsg.xaccounting.dto.journal.JournalResponse;
 import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
+import com.unionsg.xaccounting.entity.invoice.InvoiceItem;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.exception.BusinessException;
@@ -19,8 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Posts the GL impact of a sales invoice once it is sent (Dr Accounts Receivable, Cr Revenue,
@@ -46,7 +50,7 @@ public class InvoiceJournalService {
         checkNoExistingInvoiceJournal(invoice);
 
         Long arAccountIdResolved = resolveMappedAccountId(MappingKey.INVOICE_ACCOUNTS_RECEIVABLE);
-        Long revenueAccountIdResolved = resolveMappedAccountId(MappingKey.INVOICE_REVENUE);
+        String defaultRevenueCode = accountingMappingService.resolve(MappingKey.INVOICE_REVENUE);
         Long salesTaxPayableAccountIdResolved = resolveMappedAccountId(MappingKey.INVOICE_SALES_TAX_PAYABLE);
 
         BigDecimal netRevenue = invoice.getSubtotal().subtract(invoice.getDiscountAmount());
@@ -62,12 +66,17 @@ public class InvoiceJournalService {
                 .creditAmount(BigDecimal.ZERO)
                 .build());
 
-        lines.add(CreateJournalLineRequest.builder()
-                .accountId(revenueAccountIdResolved)
-                .description("Revenue for invoice " + invoice.getInvoiceNumber())
-                .debitAmount(BigDecimal.ZERO)
-                .creditAmount(netRevenue)
-                .build());
+        for (Map.Entry<String, BigDecimal> revenueLine : splitRevenueByAccount(invoice, netRevenue, defaultRevenueCode).entrySet()) {
+            if (revenueLine.getValue().compareTo(BigDecimal.ZERO) == 0) {
+                continue;
+            }
+            lines.add(CreateJournalLineRequest.builder()
+                    .accountId(resolveAccountId(revenueLine.getKey()))
+                    .description("Revenue for invoice " + invoice.getInvoiceNumber())
+                    .debitAmount(BigDecimal.ZERO)
+                    .creditAmount(revenueLine.getValue())
+                    .build());
+        }
 
         if (salesTax.compareTo(BigDecimal.ZERO) > 0) {
             lines.add(CreateJournalLineRequest.builder()
@@ -101,6 +110,54 @@ public class InvoiceJournalService {
         journalService.post(created.getId());
 
         log.info("Invoice journal posted for: {}", invoice.getInvoiceNumber());
+    }
+
+    /**
+     * Splits an invoice's net revenue across the GL account each line resolves to: its
+     * {@code Product}'s income account when one is set, otherwise the centrally-configured
+     * default (§8) - previously every invoice posted its whole net revenue to that one default
+     * account regardless of which products were sold, ignoring Product.incomeAccount entirely.
+     * The invoice-level discount is prorated across accounts by each one's share of the raw
+     * (pre-discount) subtotal; the last account absorbs any rounding remainder so the lines
+     * always sum to exactly {@code netRevenue}.
+     */
+    private Map<String, BigDecimal> splitRevenueByAccount(Invoice invoice, BigDecimal netRevenue, String defaultRevenueCode) {
+        BigDecimal rawSubtotal = invoice.getSubtotal() != null ? invoice.getSubtotal() : BigDecimal.ZERO;
+        if (rawSubtotal.compareTo(BigDecimal.ZERO) == 0) {
+            Map<String, BigDecimal> single = new LinkedHashMap<>();
+            single.put(defaultRevenueCode, netRevenue);
+            return single;
+        }
+
+        Map<String, BigDecimal> subtotalByAccount = new LinkedHashMap<>();
+        for (InvoiceItem item : invoice.getItems()) {
+            String accountCode = item.getProduct() != null && item.getProduct().getIncomeAccount() != null
+                    ? item.getProduct().getIncomeAccount().getAccountId()
+                    : defaultRevenueCode;
+            BigDecimal lineSubtotal = item.getLineSubtotal() != null ? item.getLineSubtotal() : BigDecimal.ZERO;
+            subtotalByAccount.merge(accountCode, lineSubtotal, BigDecimal::add);
+        }
+        if (subtotalByAccount.isEmpty()) {
+            subtotalByAccount.put(defaultRevenueCode, rawSubtotal);
+        }
+
+        Map<String, BigDecimal> netByAccount = new LinkedHashMap<>();
+        BigDecimal remainingNet = netRevenue;
+        int index = 0;
+        int groupCount = subtotalByAccount.size();
+        for (Map.Entry<String, BigDecimal> entry : subtotalByAccount.entrySet()) {
+            index++;
+            BigDecimal groupNet;
+            if (index == groupCount) {
+                groupNet = remainingNet;
+            } else {
+                BigDecimal share = entry.getValue().divide(rawSubtotal, 10, RoundingMode.HALF_UP);
+                groupNet = netRevenue.multiply(share).setScale(2, RoundingMode.HALF_UP);
+                remainingNet = remainingNet.subtract(groupNet);
+            }
+            netByAccount.put(entry.getKey(), groupNet);
+        }
+        return netByAccount;
     }
 
     private void checkNoExistingInvoiceJournal(Invoice invoice) {

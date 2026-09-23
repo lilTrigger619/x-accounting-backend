@@ -37,9 +37,9 @@ public class OrganizationService {
     public OrganizationResponse update(UpdateOrganizationRequest request) {
         Organization org = getOrCreate();
 
-        recordIfChanged("legalName", org.getLegalName(), request.getLegalName());
-        recordIfChanged("taxId", org.getTaxId(), request.getTaxId());
-        recordIfChanged("registrationNumber", org.getRegistrationNumber(), request.getRegistrationNumber());
+        recordIfChanged("legalName", org.getLegalName(), request.getLegalName(), request.getReason());
+        recordIfChanged("taxId", org.getTaxId(), request.getTaxId(), request.getReason());
+        recordIfChanged("registrationNumber", org.getRegistrationNumber(), request.getRegistrationNumber(), request.getReason());
 
         org.setLegalName(request.getLegalName());
         org.setTradingName(request.getTradingName());
@@ -79,9 +79,9 @@ public class OrganizationService {
         return toResponse(repository.save(org));
     }
 
-    private void recordIfChanged(String field, String oldValue, String newValue) {
+    private void recordIfChanged(String field, String oldValue, String newValue, String reason) {
         if (!Objects.equals(oldValue, newValue)) {
-            auditLogService.record(SettingType.ORGANIZATION, field, oldValue, newValue, null);
+            auditLogService.record(SettingType.ORGANIZATION, field, oldValue, newValue, reason);
         }
     }
 

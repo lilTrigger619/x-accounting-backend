@@ -7,8 +7,10 @@ import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
 import com.unionsg.xaccounting.entity.invoice.InvoiceItem;
+import com.unionsg.xaccounting.entity.product.Product;
 
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class InvoiceMapper {
@@ -16,7 +18,8 @@ public class InvoiceMapper {
     public static Invoice toEntity(
             CreateInvoiceRequest request,
             Customer customer,
-            PaymentTerms paymentTerms
+            PaymentTerms paymentTerms,
+            Function<Long, Product> productResolver
     ) {
 
         Invoice invoice = new Invoice();
@@ -36,7 +39,7 @@ public class InvoiceMapper {
 
         List<InvoiceItem> items = request.getItems()
                 .stream()
-                .map(item -> toItemEntity(item, invoice))
+                .map(item -> toItemEntity(item, invoice, productResolver))
                 .collect(Collectors.toList());
 
         invoice.setItems(items);
@@ -49,7 +52,8 @@ public class InvoiceMapper {
             Invoice invoice,
             UpdateInvoiceRequest request,
             Customer customer,
-            PaymentTerms paymentTerms
+            PaymentTerms paymentTerms,
+            Function<Long, Product> productResolver
     ) {
         invoice.setReference(request.getReference());
         invoice.setIssueDate(request.getIssueDate());
@@ -66,7 +70,7 @@ public class InvoiceMapper {
 
         if (request.getItems() != null) {
             request.getItems().stream()
-                    .map(item -> toItemEntity(item, invoice))
+                    .map(item -> toItemEntity(item, invoice, productResolver))
                     .forEach(item -> invoice.getItems().add(item));
         }
     }
@@ -74,7 +78,8 @@ public class InvoiceMapper {
 
     private static InvoiceItem toItemEntity(
             InvoiceItemRequest request,
-            Invoice invoice
+            Invoice invoice,
+            Function<Long, Product> productResolver
     ) {
 
         InvoiceItem item = new InvoiceItem();
@@ -84,6 +89,9 @@ public class InvoiceMapper {
         item.setUnitPrice(request.getUnitPrice());
         item.setTaxRate(request.getTaxRate());
         item.setInvoice(invoice);
+        if (request.getProductId() != null) {
+            item.setProduct(productResolver.apply(request.getProductId()));
+        }
 
         return item;
     }
@@ -190,6 +198,11 @@ public class InvoiceMapper {
         response.setLineSubtotal(item.getLineSubtotal());
         response.setLineTax(item.getLineTax());
         response.setLineTotal(item.getLineTotal());
+
+        if (item.getProduct() != null) {
+            response.setProductId(item.getProduct().getId());
+            response.setProductName(item.getProduct().getName());
+        }
 
         return response;
     }

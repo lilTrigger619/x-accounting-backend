@@ -18,7 +18,7 @@ import com.unionsg.xaccounting.enums.PayrollRunStatus;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.payroll.EmployeePayrollRecordRepository;
 import com.unionsg.xaccounting.repository.payroll.PayrollRunRepository;
-import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.security.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -60,7 +60,7 @@ public class PayrollRunService {
     private final PayrollPaymentService payrollPaymentService;
     private final PayrollReversalService payrollReversalService;
     private final PayrollInputService payrollInputService;
-    private final DocumentNumberGeneratorService documentNumberGeneratorService;
+    private final DocumentNumberService documentNumberGeneratorService;
     private final PayrollAuditLogService auditLogService;
 
     @Transactional
@@ -75,7 +75,7 @@ public class PayrollRunService {
         }
 
         PayrollRun run = new PayrollRun();
-        run.setRunNumber(documentNumberGeneratorService.generate(DocumentModule.PAYROLL_RUN));
+        run.setRunNumber(documentNumberGeneratorService.generateNextNumber(DocumentModule.PAYROLL_RUN));
         run.setPayrollCalendarPeriod(period);
         run.setPayrollGroup(period.getPayrollGroup());
         run.setStatus(PayrollRunStatus.DRAFT);

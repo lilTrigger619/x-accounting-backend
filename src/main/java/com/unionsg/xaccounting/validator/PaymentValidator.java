@@ -1,15 +1,15 @@
 package com.unionsg.xaccounting.validator;
 
-import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
 import com.unionsg.xaccounting.entity.payment.PaymentEntity;
+import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentStatus;
 import com.unionsg.xaccounting.exception.BadRequestException;
 import com.unionsg.xaccounting.exception.BusinessException;
-import com.unionsg.xaccounting.repository.ChartOfAccountRepository;
 import com.unionsg.xaccounting.repository.CustomerRepository;
+import com.unionsg.xaccounting.repository.settings.BankAccountRepository;
 import com.unionsg.xaccounting.repository.invoice.InvoiceRepository;
 import com.unionsg.xaccounting.utils.PaymentConstants;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import java.util.List;
 public class PaymentValidator {
 
     private final CustomerRepository customerRepository;
-    private final ChartOfAccountRepository chartOfAccountRepository;
+    private final BankAccountRepository bankAccountRepository;
     private final InvoiceRepository invoiceRepository;
 
     public Customer validateCustomerExists(Long customerId) {
@@ -51,11 +51,11 @@ public class PaymentValidator {
         }
     }
 
-    public ChartOfAccount validateBankAccount(Long bankAccountId) {
+    public BankAccount validateBankAccount(Long bankAccountId) {
         if (bankAccountId == null) {
             throw new BadRequestException("Bank account ID is required");
         }
-        return chartOfAccountRepository.findById(bankAccountId)
+        return bankAccountRepository.findById(bankAccountId)
                 .orElseThrow(() -> new BusinessException(
                         "Bank account not found with ID: " + bankAccountId));
     }

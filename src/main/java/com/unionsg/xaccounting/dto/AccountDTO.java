@@ -38,6 +38,7 @@ public class AccountDTO {
     private Long coaClearToId;
     private String description;
     private LocalDateTime dateCreated;
+    private boolean controlAccount;
 //    private int accountType ;
 //    private int subAccountType ;
 }

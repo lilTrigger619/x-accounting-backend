@@ -18,7 +18,7 @@ import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.accounting.FinancialYearRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
-import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.service.journal.JournalPostingService;
 import com.unionsg.xaccounting.service.journal.JournalService;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +47,7 @@ public class OpeningBalanceService {
     private final JournalPostingService journalPostingService;
     private final JournalMapper journalMapper;
     private final JournalService journalService;
-    private final DocumentNumberGeneratorService generalSequenceGeneratorService;
+    private final DocumentNumberService generalSequenceGeneratorService;
     private final FinancialPeriodAuditLogService auditLogService;
 
     @Transactional
@@ -60,7 +60,7 @@ public class OpeningBalanceService {
         }
 
         JournalEntry entry = new JournalEntry();
-        entry.setJournalNumber(generalSequenceGeneratorService.generate(DocumentModule.JOURNAL));
+        entry.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
         entry.setJournalDate(fy.getStartDate());
         entry.setReference("OB-" + fy.getName());
         entry.setDescription("Opening balances for " + fy.getName());

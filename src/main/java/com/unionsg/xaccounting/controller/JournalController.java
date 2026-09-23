@@ -39,7 +39,7 @@ public class JournalController {
     ) {
 
         JournalResponse response =
-                journalService.create(request);
+                journalService.createManualJournal(request);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)

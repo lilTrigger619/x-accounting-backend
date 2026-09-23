@@ -1,9 +1,9 @@
 package com.unionsg.xaccounting.MapperLayer;
 
 import com.unionsg.xaccounting.dto.supplierpayment.*;
-import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.payment.SupplierPaymentAllocationEntity;
 import com.unionsg.xaccounting.entity.payment.SupplierPaymentEntity;
+import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.entity.supplier.Supplier;
 import com.unionsg.xaccounting.enums.SupplierPaymentStatus;
 
@@ -20,7 +20,7 @@ public class SupplierPaymentMapper {
     public static SupplierPaymentEntity toEntity(
             CreateSupplierPaymentRequest request,
             Supplier supplier,
-            ChartOfAccount bankAccount
+            BankAccount bankAccount
     ) {
         SupplierPaymentEntity payment = new SupplierPaymentEntity();
 
@@ -69,7 +69,7 @@ public class SupplierPaymentMapper {
 
         if (payment.getBankAccount() != null) {
             response.setBankAccountId(payment.getBankAccount().getId());
-            response.setBankAccountName(payment.getBankAccount().getCoa_description());
+            response.setBankAccountName(payment.getBankAccount().getAccountName());
         }
 
         response.setCurrency(payment.getCurrency());

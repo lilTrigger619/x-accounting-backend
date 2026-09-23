@@ -9,7 +9,9 @@ package com.unionsg.xaccounting.enums.settings;
 public enum MappingKey {
 
     PAYMENT_BANK_ACCOUNT(MappingGroup.SALES, "1010",
-            "Bank account debited when a customer payment is received"),
+            "Bank account debited when a customer payment is received by bank transfer, cheque, card or mobile money"),
+    PAYMENT_CASH_ACCOUNT(MappingGroup.SALES, "1000",
+            "Cash account debited when a customer payment is received in cash"),
     PAYMENT_ACCOUNTS_RECEIVABLE(MappingGroup.SALES, "6220",
             "Accounts Receivable control account credited when a customer payment is applied"),
     PAYMENT_CUSTOMER_ADVANCES(MappingGroup.SALES, "2080",
@@ -27,7 +29,9 @@ public enum MappingKey {
     BILL_DEFAULT_EXPENSE(MappingGroup.PURCHASES, "5000",
             "Fallback expense account debited when a bill line has no specific account"),
     SUPPLIER_PAYMENT_BANK_ACCOUNT(MappingGroup.PURCHASES, "1010",
-            "Bank account credited when a supplier payment is made"),
+            "Bank account credited when a supplier payment is made by bank transfer, cheque, card or mobile money"),
+    SUPPLIER_PAYMENT_CASH_ACCOUNT(MappingGroup.PURCHASES, "1000",
+            "Cash account credited when a supplier payment is made in cash"),
     SUPPLIER_PAYMENT_ADVANCES(MappingGroup.PURCHASES, "1740",
             "Asset account debited for unapplied supplier payments (advances)"),
 

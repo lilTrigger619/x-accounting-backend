@@ -1,14 +1,14 @@
 package com.unionsg.xaccounting.validator;
 
-import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.payment.SupplierPaymentEntity;
+import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.entity.supplier.Supplier;
 import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.SupplierPaymentStatus;
 import com.unionsg.xaccounting.exception.BadRequestException;
 import com.unionsg.xaccounting.exception.BusinessException;
-import com.unionsg.xaccounting.repository.ChartOfAccountRepository;
 import com.unionsg.xaccounting.repository.SupplierRepository;
+import com.unionsg.xaccounting.repository.settings.BankAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +19,7 @@ import java.math.BigDecimal;
 public class SupplierPaymentValidator {
 
     private final SupplierRepository supplierRepository;
-    private final ChartOfAccountRepository chartOfAccountRepository;
+    private final BankAccountRepository bankAccountRepository;
 
     public Supplier validateSupplierExists(Long supplierId) {
         if (supplierId == null) {
@@ -30,11 +30,11 @@ public class SupplierPaymentValidator {
                         "Supplier not found with ID: " + supplierId));
     }
 
-    public ChartOfAccount validateBankAccount(Long bankAccountId) {
+    public BankAccount validateBankAccount(Long bankAccountId) {
         if (bankAccountId == null) {
             throw new BadRequestException("Bank account ID is required");
         }
-        return chartOfAccountRepository.findById(bankAccountId)
+        return bankAccountRepository.findById(bankAccountId)
                 .orElseThrow(() -> new BusinessException(
                         "Bank account not found with ID: " + bankAccountId));
     }

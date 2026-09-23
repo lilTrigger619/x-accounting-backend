@@ -20,5 +20,6 @@ public class AccountListResponse {
     private String subType;
     private AccountStatus status;
     private BigDecimal balance;
+    private boolean controlAccount;
 }
 

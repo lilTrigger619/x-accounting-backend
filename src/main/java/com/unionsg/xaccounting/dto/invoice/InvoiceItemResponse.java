@@ -25,4 +25,8 @@ public class InvoiceItemResponse {
 
     private BigDecimal lineTotal;
 
+    private Long productId;
+
+    private String productName;
+
 }

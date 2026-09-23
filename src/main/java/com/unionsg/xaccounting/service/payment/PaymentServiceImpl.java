@@ -2,17 +2,16 @@ package com.unionsg.xaccounting.service.payment;
 
 import com.unionsg.xaccounting.MapperLayer.PaymentMapper;
 import com.unionsg.xaccounting.dto.payment.*;
-import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.payment.PaymentAllocationEntity;
 import com.unionsg.xaccounting.entity.payment.PaymentEntity;
 import com.unionsg.xaccounting.entity.payment.PaymentRefundEntity;
+import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.enums.CustomerActivityReferenceType;
 import com.unionsg.xaccounting.enums.CustomerActivityType;
 import com.unionsg.xaccounting.enums.PaymentStatus;
 import com.unionsg.xaccounting.exception.BadRequestException;
 import com.unionsg.xaccounting.exception.BusinessException;
-import com.unionsg.xaccounting.repository.ChartOfAccountRepository;
 import com.unionsg.xaccounting.repository.CustomerRepository;
 import com.unionsg.xaccounting.repository.payment.PaymentAllocationRepository;
 import com.unionsg.xaccounting.repository.payment.PaymentRefundRepository;
@@ -45,7 +44,6 @@ public class PaymentServiceImpl implements PaymentService {
     private final ReceiptNumberGenerator receiptNumberGenerator;
     private final PaymentValidator paymentValidator;
     private final CustomerRepository customerRepository;
-    private final ChartOfAccountRepository chartOfAccountRepository;
     private final PaymentJournalService paymentJournalService;
     private final CustomerActivityLogService customerActivityLogService;
 
@@ -61,7 +59,7 @@ public class PaymentServiceImpl implements PaymentService {
         paymentValidator.validateExchangeRate(request.getExchangeRate());
 
         Customer customer = paymentValidator.validateCustomerExists(request.getCustomerId());
-        ChartOfAccount bankAccount = null;
+        BankAccount bankAccount = null;
         if (request.getBankAccountId() != null) {
             bankAccount = paymentValidator.validateBankAccount(request.getBankAccountId());
         }
@@ -97,7 +95,7 @@ public class PaymentServiceImpl implements PaymentService {
         paymentValidator.validateExchangeRate(request.getExchangeRate());
 
         Customer customer = paymentValidator.validateCustomerExists(request.getCustomerId());
-        ChartOfAccount bankAccount = null;
+        BankAccount bankAccount = null;
         if (request.getBankAccountId() != null) {
             bankAccount = paymentValidator.validateBankAccount(request.getBankAccountId());
         }
@@ -125,7 +123,7 @@ public class PaymentServiceImpl implements PaymentService {
         paymentValidator.validateExchangeRate(request.getExchangeRate());
 
         Customer customer = paymentValidator.validateCustomerExists(request.getCustomerId());
-        ChartOfAccount bankAccount = null;
+        BankAccount bankAccount = null;
         if (request.getBankAccountId() != null) {
             bankAccount = paymentValidator.validateBankAccount(request.getBankAccountId());
         }
@@ -237,7 +235,7 @@ public class PaymentServiceImpl implements PaymentService {
     private PaymentEntity initializePayment(
             CreatePaymentRequest request,
             Customer customer,
-            ChartOfAccount bankAccount,
+            BankAccount bankAccount,
             PaymentStatus status
     ) {
         PaymentEntity payment = PaymentMapper.toEntity(
@@ -255,7 +253,7 @@ public class PaymentServiceImpl implements PaymentService {
     private PaymentEntity initializeDraftPayment(
             CreateDraftPaymentRequest request,
             Customer customer,
-            ChartOfAccount bankAccount
+            BankAccount bankAccount
     ) {
         PaymentEntity payment = new PaymentEntity();
         payment.setCustomer(customer);
@@ -285,7 +283,7 @@ public class PaymentServiceImpl implements PaymentService {
             PaymentEntity payment,
             UpdateDraftPaymentRequest request,
             Customer customer,
-            ChartOfAccount bankAccount
+            BankAccount bankAccount
     ) {
         payment.setCustomer(customer);
         payment.setPaymentDate(request.getPaymentDate());

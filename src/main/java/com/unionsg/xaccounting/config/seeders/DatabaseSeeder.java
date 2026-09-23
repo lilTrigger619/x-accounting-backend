@@ -369,6 +369,36 @@ public class DatabaseSeeder implements ApplicationRunner {
         // existed - unlike the blocks above, which only ever run once on a brand-new database.
         seedAdditionalControlAccountsIfMissing();
         seedPayrollDocumentConfigsIfMissing();
+        seedControlAccountFlagsIfMissing();
+    }
+
+    /**
+     * Flags the accounts every automated posting engine reconciles against a subledger
+     * (Settings & Setup §8) as control accounts, so the manual Journal Entry screen refuses to
+     * post to them directly - a manual entry here would silently desync the GL from the AR/AP
+     * aging, payroll, or loan/advance subledger it mirrors. Runs unconditionally like the other
+     * idempotent seed methods above, so an already-seeded database picks the flag up too.
+     */
+    private void seedControlAccountFlagsIfMissing() {
+        List.of(
+                "6220", // Accounts Receivable
+                "6210", // Accounts Payable
+                "2080", // Customer Deposits
+                "1740", // Supplier Advances
+                "2090", // Sales Tax Payable
+                "2100", // Salary Payable
+                "2110", // Employee Income Tax Payable
+                "2120", // Statutory Contributions Payable - Employee
+                "2130", // Statutory Contributions Payable - Employer
+                "2140", // Employee Reimbursements Payable
+                "1750", // Employee Loans Receivable
+                "1760"  // Salary Advances Receivable
+        ).forEach(code -> accountRepository.findByAccountId(code).ifPresent(account -> {
+            if (!Boolean.TRUE.equals(account.getIsControlAccount())) {
+                account.setIsControlAccount(true);
+                accountRepository.save(account);
+            }
+        }));
     }
 
     /**

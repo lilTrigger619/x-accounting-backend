@@ -5,6 +5,7 @@ import com.unionsg.xaccounting.dto.settings.SaveBankAccountRequest;
 import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.enums.settings.BankAccountStatus;
+import com.unionsg.xaccounting.enums.settings.SettingType;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.settings.BankAccountRepository;
@@ -22,6 +23,7 @@ public class BankAccountService {
 
     private final BankAccountRepository repository;
     private final AccountRepository accountRepository;
+    private final SettingsAuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<BankAccountResponse> list() {
@@ -33,7 +35,10 @@ public class BankAccountService {
         validateGlAccount(request.getGlAccountCode());
         BankAccount account = new BankAccount();
         applyRequest(account, request);
-        return toResponse(repository.save(account));
+        BankAccount saved = repository.save(account);
+        auditLogService.record(SettingType.BANK_ACCOUNT, saved.getId().toString(),
+                null, describe(saved), "Bank account created");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -41,17 +46,31 @@ public class BankAccountService {
         validateGlAccount(request.getGlAccountCode());
         BankAccount account = repository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bank account not found: " + id));
+        String previous = describe(account);
         applyRequest(account, request);
-        return toResponse(repository.save(account));
+        BankAccount saved = repository.save(account);
+        String updated = describe(saved);
+        if (!updated.equals(previous)) {
+            auditLogService.record(SettingType.BANK_ACCOUNT, id.toString(), previous, updated, null);
+        }
+        return toResponse(saved);
     }
 
     @Transactional
     public BankAccountResponse toggleStatus(Long id) {
         BankAccount account = repository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bank account not found: " + id));
-        account.setStatus(account.getStatus() == BankAccountStatus.ACTIVE
+        BankAccountStatus previousStatus = account.getStatus();
+        account.setStatus(previousStatus == BankAccountStatus.ACTIVE
                 ? BankAccountStatus.INACTIVE : BankAccountStatus.ACTIVE);
-        return toResponse(repository.save(account));
+        BankAccount saved = repository.save(account);
+        auditLogService.record(SettingType.BANK_ACCOUNT, id.toString(),
+                previousStatus.name(), saved.getStatus().name(), null);
+        return toResponse(saved);
+    }
+
+    private String describe(BankAccount account) {
+        return account.getAccountName() + " (" + account.getGlAccountCode() + ")";
     }
 
     private void validateGlAccount(String code) {

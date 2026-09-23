@@ -140,6 +140,22 @@ public class AccountEntity {
     @Column(name="is_active")
     private Boolean isActive;
 
+    /**
+     * True for a subledger control account (Accounts Receivable, Accounts Payable, Salary
+     * Payable, tax/statutory payables, customer/supplier advances, loan and advance
+     * receivables...) that an automated posting engine reconciles against a subledger. Manual
+     * journal entries are blocked from posting to one directly (Settings & Setup §8) - a manual
+     * debit or credit here would silently desync the GL balance from the AR/AP aging, payroll,
+     * or loan subledger it is supposed to mirror.
+     *
+     * <p>{@code Boolean}, not {@code boolean}, to match {@link #isActive} above: {@code
+     * ddl-auto=update} adds this column nullable with no backfill, so every pre-existing row
+     * reads back {@code null} until explicitly set - a primitive field would throw on read.</p>
+     */
+    @Column(name = "is_control_account")
+    @Builder.Default
+    private Boolean isControlAccount = false;
+
 
     @PrePersist
     protected void onCreate() {

@@ -132,6 +132,7 @@ public class AccountCommandServiceImpl implements AccountCommandService {
                 .taxRate(entity.getTaxRate())
                 .createdBy(entity.getCreatedBy().getFullName())
                 .dateCreated(entity.getDateCreated())
+                .controlAccount(Boolean.TRUE.equals(entity.getIsControlAccount()))
                 .build();
     }
 }

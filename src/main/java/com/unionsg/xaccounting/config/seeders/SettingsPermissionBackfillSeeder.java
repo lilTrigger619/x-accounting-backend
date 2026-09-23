@@ -32,7 +32,8 @@ public class SettingsPermissionBackfillSeeder implements ApplicationRunner {
 
     private static final String SUPER_ADMIN_ROLE = "Super Admin";
     private static final List<String> SETTINGS_PERMISSIONS = List.of(
-            "view_settings", "manage_accounting_mappings", "manage_organization", "manage_bank_accounts");
+            "view_settings", "manage_accounting_mappings", "manage_organization", "manage_bank_accounts",
+            "manage_mail_configuration");
 
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;

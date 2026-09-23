@@ -38,4 +38,7 @@ public class UpdateOrganizationRequest {
     private String shippingState;
     private String shippingPostalCode;
     private String shippingCountry;
+
+    /** Optional reason recorded on the Settings Audit Trail (§8/§37) alongside any changed field. */
+    private String reason;
 }

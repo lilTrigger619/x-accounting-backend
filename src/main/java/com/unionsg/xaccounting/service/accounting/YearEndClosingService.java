@@ -25,7 +25,7 @@ import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.accounting.AccountingPeriodRepository;
 import com.unionsg.xaccounting.repository.accounting.FinancialYearRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
-import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.security.util.SecurityUtils;
 import com.unionsg.xaccounting.service.journal.JournalPostingService;
 import com.unionsg.xaccounting.service.reports.ProfitAndLossService;
@@ -56,7 +56,7 @@ public class YearEndClosingService {
     private final JournalEntryRepository journalEntryRepository;
     private final JournalPostingService journalPostingService;
     private final JournalMapper journalMapper;
-    private final DocumentNumberGeneratorService generalSequenceGeneratorService;
+    private final DocumentNumberService generalSequenceGeneratorService;
     private final FinancialPeriodAuditLogService auditLogService;
 
     private final com.unionsg.xaccounting.service.settings.AccountingMappingService accountingMappingService;
@@ -229,7 +229,7 @@ public class YearEndClosingService {
         lines.add(retainedEarningsLine);
 
         JournalEntry entry = new JournalEntry();
-        entry.setJournalNumber(generalSequenceGeneratorService.generate(DocumentModule.JOURNAL));
+        entry.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
         entry.setJournalDate(fy.getEndDate());
         entry.setReference("CLOSE-" + fy.getName());
         entry.setDescription("Year-end closing journal for " + fy.getName());

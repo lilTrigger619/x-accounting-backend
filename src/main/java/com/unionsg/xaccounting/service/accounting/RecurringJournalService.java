@@ -22,7 +22,7 @@ import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.accounting.RecurringJournalOccurrenceRepository;
 import com.unionsg.xaccounting.repository.accounting.RecurringJournalTemplateRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
-import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.service.journal.JournalPostingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +54,7 @@ public class RecurringJournalService {
     private final AccountRepository accountRepository;
     private final JournalEntryRepository journalEntryRepository;
     private final JournalPostingService journalPostingService;
-    private final DocumentNumberGeneratorService generalSequenceGeneratorService;
+    private final DocumentNumberService generalSequenceGeneratorService;
     private final PeriodLockGuard periodLockGuard;
 
     @Transactional
@@ -89,6 +89,12 @@ public class RecurringJournalService {
 
             AccountEntity account = accountRepository.findById(lineRequest.getAccountId())
                     .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+            if (Boolean.TRUE.equals(account.getIsControlAccount())) {
+                throw new BadRequestException(
+                        "\"" + account.getAccountName() + "\" (" + account.getAccountId() + ") is a control account "
+                                + "and cannot be targeted by a recurring journal template - it is only ever updated "
+                                + "by the transaction that owns it (an invoice, payment, payroll run, etc.)");
+            }
 
             RecurringJournalTemplateLine line = new RecurringJournalTemplateLine();
             line.setAccount(account);
@@ -274,7 +280,7 @@ public class RecurringJournalService {
 
     private JournalEntry buildJournalFromTemplate(RecurringJournalTemplate template, LocalDate dueDate) {
         JournalEntry entry = new JournalEntry();
-        entry.setJournalNumber(generalSequenceGeneratorService.generate(DocumentModule.JOURNAL));
+        entry.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
         entry.setJournalDate(dueDate);
         entry.setReference(template.getReference());
         entry.setDescription(template.getDescription() + " (recurring, " + dueDate + ")");

@@ -15,7 +15,7 @@ import com.unionsg.xaccounting.exception.BadRequestException;
 import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
-import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.service.accounting.PeriodLockGuard;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
@@ -39,7 +39,7 @@ public class JournalServiceImpl implements JournalService {
     private final JournalMapper journalMapper;
     private final JournalPostingService postingService;
     private final JournalNumberGenerator numberGenerator;
-    private final DocumentNumberGeneratorService generalSequenceGeneratorService;
+    private final DocumentNumberService generalSequenceGeneratorService;
     private final PeriodLockGuard periodLockGuard;
 
     public JournalServiceImpl(
@@ -48,7 +48,7 @@ public class JournalServiceImpl implements JournalService {
             JournalMapper journalMapper,
             JournalPostingService postingService,
             JournalNumberGenerator numberGenerator,
-            DocumentNumberGeneratorService generalSequenceGeneratorService,
+            DocumentNumberService generalSequenceGeneratorService,
             PeriodLockGuard periodLockGuard
     ) {
         this.journalRepository = journalRepository;
@@ -66,7 +66,7 @@ public class JournalServiceImpl implements JournalService {
         JournalEntry journal = new JournalEntry();
 
 //        journal.setJournalNumber(numberGenerator.generate());
-        journal.setJournalNumber(generalSequenceGeneratorService.generate(DocumentModule.JOURNAL));
+        journal.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
         journal.setJournalDate(request.getJournalDate());
         journal.setReference(request.getReference());
         journal.setDescription(request.getDescription());
@@ -87,6 +87,12 @@ public class JournalServiceImpl implements JournalService {
     }
 
     @Override
+    public JournalResponse createManualJournal(CreateJournalRequest request) {
+        assertNoControlAccountLines(request.getLines());
+        return create(request);
+    }
+
+    @Override
     public JournalResponse update(Long id, UpdateJournalRequest request) {
 
         JournalEntry journal = getEntity(id);
@@ -94,6 +100,8 @@ public class JournalServiceImpl implements JournalService {
         if (journal.getStatus() != JournalStatus.DRAFT) {
             throw new BadRequestException("Only draft journals can be edited");
         }
+
+        assertNoControlAccountLines(request.getLines());
 
         journal.setJournalDate(request.getJournalDate());
         journal.setReference(request.getReference());
@@ -270,6 +278,23 @@ public class JournalServiceImpl implements JournalService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Journal not found")
                 );
+    }
+
+    /**
+     * Rejects any line in a manual journal entry (create or edit) that targets a control
+     * account - see {@link JournalService#createManualJournal(CreateJournalRequest)}.
+     */
+    private void assertNoControlAccountLines(List<CreateJournalLineRequest> requests) {
+        for (CreateJournalLineRequest request : requests) {
+            AccountEntity account = accountRepository.findByAccountId(request.getAccountId().toString())
+                    .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+            if (Boolean.TRUE.equals(account.getIsControlAccount())) {
+                throw new BadRequestException(
+                        "\"" + account.getAccountName() + "\" (" + account.getAccountId() + ") is a control account "
+                                + "and cannot be posted to from a manual journal entry - it is only ever updated by "
+                                + "the transaction that owns it (an invoice, payment, payroll run, etc.)");
+            }
+        }
     }
 
     private void buildLines(

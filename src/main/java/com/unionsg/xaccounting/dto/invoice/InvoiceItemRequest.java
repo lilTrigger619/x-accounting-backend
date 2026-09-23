@@ -16,4 +16,7 @@ public class InvoiceItemRequest {
 
     private BigDecimal taxRate;
 
+    /** Optional catalog Product this line was billed for; drives which revenue account it posts to. */
+    private Long productId;
+
 }

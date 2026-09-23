@@ -7,9 +7,9 @@ import com.unionsg.xaccounting.dto.supplierpayment.SupplierPaymentAllocationResp
 import com.unionsg.xaccounting.dto.supplierpayment.SupplierPaymentDetailsResponse;
 import com.unionsg.xaccounting.dto.supplierpayment.SupplierPaymentFilterRequest;
 import com.unionsg.xaccounting.dto.supplierpayment.SupplierPaymentListItemResponse;
-import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.payment.SupplierPaymentAllocationEntity;
 import com.unionsg.xaccounting.entity.payment.SupplierPaymentEntity;
+import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.entity.supplier.Supplier;
 import com.unionsg.xaccounting.enums.SupplierPaymentStatus;
 import com.unionsg.xaccounting.exception.BusinessException;
@@ -52,7 +52,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
         validator.validateExchangeRate(request.getExchangeRate());
 
         Supplier supplier = validator.validateSupplierExists(request.getSupplierId());
-        ChartOfAccount bankAccount = null;
+        BankAccount bankAccount = null;
         if (request.getBankAccountId() != null) {
             bankAccount = validator.validateBankAccount(request.getBankAccountId());
         }
@@ -80,7 +80,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
         validator.validateExchangeRate(request.getExchangeRate());
 
         Supplier supplier = validator.validateSupplierExists(request.getSupplierId());
-        ChartOfAccount bankAccount = null;
+        BankAccount bankAccount = null;
         if (request.getBankAccountId() != null) {
             bankAccount = validator.validateBankAccount(request.getBankAccountId());
         }
@@ -108,7 +108,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
         validator.validateExchangeRate(request.getExchangeRate());
 
         Supplier supplier = validator.validateSupplierExists(request.getSupplierId());
-        ChartOfAccount bankAccount = null;
+        BankAccount bankAccount = null;
         if (request.getBankAccountId() != null) {
             bankAccount = validator.validateBankAccount(request.getBankAccountId());
         }

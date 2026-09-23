@@ -1036,3 +1036,95 @@ extending the batch endpoint to accept a tag per file in one request; Payroll Ca
 still don't have their own dedicated setup screen (they're created inline from the Payroll Run
 dialog, which already covers the workflow); no photo/document virus scanning or file-type
 allowlisting beyond what the existing generic file system already does.
+
+**Accounting-integrity Phase 1 (fix + wire what already exists):** the full 48-section "Enterprise
+Accounting Application / Complete Settings & Setup Module" spec was scoped down, after a read-only
+survey agent's gap analysis, to the one option that closes real integrity gaps without touching
+anything not already built: fix what's broken, wire settings that already exist but were silently
+ignored by posting, and fill in the accounting mappings those fixes need. Everything below compiles
+clean and was verified end-to-end against live Postgres, not just built.
+
+Fixed a real numbering bug: `DocumentNumberGeneratorService` (used by Invoice/Journal/Employee/
+Payroll Run numbering) hardcoded `companyId=1L, branchId=1L`, while the Settings-facing
+`DocumentNumberService` (used by Bill/SupplierPayment/Payment) used `companyId=0L, branchId=0L` —
+meaning Settings > Numbering & Sequences changes to those four document types silently never took
+effect. Deleted the dead/buggy service and redirected its eight call sites to the one real,
+Settings-controlled numbering engine.
+
+Investigated the originally-proposed COGS/inventory, purchase-tax and employer-contribution
+mapping keys and found none of them were real gaps: Product has no inventory tracking at all
+(nothing would ever consume a COGS/inventory key), Bill has no tax field whatsoever (purchase tax
+would need a whole new feature, not a mapping key), and employer contributions are already fully
+wired per-scheme/per-component (`StatutoryScheme.employerExpenseAccountCode`/
+`employerLiabilityAccountCode`, `PayComponent.glDebitAccountCode`/`glCreditAccountCode`) — a
+finer-grained mechanism than one global key would be. The one real gap: `PaymentEntity`/
+`SupplierPaymentEntity` already carry a `PaymentMethod` with `CASH`, but posting always used the
+bank-account mapping regardless, so a cash receipt/payment silently landed in the bank account.
+Added `PAYMENT_CASH_ACCOUNT`/`SUPPLIER_PAYMENT_CASH_ACCOUNT` to `MappingKey`.
+
+The "Bank Accounts settings ignored" gap turned out to be worse than ignored: the existing
+`bankAccountId` on Payment/SupplierPayment resolved against `ChartOfAccountRepository` — the
+`Chart_of_account` *category* table (e.g. "Assets"), not a specific postable account — so the
+picker could never have meant anything even if wired up. Replaced it end-to-end with the properly
+designed `settings.BankAccount` catalog (real `glAccountCode` FK to the postable ledger): new FK +
+column on both entities, both validators/mappers/service impls updated, and
+`PaymentJournalServiceImpl`/`APJournalService` now post to the specific bank account chosen at
+record time when one was selected, else fall back to the cash/bank mapping key by `PaymentMethod`.
+Frontend: `payment.service.ts` and `RecordSupplierPaymentPage` now source the bank-account picker
+from `/api/settings/bank-accounts` instead of `/api/chart-of-accounts`.
+
+`Product.incomeAccount` was completely unwired from invoicing — `InvoiceItem` had no link to
+`Product` at all (the frontend's "Product picker" only ever copied description/price once), so
+every invoice posted its whole net revenue to one global default account regardless of what was
+sold. Added `product_id` to `InvoiceItem`/`InvoiceItemRequest`/`InvoiceItemResponse`, and rewrote
+`InvoiceJournalService.postInvoiceJournal` to split net revenue across each line's resolved GL
+account (the product's income account, or the default), prorating any invoice-level discount by
+each account's share of the raw subtotal with the last account absorbing the rounding remainder.
+
+Chart of Accounts had no control-account concept anywhere — "control account" only ever appeared
+in code comments. Added `AccountEntity.isControlAccount`, seeded `true` on the known ones (AR, AP,
+Customer Deposits, Supplier Advances, Sales Tax Payable, Salary Payable, Employee Income Tax
+Payable, Statutory Contributions Payable Employee/Employer, Employee Reimbursements Payable,
+Employee Loans/Salary Advances Receivable). Found two genuine ad-hoc-account-picking surfaces to
+guard: the manual Journal Entry screen and Recurring Journal template creation. Added
+`JournalService.createManualJournal()` (rejects a line targeting a control account) wired only to
+the manual-entry controller endpoint, leaving `create()` itself — used by every subledger posting
+service — completely untouched; `update()` and `RecurringJournalService.create()` got the same
+guard inline. Deliberately did *not* guard `OpeningBalanceService`, since seeding a new company's
+opening AR/AP/control-account balances is a legitimate, expected use of those exact accounts.
+
+Closed three smaller settings gaps found during the original survey: `BankAccountService` never
+wrote to `SettingsAuditLogService` despite `SettingType.BANK_ACCOUNT` already existing in the enum
+for exactly that; `OrganizationService.recordIfChanged()` hardcoded `reason=null` because
+`UpdateOrganizationRequest` had no `reason` field to thread through; `MailConfigurationController`
+(SMTP host/credentials) had zero `@RequirePermission` on any of its five endpoints, unlike every
+other Settings controller — added `view_settings`/`manage_mail_configuration` and added the new
+permission to `SettingsPermissionBackfillSeeder` so the seeded Super Admin role keeps working.
+
+Two more latent bugs surfaced only once this was run against live Postgres, both the same shape as
+prior entries in this log: `AccountEntity.isControlAccount` was declared a primitive `boolean`,
+which crashed on read for every pre-existing row the instant the app booted (`ddl-auto=update`
+adds nullable columns with no backfill) — fixed by making it `Boolean`, matching `isActive`'s own
+convention in the same entity. And `accounting_mappings.mapping_key`'s Postgres CHECK constraint,
+written once by Hibernate at table-creation time, rejected the two new `MappingKey` values —
+`004_widen_accounting_mappings_key_check.sql` (same pattern as `002`/`003`) fixes it. After both,
+verified live: a manual journal against Accounts Receivable is rejected with a clear message while
+a normal manual entry still succeeds; an invoice with two products pointing at different income
+accounts posts a correctly split, non-rounding-drifted GL entry; a CASH payment posts to Cash on
+Hand while a BANK_TRANSFER payment posts to the default bank account or an explicitly chosen
+Settings bank account; Organization/Bank Account changes now appear on the audit trail with their
+reason. Browser QA confirmed the Chart of Accounts list renders a "Control" badge on exactly the
+flagged accounts, the Receive Payment bank-account dropdown lists Settings bank accounts, and the
+invoice line-item product picker is live-wired to the real product catalog.
+
+Deliberately scoped down this pass: `DocumentNumberService.listConfigs()` still only exposes
+Invoice/Journal/Employee/Payroll Run/Bill/SupplierPayment/Payment, not the remaining
+`DocumentModule` values (Credit Note, Quote, Purchase Order, Account, document-template types) —
+expanding that is Phase 2, not an integrity fix. Also unrelated to this phase but found along the
+way: the live `/api/invoices/{id}/send` endpoint routes through `InvoiceEmailService` (PDF
+generation + email), which never calls `InvoiceJournalService.postInvoiceJournal` at all — only
+`InvoiceService.sendInvoice()` does, and that method is only ever called from `DemoDataSeeder`,
+never from a real controller route. Invoices sent through the actual UI today are not GL-posted.
+Left unfixed as out of Phase 1's scope (wiring GL posting into the real send flow, or exposing a
+separate posting action, is a design decision belonging to whoever owns that flow next), but
+flagging it here since it is a real, user-facing accounting-integrity gap in its own right.

@@ -12,7 +12,7 @@ import com.unionsg.xaccounting.documenttemplate.mapper.DocumentTemplateMapper;
 import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateEmailRepository;
 import com.unionsg.xaccounting.documenttemplate.repository.DocumentTemplateRepository;
 import com.unionsg.xaccounting.enums.DocumentModule;
-import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.service.DocumentNumberService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,7 +30,7 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
 
     private final DocumentTemplateRepository templateRepository;
     private final DocumentTemplateEmailRepository emailRepository;
-    private final DocumentNumberGeneratorService documentNumberGeneratorService;
+    private final DocumentNumberService documentNumberGeneratorService;
 
     // =============================
     // Create Template
@@ -50,7 +50,7 @@ public class DocumentTemplateServiceImpl implements DocumentTemplateService {
 
         // Generate a unique sequential template code for this document type
         template.setTemplateCode(
-                documentNumberGeneratorService.generate(toModule(request.getDocumentType()))
+                documentNumberGeneratorService.generateNextNumber(toModule(request.getDocumentType()))
         );
 
         // Create default Design, Content, and Email records

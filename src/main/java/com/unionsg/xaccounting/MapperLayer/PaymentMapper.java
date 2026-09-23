@@ -1,12 +1,12 @@
 package com.unionsg.xaccounting.MapperLayer;
 
 import com.unionsg.xaccounting.dto.payment.*;
-import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.payment.PaymentAllocationEntity;
 import com.unionsg.xaccounting.entity.payment.PaymentEntity;
 import com.unionsg.xaccounting.entity.payment.PaymentRefundEntity;
+import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.enums.PaymentStatus;
 
 import java.math.BigDecimal;
@@ -23,7 +23,7 @@ public class PaymentMapper {
     public static PaymentEntity toEntity(
             CreatePaymentRequest request,
             Customer customer,
-            ChartOfAccount bankAccount
+            BankAccount bankAccount
     ) {
         PaymentEntity payment = new PaymentEntity();
 
@@ -66,7 +66,7 @@ public class PaymentMapper {
             PaymentEntity payment,
             UpdateDraftPaymentRequest request,
             Customer customer,
-            ChartOfAccount bankAccount
+            BankAccount bankAccount
     ) {
         payment.setCustomer(customer);
         payment.setPaymentDate(request.getPaymentDate());
@@ -140,7 +140,7 @@ public class PaymentMapper {
 
         if (payment.getBankAccount() != null) {
             response.setBankAccountId(payment.getBankAccount().getId());
-            response.setBankAccountName(payment.getBankAccount().getCoa_description());
+            response.setBankAccountName(payment.getBankAccount().getAccountName());
         }
 
         response.setCurrency(payment.getCurrency());

@@ -87,7 +87,8 @@ public class AccountServiceImpl implements AccountService {
                         : null)
 
                 .status(entity.getIsActive() != null && entity.getIsActive() ? AccountStatus.ACTIVE : AccountStatus.INACTIVE)
-                .balance(balance);
+                .balance(balance)
+                .controlAccount(Boolean.TRUE.equals(entity.getIsControlAccount()));
 
         return builder.build();
     }

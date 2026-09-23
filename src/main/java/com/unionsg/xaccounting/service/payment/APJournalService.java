@@ -9,6 +9,7 @@ import com.unionsg.xaccounting.entity.payment.SupplierPaymentAllocationEntity;
 import com.unionsg.xaccounting.entity.payment.SupplierPaymentEntity;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
+import com.unionsg.xaccounting.enums.PaymentMethod;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.repository.AccountRepository;
@@ -109,7 +110,7 @@ public class APJournalService {
     public void postSupplierPaymentJournal(SupplierPaymentEntity payment) {
         checkNoExistingPaymentJournal(payment);
 
-        Long bankAccountIdResolved = resolveMappedAccountId(MappingKey.SUPPLIER_PAYMENT_BANK_ACCOUNT);
+        Long bankAccountIdResolved = resolveSettlementAccountId(payment);
         Long apAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_ACCOUNTS_PAYABLE);
         Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.SUPPLIER_PAYMENT_ADVANCES);
 
@@ -290,5 +291,21 @@ public class APJournalService {
 
     private Long resolveMappedAccountId(MappingKey key) {
         return resolveAccountId(accountingMappingService.resolve(key));
+    }
+
+    /**
+     * A supplier payment posts to the specific bank/cash account chosen at recording time
+     * (Settings & Setup §16) when one was selected; otherwise it falls back to the
+     * centrally-configured default for the payment method (§8) - cash disbursements and
+     * bank/cheque/card/mobile-money disbursements are never the same GL account.
+     */
+    private Long resolveSettlementAccountId(SupplierPaymentEntity payment) {
+        if (payment.getBankAccount() != null) {
+            return resolveAccountId(payment.getBankAccount().getGlAccountCode());
+        }
+        MappingKey key = payment.getPaymentMethod() == PaymentMethod.CASH
+                ? MappingKey.SUPPLIER_PAYMENT_CASH_ACCOUNT
+                : MappingKey.SUPPLIER_PAYMENT_BANK_ACCOUNT;
+        return resolveMappedAccountId(key);
     }
 }

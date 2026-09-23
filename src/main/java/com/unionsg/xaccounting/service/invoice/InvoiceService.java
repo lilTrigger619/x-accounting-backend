@@ -3,6 +3,7 @@ package com.unionsg.xaccounting.service.invoice;
 import com.unionsg.xaccounting.MapperLayer.InvoiceMapper;
 import com.unionsg.xaccounting.dto.FileUploadRequestDto;
 import com.unionsg.xaccounting.dto.invoice.CreateInvoiceRequest;
+import com.unionsg.xaccounting.dto.invoice.InvoiceItemRequest;
 import com.unionsg.xaccounting.dto.invoice.InvoiceResponse;
 import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsResponse;
 import com.unionsg.xaccounting.dto.invoice.InvoiceTotalsRow;
@@ -10,6 +11,7 @@ import com.unionsg.xaccounting.dto.invoice.UpdateInvoiceRequest;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
+import com.unionsg.xaccounting.entity.product.Product;
 import com.unionsg.xaccounting.enums.DocumentModule;
 import com.unionsg.xaccounting.enums.EntityType;
 import com.unionsg.xaccounting.enums.InvoiceStatus;
@@ -17,7 +19,8 @@ import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.CustomerPaymentTermsRepo;
 import com.unionsg.xaccounting.repository.CustomerRepository;
 import com.unionsg.xaccounting.repository.invoice.InvoiceRepository;
-import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.repository.product.ProductRepository;
+import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.security.util.SecurityUtils;
 import com.unionsg.xaccounting.enums.CustomerActivityReferenceType;
 import com.unionsg.xaccounting.enums.CustomerActivityType;
@@ -31,7 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -40,8 +46,9 @@ public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final CustomerRepository customerRepository;
     private final CustomerPaymentTermsRepo paymentTermsRepository;
+    private final ProductRepository productRepository;
     private final InvoiceCalculationService calculationService;
-    private final DocumentNumberGeneratorService generator;
+    private final DocumentNumberService generator;
     private final FileService fileService;
     private final CustomerActivityLogService customerActivityLogService;
     private final InvoiceJournalService invoiceJournalService;
@@ -72,11 +79,13 @@ public class InvoiceService {
                 InvoiceMapper.toEntity(
                         request,
                         customer,
-                        paymentTerms
+                        paymentTerms,
+                        productResolver(request.getItems().stream()
+                                .map(InvoiceItemRequest::getProductId))
                 );
 
         invoice.setCreatedAt(LocalDateTime.now());
-        String generatedNumber = generator.generate(DocumentModule.INVOICE);
+        String generatedNumber = generator.generateNextNumber(DocumentModule.INVOICE);
         System.out.println("generated Number "+ generatedNumber);
         invoice.setInvoiceNumber(generatedNumber);
 
@@ -105,6 +114,14 @@ public class InvoiceService {
         );
 
         return InvoiceMapper.toResponse(saved);
+    }
+
+    /** Bulk-loads the Products referenced by a request's line items so the mapper can attach them without N+1 lookups. */
+    private Function<Long, Product> productResolver(java.util.stream.Stream<Long> productIds) {
+        Map<Long, Product> productsById = productRepository.findAllById(
+                productIds.filter(java.util.Objects::nonNull).collect(Collectors.toSet())
+        ).stream().collect(Collectors.toMap(Product::getId, Function.identity()));
+        return productsById::get;
     }
 
 
@@ -141,7 +158,10 @@ public class InvoiceService {
                                     new RuntimeException("Payment terms not found"));
         }
 
-        InvoiceMapper.applyUpdate(invoice, request, customer, paymentTerms);
+        InvoiceMapper.applyUpdate(invoice, request, customer, paymentTerms,
+                productResolver(request.getItems() == null
+                        ? java.util.stream.Stream.empty()
+                        : request.getItems().stream().map(InvoiceItemRequest::getProductId)));
 
         invoice.setUpdatedAt(LocalDateTime.now());
 

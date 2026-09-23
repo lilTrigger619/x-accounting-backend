@@ -9,6 +9,7 @@ import com.unionsg.xaccounting.entity.payment.PaymentEntity;
 import com.unionsg.xaccounting.entity.payment.PaymentRefundEntity;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
+import com.unionsg.xaccounting.enums.PaymentMethod;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.repository.AccountRepository;
@@ -45,7 +46,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     public void postPaymentJournal(PaymentEntity payment) {
         checkNoExistingJournal(payment);
 
-        Long bankAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_BANK_ACCOUNT);
+        Long bankAccountIdResolved = resolveSettlementAccountId(payment);
         Long arAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_ACCOUNTS_RECEIVABLE);
         Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_CUSTOMER_ADVANCES);
 
@@ -177,7 +178,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
     public void postRefundJournal(PaymentEntity payment, PaymentRefundEntity refund) {
         checkPaymentHasJournal(payment);
 
-        Long bankAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_BANK_ACCOUNT);
+        Long bankAccountIdResolved = resolveSettlementAccountId(payment);
         Long arAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_ACCOUNTS_RECEIVABLE);
         Long advancesAccountIdResolved = resolveMappedAccountId(MappingKey.PAYMENT_CUSTOMER_ADVANCES);
 
@@ -310,5 +311,21 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
 
     private Long resolveMappedAccountId(com.unionsg.xaccounting.enums.settings.MappingKey key) {
         return resolveAccountId(accountingMappingService.resolve(key));
+    }
+
+    /**
+     * A payment posts to the specific bank/cash account chosen at recording time (Settings &
+     * Setup §16) when one was selected; otherwise it falls back to the centrally-configured
+     * default for the payment method (§8) - cash receipts and bank/cheque/card/mobile-money
+     * receipts are never the same GL account.
+     */
+    private Long resolveSettlementAccountId(PaymentEntity payment) {
+        if (payment.getBankAccount() != null) {
+            return resolveAccountId(payment.getBankAccount().getGlAccountCode());
+        }
+        MappingKey key = payment.getPaymentMethod() == PaymentMethod.CASH
+                ? MappingKey.PAYMENT_CASH_ACCOUNT
+                : MappingKey.PAYMENT_BANK_ACCOUNT;
+        return resolveMappedAccountId(key);
     }
 }

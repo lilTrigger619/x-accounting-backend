@@ -18,7 +18,7 @@ import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.dto.FileUploadRequestDto;
 import com.unionsg.xaccounting.repository.payroll.EmployeeRepository;
 import com.unionsg.xaccounting.repository.payroll.EmployeeSalaryStructureRepository;
-import com.unionsg.xaccounting.security.DocumentNumberGeneratorService;
+import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.security.util.SecurityUtils;
 import com.unionsg.xaccounting.service.FileService.FileService;
 import com.unionsg.xaccounting.enums.DocumentModule;
@@ -49,14 +49,14 @@ public class EmployeeService {
     private final WorkLocationService workLocationService;
     private final PayrollGroupService payrollGroupService;
     private final SalaryStructureService salaryStructureService;
-    private final DocumentNumberGeneratorService documentNumberGeneratorService;
+    private final DocumentNumberService documentNumberGeneratorService;
     private final PayrollAuditLogService auditLogService;
     private final FileService fileService;
 
     @Transactional
     public EmployeeResponse create(CreateEmployeeRequest request) {
         Employee employee = new Employee();
-        employee.setEmployeeNumber(documentNumberGeneratorService.generate(DocumentModule.EMPLOYEE));
+        employee.setEmployeeNumber(documentNumberGeneratorService.generateNextNumber(DocumentModule.EMPLOYEE));
         employee.setFirstName(request.getFirstName());
         employee.setLastName(request.getLastName());
         employee.setWorkEmail(request.getWorkEmail());

@@ -1,9 +1,9 @@
 package com.unionsg.xaccounting.entity.payment;
 
 import com.unionsg.xaccounting.entity.BaseEntity;
-import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.customer.Customer;
+import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentMethod;
 import com.unionsg.xaccounting.enums.PaymentStatus;
@@ -52,9 +52,10 @@ public class PaymentEntity extends BaseEntity {
     @Column(name = "payment_method", nullable = false, length = 30)
     private PaymentMethod paymentMethod;
 
+    /** The specific bank/cash account (Settings & Setup §16) the payment was received into. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "bank_account_id")
-    private ChartOfAccount bankAccount;
+    @JoinColumn(name = "settlement_bank_account_id")
+    private BankAccount bankAccount;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "currency", nullable = false, length = 10)

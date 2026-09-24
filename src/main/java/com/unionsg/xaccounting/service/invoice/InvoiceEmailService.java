@@ -33,15 +33,20 @@ public class InvoiceEmailService {
     private final InvoiceEmailContentService invoiceEmailContentService;
     private final ApplicationEventPublisher eventPublisher;
     private final CustomerActivityLogService customerActivityLogService;
+    private final InvoiceJournalService invoiceJournalService;
 
     /**
      * Sends an invoice via email.
      * Flow:
      * 1. Validate invoice is in DRAFT status
      * 2. Generate PDF via InvoiceDocumentService, using the chosen template (or the default one)
-     * 3. Set invoice status to SENT
-     * 4. Resolve the recipient email and email content (subject/body), honoring any overrides
-     * 5. Publish async event for email delivery
+     * 3. Post the invoice's GL journal (Dr Accounts Receivable, Cr Revenue/Sales Tax Payable) -
+     *    the DRAFT check above guarantees this is the invoice's first (and only) send, so there
+     *    is no separate "first send" flag to track the way {@link InvoiceService#sendInvoice}
+     *    needs one for its own, re-sendable notion of "send".
+     * 4. Set invoice status to SENT
+     * 5. Resolve the recipient email and email content (subject/body), honoring any overrides
+     * 6. Publish async event for email delivery
      */
     @Transactional
     public void sendInvoice(Long invoiceId, SendInvoiceRequest request) {
@@ -63,6 +68,8 @@ public class InvoiceEmailService {
             log.error("Failed to generate PDF for invoice {}: {}", invoiceId, e.getMessage());
             throw new BusinessException("Failed to generate invoice PDF: " + e.getMessage());
         }
+
+        invoiceJournalService.postInvoiceJournal(invoice);
 
         invoice.setStatus(InvoiceStatus.SENT);
         invoice.setSentAt(LocalDateTime.now());

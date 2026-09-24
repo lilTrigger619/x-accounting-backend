@@ -1128,3 +1128,26 @@ never from a real controller route. Invoices sent through the actual UI today ar
 Left unfixed as out of Phase 1's scope (wiring GL posting into the real send flow, or exposing a
 separate posting action, is a design decision belonging to whoever owns that flow next), but
 flagging it here since it is a real, user-facing accounting-integrity gap in its own right.
+
+**Wire GL posting into the real invoice send flow:** the gap flagged immediately above, fixed on
+request. `InvoiceEmailService.sendInvoice()` - the method the real `POST /api/invoices/{id}/send`
+endpoint actually calls - now calls `InvoiceJournalService.postInvoiceJournal(invoice)` right after
+PDF generation succeeds and before the status flips to `SENT`. No separate "first send" flag was
+needed the way the older, seeder-only `InvoiceService.sendInvoice()` needs one for its own
+re-sendable notion of "send": this method's existing `status != DRAFT` guard already guarantees
+every call here is a first (and only) send. Left `InvoiceService.sendInvoice()` and
+`DemoDataSeeder`'s use of it untouched - it is a legitimate lower-level "mark sent + post GL"
+building block for seeding data without paying for real PDF generation/email, not dead code to
+delete, just a second, intentionally lighter-weight path with a different caller.
+
+Verified against live Postgres: sent a fresh draft invoice through the real endpoint. PDF
+generation itself fails in this sandbox for a reason unrelated to this change - Playwright's Java
+client tries to auto-download its own Chromium build from Azure CDN hosts blocked by this sandbox's
+network egress rules, a pre-existing environment limitation, not a code defect - which made for a
+clean negative-path proof instead: after the failed send, the invoice is still `DRAFT` and zero
+journals exist for it, confirming the method's `@Transactional` boundary keeps PDF generation, GL
+posting, and the status change atomic. The positive path reuses `postInvoiceJournal` exactly as
+already proven correct end-to-end in the Phase 1 entry above, called from a site structurally
+identical to the already-working call in `InvoiceService.sendInvoice()` (same fetch-by-id,
+same transactional context), so no new lazy-loading or wiring risk exists beyond what compiling
+and this negative-path test already cover.

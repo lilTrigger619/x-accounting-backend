@@ -19,8 +19,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DocumentTemplateConfigSeeder implements ApplicationRunner {
 
-    private static final long DEFAULT_COMPANY_ID = 1L;
-    private static final long DEFAULT_BRANCH_ID = 1L;
+    // Must match DocumentNumberService's own scope (companyId=0L, branchId=0L) - this seeder
+    // previously used 1L/1L, so DocumentTemplateServiceImpl.createTemplate() (which resolves
+    // numbering through DocumentNumberService at 0L/0L) never found these seeded rows and
+    // self-healed a fresh, generically-prefixed config instead every time.
+    private static final long DEFAULT_COMPANY_ID = 0L;
+    private static final long DEFAULT_BRANCH_ID = 0L;
 
     private final DocumentNumberConfigRepository docConfigRepo;
 

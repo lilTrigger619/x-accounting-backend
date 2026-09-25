@@ -77,6 +77,7 @@ public class SupplierPaymentMapper {
         response.setAmountPaid(payment.getAmountPaid());
         response.setAllocatedAmount(payment.getAllocatedAmount());
         response.setUnallocatedAmount(payment.getUnallocatedAmount());
+        response.setWithholdingTaxAmount(payment.getWithholdingTaxAmount());
         response.setReferenceNumber(payment.getReferenceNumber());
         response.setMemo(payment.getMemo());
         response.setStatus(payment.getStatus());
@@ -102,6 +103,7 @@ public class SupplierPaymentMapper {
         response.setAmountPaid(payment.getAmountPaid());
         response.setAllocatedAmount(payment.getAllocatedAmount());
         response.setUnallocatedAmount(payment.getUnallocatedAmount());
+        response.setWithholdingTaxAmount(payment.getWithholdingTaxAmount());
         response.setStatus(payment.getStatus());
 
         return response;

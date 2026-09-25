@@ -32,5 +32,7 @@ public class SupplierPaymentListItemResponse {
 
     private BigDecimal unallocatedAmount;
 
+    private BigDecimal withholdingTaxAmount;
+
     private SupplierPaymentStatus status;
 }

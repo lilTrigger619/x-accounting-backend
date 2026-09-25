@@ -11,6 +11,7 @@ import com.unionsg.xaccounting.entity.payment.SupplierPaymentAllocationEntity;
 import com.unionsg.xaccounting.entity.payment.SupplierPaymentEntity;
 import com.unionsg.xaccounting.entity.settings.BankAccount;
 import com.unionsg.xaccounting.entity.supplier.Supplier;
+import com.unionsg.xaccounting.entity.supplier.WithholdingTax;
 import com.unionsg.xaccounting.enums.SupplierPaymentStatus;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.payment.SupplierPaymentRepository;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -60,6 +62,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
         SupplierPaymentEntity payment = SupplierPaymentMapper.toEntity(request, supplier, bankAccount);
         payment.setStatus(SupplierPaymentStatus.PAID);
         payment.setPaymentNumber(numberGenerator.generatePaymentNumber());
+        payment.setWithholdingTaxAmount(calculateWithholdingTax(supplier, request.getAmountPaid()));
 
         SupplierPaymentEntity saved = supplierPaymentRepository.save(payment);
 
@@ -87,6 +90,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
 
         SupplierPaymentEntity payment = SupplierPaymentMapper.toEntity(request, supplier, bankAccount);
         payment.setPaymentNumber(numberGenerator.generatePaymentNumber());
+        payment.setWithholdingTaxAmount(calculateWithholdingTax(supplier, request.getAmountPaid()));
 
         SupplierPaymentEntity saved = supplierPaymentRepository.save(payment);
 
@@ -124,6 +128,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
         payment.setAmountPaid(request.getAmountPaid());
         payment.setAllocatedAmount(BigDecimal.ZERO);
         payment.setUnallocatedAmount(request.getAmountPaid());
+        payment.setWithholdingTaxAmount(calculateWithholdingTax(supplier, request.getAmountPaid()));
         payment.setReferenceNumber(request.getReferenceNumber());
         payment.setMemo(request.getMemo());
         payment.setFullyAllocated(false);
@@ -225,6 +230,22 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
     private SupplierPaymentEntity loadPayment(Long id) {
         return supplierPaymentRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Payment not found with ID: " + id));
+    }
+
+    /**
+     * Computes the amount to withhold from a supplier payment per the supplier's own
+     * withholding-tax profile ({@code Supplier.taxInfo}), which until now was captured at
+     * supplier setup but never actually applied anywhere. Returns zero for a supplier with no
+     * tax profile, withholding turned off, or a non-positive rate.
+     */
+    private BigDecimal calculateWithholdingTax(Supplier supplier, BigDecimal amountPaid) {
+        WithholdingTax taxInfo = supplier.getTaxInfo();
+        if (taxInfo == null || !Boolean.TRUE.equals(taxInfo.getWithholding()) || taxInfo.getRate() <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return amountPaid
+                .multiply(BigDecimal.valueOf(taxInfo.getRate()))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 
     private Specification<SupplierPaymentEntity> buildSearchSpecification(SupplierPaymentFilterRequest filter) {

@@ -46,6 +46,8 @@ public class SupplierPaymentDetailsResponse {
 
     private BigDecimal unallocatedAmount;
 
+    private BigDecimal withholdingTaxAmount;
+
     private String referenceNumber;
 
     private String memo;

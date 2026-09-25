@@ -74,6 +74,17 @@ public class SupplierPaymentEntity extends BaseEntity {
     @Builder.Default
     private BigDecimal unallocatedAmount = BigDecimal.ZERO;
 
+    /**
+     * Tax withheld from this payment on the supplier's behalf (Supplier.taxInfo's rate),
+     * remitted to the tax authority instead of the supplier - the cash actually disbursed
+     * is {@code amountPaid} minus this amount, while {@code amountPaid} itself still clears
+     * the full allocated/unallocated bill balance.
+     */
+    @Column(name = "withholding_tax_amount", precision = 19, scale = 2, nullable = false,
+            columnDefinition = "numeric(19,2) default 0")
+    @Builder.Default
+    private BigDecimal withholdingTaxAmount = BigDecimal.ZERO;
+
     @Column(name = "reference_number", length = 100)
     private String referenceNumber;
 

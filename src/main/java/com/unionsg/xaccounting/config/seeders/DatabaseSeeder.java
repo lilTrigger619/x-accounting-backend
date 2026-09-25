@@ -392,7 +392,9 @@ public class DatabaseSeeder implements ApplicationRunner {
                 "2130", // Statutory Contributions Payable - Employer
                 "2140", // Employee Reimbursements Payable
                 "1750", // Employee Loans Receivable
-                "1760"  // Salary Advances Receivable
+                "1760", // Salary Advances Receivable
+                "1770", // Purchase Tax Receivable
+                "2150"  // Withholding Tax Payable
         ).forEach(code -> accountRepository.findByAccountId(code).ifPresent(account -> {
             if (!Boolean.TRUE.equals(account.getIsControlAccount())) {
                 account.setIsControlAccount(true);
@@ -453,6 +455,8 @@ public class DatabaseSeeder implements ApplicationRunner {
         }
 
         seedPayrollControlAccountsIfMissing(assetChart, liabilityChart, expenseChart);
+        addAccountIfMissing("1770", "Purchase Tax Receivable", assetChart, 60L);
+        addAccountIfMissing("2150", "Withholding Tax Payable", liabilityChart, 61L);
     }
 
     /**

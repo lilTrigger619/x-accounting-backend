@@ -1151,3 +1151,73 @@ already proven correct end-to-end in the Phase 1 entry above, called from a site
 identical to the already-working call in `InvoiceService.sendInvoice()` (same fetch-by-id,
 same transactional context), so no new lazy-loading or wiring risk exists beyond what compiling
 and this negative-path test already cover.
+
+**Phase 2: Numbering expansion, bill purchase tax, and supplier-payment withholding tax.** Three
+independently-scoped fixes, each following the same "survey real code before building" discipline
+as Phase 1.
+
+*Numbering & Sequences expansion.* `DocumentNumberService.listConfigs()` still only exposed seven
+of thirteen live modules, leaving the six `DOCUMENT_TEMPLATE_*` prefixes (Invoice/Quote/Purchase
+Order/Credit Note/Delivery Note/Receipt templates) invisible in Settings even though
+`DocumentTemplateServiceImpl.createTemplate()` generates every new template's code through exactly
+this service. Added default prefixes (`TMPL-INV`, `TMPL-QTE`, `TMPL-PO`, `TMPL-CN`, `TMPL-DN`,
+`TMPL-RCT`) and expanded `listConfigs()`'s module list to all six, plus the matching frontend
+`MODULE_LABELS` entries on `NumberingSettingsPage`. Deliberately still excludes `CREDIT_NOTE`,
+`QUOTE`, `PURCHASE_ORDER` and bare `ACCOUNT` - no call site anywhere generates a number for any of
+them, since no Credit Note/Quote/Purchase Order transactional feature exists yet. While wiring this
+up, found the exact same company/branch scope bug Phase 1 already fixed once for
+`DocumentNumberGeneratorService`: `DocumentTemplateConfigSeeder` seeded its six rows at
+`companyId=1L/branchId=1L`, but `DocumentNumberService` reads and writes everything at the global
+`0L/0L` scope, so `DocumentTemplateServiceImpl` never found the seeded rows and silently self-healed
+a fresh, generically-prefixed config every time instead. Fixed by changing the seeder's constants to
+`0L/0L`. Verified live: created a new invoice template through the real endpoint and confirmed its
+`template_code` in Postgres came out as `TMPL-INV-2026-00001`, not a bare numeric fallback.
+
+*Bill/purchase tax modeling.* Investigation reversed the original assumption here - `Bill`/`BillItem`
+already had `taxRate`/`lineTax`/`totalTax` fields, `BillCalculationService` already computed them
+correctly, and the Bill create/edit/view screens already captured and displayed them end to end. The
+actual gap was one level deeper: `APJournalService.postBillJournal` posted the bill's entire
+`totalAmount` - net expense *and* tax together - to `BILL_DEFAULT_EXPENSE` as one line, so purchase
+tax was silently misclassified as an expense in the GL instead of tracked as recoverable input VAT.
+Added `MappingKey.BILL_PURCHASE_TAX_RECEIVABLE` (asset, default account `1770`, seeded as
+"Purchase Tax Receivable" and flagged a control account like the other centrally-mapped accounts),
+and split the journal into three lines: Dr `BILL_DEFAULT_EXPENSE` for `subtotal - discountAmount`,
+Dr `BILL_PURCHASE_TAX_RECEIVABLE` for `totalTax` (only when positive), Cr `BILL_ACCOUNTS_PAYABLE`
+for the unchanged `totalAmount` - the same debit/credit-split pattern `InvoiceJournalService`
+already uses for sales tax, applied to the payable side. No entity, calculation, or frontend changes
+were needed since none of that layer was actually broken. Verified live: a two-unit, 10%-tax bill
+(subtotal 200, tax 20, total 220) posts exactly Dr Operating Expenses 200 / Dr Purchase Tax
+Receivable 20 / Cr Accounts Payable 220.
+
+*Withholding tax on supplier payments.* `Supplier.taxInfo` (the `WithholdingTax` entity - rate and
+an on/off flag) was captured at supplier setup but never read anywhere else in the codebase, and
+`SupplierResponseDTO` didn't even expose it to the frontend. Added `taxInfo` to
+`SupplierResponseDTO`/`SupplierMapper.toResponse()` so the frontend can see a supplier's withholding
+profile at all, added `withholdingTaxAmount` to `SupplierPaymentEntity` (computed in
+`SupplierPaymentServiceImpl.calculateWithholdingTax()` as `amountPaid * rate / 100` whenever the
+selected supplier has withholding enabled, applied consistently across `createPayment`,
+`saveDraft`, and `updateDraft`), and added `MappingKey.TAX_WITHHOLDING_PAYABLE` (liability, default
+account `2150`, seeded as "Withholding Tax Payable", also a control account). Reworked
+`APJournalService.postSupplierPaymentJournal` so the bank/cash credit line carries only the net cash
+actually disbursed (`amountPaid - withholdingTaxAmount`), with the withheld portion credited
+separately to `TAX_WITHHOLDING_PAYABLE` - the debit side (Accounts Payable/Supplier Advances) is
+untouched, since the full `amountPaid` still clears the bill regardless of how much of it reached
+the supplier's bank account versus the tax authority. `RecordSupplierPaymentPage` now shows a live
+withholding preview (rate, withheld amount, net paid to supplier) the moment a supplier with
+withholding enabled is selected, and both `SupplierPaymentDetailsPage` and the details/list DTOs
+surface the same breakdown after the fact. Verified live: enabled 5% withholding on a test supplier,
+recorded a 220 payment, and confirmed the posted journal split exactly as Dr Supplier Advances 220 /
+Cr Checking Account 209 / Cr Withholding Tax Payable 11.
+
+Both new `MappingKey` values hit the same `accounting_mappings.mapping_key` CHECK-constraint bug
+already fixed twice before (`002`, `004`) for the identical reason: Hibernate's `ddl-auto=update`
+writes that constraint once at table-creation time and never widens it when the Java enum gains new
+values. `005_widen_accounting_mappings_key_check_phase2.sql` fixes it the same way `004` did, and
+was required before the live bill/withholding verification above could even run - resolving either
+new mapping key failed with the CHECK-constraint violation until this migration was applied.
+
+Backend compiles clean; frontend `tsc --noEmit` and `vite build` are both clean. Browser QA against
+the real dev server confirmed: the Numbering & Sequences settings page lists all six document
+template rows; the Bill view page shows the correct subtotal/tax/total after posting; the Record
+Supplier Payment page renders the live withholding preview and the payment details page renders the
+withholding/net-paid breakdown, both against real data returned from the endpoints above.

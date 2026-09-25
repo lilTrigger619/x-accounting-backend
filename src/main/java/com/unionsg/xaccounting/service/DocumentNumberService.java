@@ -232,6 +232,12 @@ public class DocumentNumberService {
             case "BILL" -> "BILL";
             case "SUPPLIER_PAYMENT" -> "SPMT";
             case "PAYMENT" -> "RCP";
+            case "DOCUMENT_TEMPLATE_INVOICE" -> "TMPL-INV";
+            case "DOCUMENT_TEMPLATE_QUOTE" -> "TMPL-QTE";
+            case "DOCUMENT_TEMPLATE_PURCHASE_ORDER" -> "TMPL-PO";
+            case "DOCUMENT_TEMPLATE_CREDIT_NOTE" -> "TMPL-CN";
+            case "DOCUMENT_TEMPLATE_DELIVERY_NOTE" -> "TMPL-DN";
+            case "DOCUMENT_TEMPLATE_RECEIPT" -> "TMPL-RCT";
             default -> moduleName.substring(0, Math.min(moduleName.length(), 3));
         };
     }
@@ -241,6 +247,13 @@ public class DocumentNumberService {
      * document numbers today (Settings & Setup §14) - the read model for the Numbering &
      * Sequences settings screen. Self-healing like {@link #getConfig}: a module with no
      * config row yet gets sensible defaults rather than a 404.
+     *
+     * <p>Deliberately excludes {@code CREDIT_NOTE}, {@code QUOTE}, {@code PURCHASE_ORDER} and
+     * bare {@code ACCOUNT} - nothing in the app calls {@code generateNextNumber} for any of
+     * them today (no Credit Note/Quote/Purchase Order transactional feature exists yet), so
+     * listing them here would just be a dead settings row for a feature that doesn't exist.
+     * The {@code DOCUMENT_TEMPLATE_*} modules are real: {@code DocumentTemplateServiceImpl}
+     * generates every new template's code through exactly this service.</p>
      */
     @Transactional
     public java.util.List<DocumentNumberConfigDto> listConfigs() {
@@ -251,7 +264,13 @@ public class DocumentNumberService {
                 DocumentModule.PAYROLL_RUN,
                 DocumentModule.BILL,
                 DocumentModule.SUPPLIER_PAYMENT,
-                DocumentModule.PAYMENT
+                DocumentModule.PAYMENT,
+                DocumentModule.DOCUMENT_TEMPLATE_INVOICE,
+                DocumentModule.DOCUMENT_TEMPLATE_QUOTE,
+                DocumentModule.DOCUMENT_TEMPLATE_PURCHASE_ORDER,
+                DocumentModule.DOCUMENT_TEMPLATE_CREDIT_NOTE,
+                DocumentModule.DOCUMENT_TEMPLATE_DELIVERY_NOTE,
+                DocumentModule.DOCUMENT_TEMPLATE_RECEIPT
         ).stream().map(this::getConfig).toList();
     }
 

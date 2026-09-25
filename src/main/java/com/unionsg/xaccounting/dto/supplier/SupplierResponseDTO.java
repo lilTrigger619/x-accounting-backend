@@ -11,4 +11,5 @@ public class SupplierResponseDTO {
     private String displayName;
     private String status;
     private String email;
+    private SupplierTaxInfoDTO taxInfo;
 }

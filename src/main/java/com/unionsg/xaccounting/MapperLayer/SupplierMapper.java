@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.MapperLayer;
 
 import com.unionsg.xaccounting.dto.supplier.CreateSupplierRequestDTO;
 import com.unionsg.xaccounting.dto.supplier.SupplierResponseDTO;
+import com.unionsg.xaccounting.dto.supplier.SupplierTaxInfoDTO;
 import com.unionsg.xaccounting.entity.customer.Address;
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 //import com.unionsg.xaccounting.entity.customer.TaxInfo;
@@ -62,6 +63,14 @@ public class SupplierMapper {
     }
 
     public static SupplierResponseDTO toResponse(Supplier supplier) {
+        SupplierTaxInfoDTO taxInfoDto = null;
+        if (supplier.getTaxInfo() != null) {
+            taxInfoDto = new SupplierTaxInfoDTO();
+            taxInfoDto.setTaxId(supplier.getTaxInfo().getTaxId());
+            taxInfoDto.setWithholding(supplier.getTaxInfo().getWithholding());
+            taxInfoDto.setRate(supplier.getTaxInfo().getRate());
+        }
+
         return SupplierResponseDTO.builder()
                 .id(supplier.getId())
                 .supplierCode(supplier.getSupplierCode())
@@ -69,6 +78,7 @@ public class SupplierMapper {
                 .supplierType(supplier.getSupplierType().name())
                 .status(supplier.getStatus().name())
                 .email(supplier.getEmail())
+                .taxInfo(taxInfoDto)
                 .build();
     }
 }

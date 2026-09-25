@@ -46,7 +46,7 @@ public class APJournalService {
     private final AccountingMappingService accountingMappingService;
 
     // ========================================================================
-    // BILL RECORDED  (Dr Expense, Cr Accounts Payable)
+    // BILL RECORDED  (Dr Expense, Dr Purchase Tax Receivable, Cr Accounts Payable)
     // ========================================================================
 
     @Transactional
@@ -56,14 +56,29 @@ public class APJournalService {
         Long expenseAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_DEFAULT_EXPENSE);
         Long apAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_ACCOUNTS_PAYABLE);
 
+        BigDecimal subtotal = bill.getSubtotal() != null ? bill.getSubtotal() : BigDecimal.ZERO;
+        BigDecimal discountAmount = bill.getDiscountAmount() != null ? bill.getDiscountAmount() : BigDecimal.ZERO;
+        BigDecimal purchaseTax = bill.getTotalTax() != null ? bill.getTotalTax() : BigDecimal.ZERO;
+        BigDecimal netExpense = subtotal.subtract(discountAmount);
+
         List<CreateJournalLineRequest> lines = new ArrayList<>();
 
         lines.add(CreateJournalLineRequest.builder()
                 .accountId(expenseAccountIdResolved)
                 .description("Bill recorded: " + bill.getBillNumber())
-                .debitAmount(bill.getTotalAmount())
+                .debitAmount(netExpense)
                 .creditAmount(BigDecimal.ZERO)
                 .build());
+
+        if (purchaseTax.compareTo(BigDecimal.ZERO) > 0) {
+            Long purchaseTaxAccountIdResolved = resolveMappedAccountId(MappingKey.BILL_PURCHASE_TAX_RECEIVABLE);
+            lines.add(CreateJournalLineRequest.builder()
+                    .accountId(purchaseTaxAccountIdResolved)
+                    .description("Purchase tax on bill " + bill.getBillNumber())
+                    .debitAmount(purchaseTax)
+                    .creditAmount(BigDecimal.ZERO)
+                    .build());
+        }
 
         lines.add(CreateJournalLineRequest.builder()
                 .accountId(apAccountIdResolved)
@@ -103,7 +118,8 @@ public class APJournalService {
     }
 
     // ========================================================================
-    // SUPPLIER PAYMENT MADE  (Dr Accounts Payable / Dr Supplier Advances, Cr Bank)
+    // SUPPLIER PAYMENT MADE  (Dr Accounts Payable / Dr Supplier Advances,
+    //                         Cr Bank (net), Cr Withholding Tax Payable)
     // ========================================================================
 
     @Transactional
@@ -134,12 +150,26 @@ public class APJournalService {
                     .build());
         }
 
+        BigDecimal withholdingTax = payment.getWithholdingTaxAmount() != null
+                ? payment.getWithholdingTaxAmount() : BigDecimal.ZERO;
+        BigDecimal netCashPaid = payment.getAmountPaid().subtract(withholdingTax);
+
         lines.add(CreateJournalLineRequest.builder()
                 .accountId(bankAccountIdResolved)
                 .description("Payment made: " + payment.getPaymentNumber())
                 .debitAmount(BigDecimal.ZERO)
-                .creditAmount(payment.getAmountPaid())
+                .creditAmount(netCashPaid)
                 .build());
+
+        if (withholdingTax.compareTo(BigDecimal.ZERO) > 0) {
+            Long withholdingPayableAccountIdResolved = resolveMappedAccountId(MappingKey.TAX_WITHHOLDING_PAYABLE);
+            lines.add(CreateJournalLineRequest.builder()
+                    .accountId(withholdingPayableAccountIdResolved)
+                    .description("Tax withheld from " + payment.getPaymentNumber())
+                    .debitAmount(BigDecimal.ZERO)
+                    .creditAmount(withholdingTax)
+                    .build());
+        }
 
         String description = "Payment " + payment.getPaymentNumber() + " made to "
                 + (payment.getSupplier() != null ? payment.getSupplier().getDisplayName() : "Unknown")

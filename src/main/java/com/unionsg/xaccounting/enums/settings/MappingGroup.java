@@ -4,5 +4,7 @@ public enum MappingGroup {
     SALES,
     PURCHASES,
     PAYROLL,
-    CLOSING
+    CLOSING,
+    PREPAYMENTS,
+    LOANS
 }

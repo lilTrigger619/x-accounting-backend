@@ -1221,3 +1221,109 @@ the real dev server confirmed: the Numbering & Sequences settings page lists all
 template rows; the Bill view page shows the correct subtotal/tax/total after posting; the Record
 Supplier Payment page renders the live withholding preview and the payment details page renders the
 withholding/net-paid breakdown, both against real data returned from the endpoints above.
+
+**Phase 3: Prepayments and Loans.** Two new subsidiary-ledger subsystems, each following the same
+master-record → schedule → lifecycle-actions → GL-posting shape already established by Bill/
+SupplierPayment, added in packages of their own (`entity.prepayment`/`enums.prepayment` and
+`entity.loan`/`enums.loan`) rather than the flat `enums`/`entity` root, specifically to avoid
+colliding with the existing Payroll `EmployeeLoan` feature and its `enums.LoanStatus` - that feature
+(salary-deduction employee loans disbursed and repaid entirely through payroll runs) is untouched
+and remains the right tool for that specific case; this is a deliberately separate, more general
+subsystem covering the full Loans spec (§12-22): loans the organization borrows from a bank,
+financial institution, shareholder or director, and loans it lends to an employee, customer,
+supplier or other party, each with their own amortization schedule and direction-aware GL posting.
+
+*Prepayments* (spec §7-11) covers the prepaid-expense lifecycle only - a lump sum paid out for
+goods/services not yet received, recognized into expense over a configurable schedule (worked
+example: 12,000 prepaid insurance recognized at 1,000/month). Deliberately does not cover money
+received in advance from customers (unearned revenue/deposits) - that liability-side case is
+already the existing `Payment.unallocatedAmount`/Customer Deposits flow from Phase 1, and building
+a second model for the same liability would just create two competing sources of truth; the spec's
+own upcoming Deposits/Down Payments sections are the more natural home for anything further there.
+`PrepaymentType` is configurable master data (seeded with Prepaid Insurance/Rent/Software
+Subscription/Maintenance Contract/Professional Fees, mirroring `TaxCategory`'s pattern) rather than
+a hardcoded enum. `Prepayment.generateSchedule()` splits the total evenly across
+`numberOfPeriods` at `recognitionFrequency` steps, with the last period absorbing the rounding
+remainder (the same convention `InvoiceJournalService.splitRevenueByAccount` already uses).
+`PrepaymentJournalService` posts three journal shapes: activation (Dr Prepaid Asset, Cr Bank -
+`PREPAYMENT_DEFAULT_ASSET`/`PREPAYMENT_BANK_ACCOUNT`, or the record's own account overrides),
+per-period recognition (Dr Expense, Cr Prepaid Asset - `PREPAYMENT_DEFAULT_EXPENSE`), and write-off
+of the remaining balance in one shot. A prepayment with any period already recognized cannot be
+reversed, only written off, since a true reversal would need to unwind each individual recognition
+journal - this and full support for the spec's richer adjustment types (schedule changes, partial-
+amount recognition, early termination with refund, corrections, extension) are deliberately out of
+scope this pass and noted in the code, not silently dropped.
+
+*Loans* (spec §12-22) models both directions of a `Loan` on one entity via `LoanDirection`
+(`BORROWED`/`LENT`), since the spec is explicit that "the accounting direction depends on whether
+the organization is the borrower or lender" (§15) - every journal-posting method in
+`LoanJournalService` branches on it, so a borrowed loan only ever touches `LOAN_PAYABLE`/
+`LOAN_INTEREST_EXPENSE`/`LOAN_INTEREST_PAYABLE` and a lent loan only ever touches `LOAN_RECEIVABLE`/
+`LOAN_INTEREST_INCOME`/`LOAN_INTEREST_RECEIVABLE` - the two can never cross-contaminate each other's
+accounts. `LoanType` is configurable master data seeded with the spec's own example list (Bank/
+Term/Working Capital/Shareholder/Director/Short-Term/Long-Term/Revolving Facility as BORROWED
+defaults; Employee/Customer/Supplier Loan as LENT defaults) - `defaultDirection` is only a UI hint,
+the `Loan` record itself always carries its own explicit direction. `LoanService.generateSchedule()`
+supports four repayment methods with real amortization math: EQUAL_INSTALLMENT (the standard
+`P × r / (1 - (1+r)^-n)` formula, verified live to close exactly to a zero balance on the final
+installment), EQUAL_PRINCIPAL (fixed principal per period, declining interest), INTEREST_ONLY (full
+principal due only at maturity), and CUSTOM_SCHEDULE (generated the same way as EQUAL_INSTALLMENT
+for now, since true manual per-line editing isn't built yet - documented, not silently dropped).
+BALLOON_PAYMENT is deliberately treated identically to INTEREST_ONLY rather than modeled as its own
+formula, another documented simplification. The lifecycle is Draft → Approve → Disburse (posts the
+direction-specific disbursement journal) → repayments recorded against it (splitting principal/
+interest/fees exactly as the spec requires, "never treat the entire repayment as interest or
+expense") → Settle-in-full or Write-off. Write-off is restricted to LENT loans only - forgiving a
+debt the organization itself owes (a BORROWED loan) is a distinct, formal debt-restructuring event
+with its own gain recognition that's out of scope this pass, and the service rejects it with a
+clear message rather than silently posting something wrong. `accrueInterest()` implements the
+spec's §20 accrual pattern (Dr Interest Expense/Cr Interest Payable for borrowed, Dr Interest
+Receivable/Cr Interest Income for lent) as a standalone action, available but not automatically
+scheduled. Deliberately out of scope this pass: formal restructuring/refinancing accounting,
+automatic overdue-status detection (no scheduler exists in this codebase for anything comparable),
+and variable-rate periodic repricing (the field exists on the record but nothing auto-adjusts it).
+
+Both modules needed the exact same three integration fixes every prior module has needed: a new
+`DocumentModule` entry each (`PREPAYMENT`→`PPY-`, `LOAN`→`LN-`) wired into `DocumentNumberService`;
+new `MappingKey` entries (`PREPAYMENT_DEFAULT_ASSET`/`_DEFAULT_EXPENSE`/`_BANK_ACCOUNT` and
+`LOAN_RECEIVABLE`/`_PAYABLE`/`_INTEREST_INCOME`/`_INTEREST_EXPENSE`/`_INTEREST_RECEIVABLE`/
+`_INTEREST_PAYABLE`/`_FEE_EXPENSE`/`_BANK_ACCOUNT`, under two new `MappingGroup` values,
+`PREPAYMENTS` and `LOANS`); and eight new Chart of Accounts entries seeded and flagged as control
+accounts (`1795` Prepaid Expenses, `1780` Loans Receivable, `1790` Interest Receivable, `2160` Loans
+Payable, `2170` Interest Payable, `4040` Interest Income, `5080` Interest Expense, `5090` Loan Fees
+Expense). `JournalType` also gained its own `PREPAYMENT` and `LOAN` values, mirroring how
+PURCHASE/SALES/PAYROLL each already have one, rather than reusing `GENERAL` for two large new
+posting engines.
+
+Two of the by-now-familiar Postgres CHECK-constraint bugs (`ddl-auto=update` writes the constraint
+once at table-creation time and never widens it for new enum values) hit immediately during live
+verification and were fixed the same way `002`/`004`/`005` were: `006_widen_journal_type_check_
+phase3.sql` for `journal_entries.journal_type` (new `PREPAYMENT`/`LOAN` `JournalType` values), and
+`007_widen_accounting_mappings_key_check_phase3.sql` for `accounting_mappings.mapping_key` (the
+eleven new Phase 3 `MappingKey` values). Both were required before a single Prepayment/Loan journal
+could post.
+
+Live verification also caught one genuine bug direct from this session's own code, not a pre-
+existing one: `LoanService.recordRepayment()` called `LoanJournalService.postRepaymentJournal()` -
+which builds the journal's reference as `loanNumber + "-R" + repayment.getId()` - before the
+repayment had been saved, so its ID was still `null` and the first repayment on every loan posted
+under a literal `"-Rnull"` reference. Fixed by saving the repayment (to obtain its real ID) before
+posting the journal, confirmed live: the first repayment recorded before the fix still shows
+`LN-00001-Rnull` (left as historical data, matching this project's no-hard-deletes convention), and
+the second repayment correctly shows `LN-00001-R2`.
+
+Verified end-to-end against live Postgres: a 12,000 prepayment over 12 months activates to
+Dr Prepaid Expenses 12,000/Cr Checking Account 12,000, and its first recognition posts Dr Operating
+Expenses 1,000/Cr Prepaid Expenses 1,000. A 100,000 BORROWED bank loan at 12%/year over 12 monthly
+installments disburses to Dr Checking Account/Cr Loans Payable 100,000, its amortization schedule's
+principal column sums to exactly 100,000 and closes to a 0.00 balance on installment 12, and two
+recorded repayments post Dr Loans Payable + Dr Interest Expense/Cr Checking Account with amounts
+matching the schedule; settling the remainder in full brings it to FULLY_SETTLED with zero
+outstanding principal/interest. A 5,000 LENT employee loan at 0% disburses to the exact mirror image
+(Dr Loans Receivable/Cr Checking Account), a repayment posts Dr Checking Account/Cr Loans
+Receivable, and writing off its remaining 4,000 balance posts Dr Loan Fees Expense/Cr Loans
+Receivable while a write-off attempt on the BORROWED loan is correctly rejected. Every journal's
+debits equal its credits. Backend `compileJava` and frontend `tsc --noEmit`/`vite build` are all
+clean. Browser QA against the real dev server confirmed the Prepayments and Loans list/view/create
+pages all render correctly against this live data, including the recognition schedule table, the
+loan amortization and repayment-history tables, and the sidebar's new Accounting-section entries.

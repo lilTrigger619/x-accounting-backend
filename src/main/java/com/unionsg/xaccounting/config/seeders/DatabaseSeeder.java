@@ -8,11 +8,16 @@ import com.unionsg.xaccounting.entity.User.User;
 import com.unionsg.xaccounting.entity.ChartOfAccountClearTo_ENTITY;
 import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.TaxCategory;
+import com.unionsg.xaccounting.entity.loan.LoanType;
+import com.unionsg.xaccounting.entity.prepayment.PrepaymentType;
 import com.unionsg.xaccounting.enums.AccountType;
 import com.unionsg.xaccounting.enums.NormalBalance;
 import com.unionsg.xaccounting.enums.TaxCategoryType;
 import com.unionsg.xaccounting.enums.UserStatus;
+import com.unionsg.xaccounting.enums.loan.LoanDirection;
 import com.unionsg.xaccounting.repository.*;
+import com.unionsg.xaccounting.repository.loan.LoanTypeRepository;
+import com.unionsg.xaccounting.repository.prepayment.PrepaymentTypeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -46,6 +51,8 @@ public class DatabaseSeeder implements ApplicationRunner {
 
     private final AccountRepository accountRepository;
     private final TaxCategoryRepository taxCategoryRepository;
+    private final PrepaymentTypeRepository prepaymentTypeRepository;
+    private final LoanTypeRepository loanTypeRepository;
     private List<ChartOfAccountClearTo_ENTITY> assetsClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> liabilityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> equityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
@@ -370,6 +377,54 @@ public class DatabaseSeeder implements ApplicationRunner {
         seedAdditionalControlAccountsIfMissing();
         seedPayrollDocumentConfigsIfMissing();
         seedControlAccountFlagsIfMissing();
+        seedPrepaymentTypesIfMissing();
+        seedLoanTypesIfMissing();
+    }
+
+    /** Default {@link LoanType} rows (Loans spec §14's example list). */
+    private void seedLoanTypesIfMissing() {
+        if (loanTypeRepository.count() > 0) {
+            return;
+        }
+        List<Object[]> defaults = List.of(
+                new Object[]{"Bank Loan", LoanDirection.BORROWED},
+                new Object[]{"Term Loan", LoanDirection.BORROWED},
+                new Object[]{"Working Capital Loan", LoanDirection.BORROWED},
+                new Object[]{"Shareholder Loan", LoanDirection.BORROWED},
+                new Object[]{"Director Loan", LoanDirection.BORROWED},
+                new Object[]{"Short-Term Loan", LoanDirection.BORROWED},
+                new Object[]{"Long-Term Loan", LoanDirection.BORROWED},
+                new Object[]{"Revolving Facility", LoanDirection.BORROWED},
+                new Object[]{"Employee Loan", LoanDirection.LENT},
+                new Object[]{"Customer Loan", LoanDirection.LENT},
+                new Object[]{"Supplier Loan", LoanDirection.LENT}
+        );
+        defaults.forEach(entry -> {
+            LoanType type = new LoanType();
+            type.setName((String) entry[0]);
+            type.setDefaultDirection((LoanDirection) entry[1]);
+            type.setActive(true);
+            loanTypeRepository.save(type);
+        });
+    }
+
+    /** Default {@link PrepaymentType} rows (Prepayments spec §5's worked examples). */
+    private void seedPrepaymentTypesIfMissing() {
+        if (prepaymentTypeRepository.count() > 0) {
+            return;
+        }
+        List.of(
+                "Prepaid Insurance",
+                "Prepaid Rent",
+                "Software Subscription",
+                "Prepaid Maintenance Contract",
+                "Prepaid Professional Fees"
+        ).forEach(name -> {
+            PrepaymentType type = new PrepaymentType();
+            type.setName(name);
+            type.setActive(true);
+            prepaymentTypeRepository.save(type);
+        });
     }
 
     /**
@@ -394,7 +449,12 @@ public class DatabaseSeeder implements ApplicationRunner {
                 "1750", // Employee Loans Receivable
                 "1760", // Salary Advances Receivable
                 "1770", // Purchase Tax Receivable
-                "2150"  // Withholding Tax Payable
+                "2150", // Withholding Tax Payable
+                "1795", // Prepaid Expenses
+                "1780", // Loans Receivable
+                "1790", // Interest Receivable
+                "2160", // Loans Payable
+                "2170"  // Interest Payable
         ).forEach(code -> accountRepository.findByAccountId(code).ifPresent(account -> {
             if (!Boolean.TRUE.equals(account.getIsControlAccount())) {
                 account.setIsControlAccount(true);
@@ -415,9 +475,10 @@ public class DatabaseSeeder implements ApplicationRunner {
     private void seedAdditionalControlAccountsIfMissing() {
         ChartOfAccount assetChart = chartOfAccountRepo.findByCoaCode(1L).orElse(null);
         ChartOfAccount liabilityChart = chartOfAccountRepo.findByCoaCode(2L).orElse(null);
+        ChartOfAccount revenueChart = chartOfAccountRepo.findByCoaCode(4L).orElse(null);
         ChartOfAccount expenseChart = chartOfAccountRepo.findByCoaCode(5L).orElse(null);
-        if (assetChart == null || liabilityChart == null || expenseChart == null) {
-            log.warn("Asset/Liability/Expense chart-of-account groupings not found; skipping control account seeding");
+        if (assetChart == null || liabilityChart == null || revenueChart == null || expenseChart == null) {
+            log.warn("Asset/Liability/Income/Expense chart-of-account groupings not found; skipping control account seeding");
             return;
         }
 
@@ -457,6 +518,27 @@ public class DatabaseSeeder implements ApplicationRunner {
         seedPayrollControlAccountsIfMissing(assetChart, liabilityChart, expenseChart);
         addAccountIfMissing("1770", "Purchase Tax Receivable", assetChart, 60L);
         addAccountIfMissing("2150", "Withholding Tax Payable", liabilityChart, 61L);
+        seedPrepaymentAndLoanControlAccountsIfMissing(assetChart, liabilityChart, revenueChart, expenseChart);
+    }
+
+    /**
+     * Control accounts for Phase 3's Prepayments and Loans subsystems (Prepayments spec §7-11,
+     * Loans spec §12-22) - resolved through {@code MappingKey.PREPAYMENT_*}/{@code LOAN_*} the
+     * same self-healing way every other centrally-mapped account is, so these rows exist before
+     * either module's first posting ever needs them.
+     */
+    private void seedPrepaymentAndLoanControlAccountsIfMissing(
+            ChartOfAccount assetChart, ChartOfAccount liabilityChart,
+            ChartOfAccount revenueChart, ChartOfAccount expenseChart
+    ) {
+        addAccountIfMissing("1795", "Prepaid Expenses", assetChart, 62L);
+        addAccountIfMissing("1780", "Loans Receivable", assetChart, 63L);
+        addAccountIfMissing("1790", "Interest Receivable", assetChart, 64L);
+        addAccountIfMissing("2160", "Loans Payable", liabilityChart, 65L);
+        addAccountIfMissing("2170", "Interest Payable", liabilityChart, 66L);
+        addAccountIfMissing("4040", "Interest Income", revenueChart, 67L);
+        addAccountIfMissing("5080", "Interest Expense", expenseChart, 68L);
+        addAccountIfMissing("5090", "Loan Fees Expense", expenseChart, 69L);
     }
 
     /**

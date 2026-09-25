@@ -57,7 +57,31 @@ public enum MappingKey {
             "Bank account credited when payroll, loans, advances or reimbursements are paid out"),
 
     CLOSING_RETAINED_EARNINGS(MappingGroup.CLOSING, "3010",
-            "Equity account that absorbs net income/loss when a financial year is closed");
+            "Equity account that absorbs net income/loss when a financial year is closed"),
+
+    PREPAYMENT_DEFAULT_ASSET(MappingGroup.PREPAYMENTS, "1795",
+            "Fallback prepaid-asset account debited when a prepayment is paid and has no account override"),
+    PREPAYMENT_DEFAULT_EXPENSE(MappingGroup.PREPAYMENTS, "5000",
+            "Fallback expense account debited as each prepayment period is recognized, when the prepayment has no account override"),
+    PREPAYMENT_BANK_ACCOUNT(MappingGroup.PREPAYMENTS, "1010",
+            "Bank account credited when a prepayment is paid out, when the prepayment has no specific bank account chosen"),
+
+    LOAN_RECEIVABLE(MappingGroup.LOANS, "1780",
+            "Asset account debited when the organization disburses a loan it lends out (employee, customer, supplier or other)"),
+    LOAN_PAYABLE(MappingGroup.LOANS, "2160",
+            "Liability account credited when the organization receives a loan it borrowed (bank, shareholder, director or other lender)"),
+    LOAN_INTEREST_INCOME(MappingGroup.LOANS, "4040",
+            "Revenue account credited for interest earned on a loan the organization lent out"),
+    LOAN_INTEREST_EXPENSE(MappingGroup.LOANS, "5080",
+            "Expense account debited for interest owed on a loan the organization borrowed"),
+    LOAN_INTEREST_RECEIVABLE(MappingGroup.LOANS, "1790",
+            "Asset account debited for interest accrued but not yet received on a loan lent out"),
+    LOAN_INTEREST_PAYABLE(MappingGroup.LOANS, "2170",
+            "Liability account credited for interest accrued but not yet paid on a loan borrowed"),
+    LOAN_FEE_EXPENSE(MappingGroup.LOANS, "5090",
+            "Expense account debited for origination/processing/arrangement/penalty fees on a borrowed loan"),
+    LOAN_BANK_ACCOUNT(MappingGroup.LOANS, "1010",
+            "Bank account used for loan disbursement/repayment when no specific bank account is chosen");
 
     private final MappingGroup group;
     private final String defaultAccountCode;

@@ -17,5 +17,7 @@ public enum DocumentModule {
     EMPLOYEE,
     PAYROLL_RUN,
     BILL,
-    SUPPLIER_PAYMENT
+    SUPPLIER_PAYMENT,
+    PREPAYMENT,
+    LOAN
 }

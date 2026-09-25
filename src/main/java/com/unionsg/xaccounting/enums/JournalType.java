@@ -8,6 +8,8 @@ public enum JournalType {
     ADJUSTMENT,
     OPENING_BALANCE,
     CLOSING,
-    REVERSING
+    REVERSING,
+    PREPAYMENT,
+    LOAN
 
 }

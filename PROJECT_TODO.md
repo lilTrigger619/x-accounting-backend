@@ -1327,3 +1327,44 @@ debits equal its credits. Backend `compileJava` and frontend `tsc --noEmit`/`vit
 clean. Browser QA against the real dev server confirmed the Prepayments and Loans list/view/create
 pages all render correctly against this live data, including the recognition schedule table, the
 loan amortization and repayment-history tables, and the sidebar's new Accounting-section entries.
+
+> **Update — Quick Access (per-user pinned sidebar shortcuts):** the user asked for a schema so
+> each account can save its own set of sidebar menu items, persisted server-side (not
+> localStorage) so it follows the user across devices/sessions. Built as a genuinely new pattern
+> for this codebase - every other per-user preference (the theme toggle in System Preferences) is
+> client-side only, with no backend entity at all.
+
+Backend: `QuickAccessItem` (`entity/settings`) is a small `BaseEntity` subclass - `user` (the
+owning `User`, resolved server-side via `SecurityUtils.getCurrentUser()`, never accepted from the
+client), `label`, `path`, and `sortOrder`, with a `(user_id, path)` unique constraint so the same
+route can't be pinned twice by the same user. `QuickAccessService`/`QuickAccessController`
+(`/api/quick-access`) expose `list`/`add`/`remove`/`reorder`, all scoped to the current user with
+no `userId` in the URL - the same self-scoped-endpoint shape `/api/auth/me` already established,
+so there is no permission check to bypass and no way for one user to see or touch another's rows
+(confirmed live: a second seeded user's list came back empty while the admin's showed the items it
+had pinned). `user` is a separate field from `BaseEntity.createdBy` on purpose: `createdBy` is
+fixed at creation and meant for audit trails, whereas `user` is who the item is *for* - kept
+distinct so an admin-assigned default quick-access list remains possible later without conflating
+the two.
+
+Frontend: added `src/lib/menuCatalog.ts`, a flat `{section, label, path}` catalog of every
+destination already hardcoded into `Sidebar.tsx`'s ~60 `SubNavItem`/`NavItem` calls (kept in sync
+by hand - the sidebar itself has no such catalog to derive it from). A new
+`/settings/quick-access` page (`QuickAccessSettingsPage.tsx`) lists the catalog with search,
+add/remove buttons, and up/down reordering against the user's current pinned list. Rather than
+retrofitting a pin toggle onto all ~60 existing menu entries - a large, regression-risky edit to
+the app's most-trafficked navigation component for the same end result - `Sidebar.tsx` instead
+grew one new "Quick Access" section above the existing "Menu" label, fed by
+`QuickAccessRequests.list()` on mount: each pinned item renders as a small button (a filled star,
+the label, and an X that unpins on hover) that navigates like any other nav entry. A "Quick
+Access" entry was also added to the Settings submenu for discoverability, and the route wired into
+`App.tsx`.
+
+Live-verified end-to-end: `POST /api/quick-access` rejects a duplicate `path` for the same user
+with a clear message; `PUT /api/quick-access/reorder` persists a new `sortOrder` for every id
+supplied; `DELETE /api/quick-access/{id}` 404s (via the shared `BusinessException` handler) for an
+id that doesn't belong to the caller. Browser QA against the real dev server confirmed the full
+loop - pin an item from the catalog page, see it appear at the top of the sidebar immediately on
+next navigation, click it to navigate to the real route, and unpin it from the sidebar itself via
+its hover-revealed X - and confirmed a second logged-in user never sees the first user's pins.
+Backend `compileJava` and frontend `tsc --noEmit`/`vite build` are both clean.

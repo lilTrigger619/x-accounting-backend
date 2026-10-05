@@ -141,10 +141,7 @@ public class JournalController {
     ) {
 
         JournalResponse response =
-                journalService.reverse(
-                        id,
-                        request.getReason()
-                );
+                journalService.reverse(id, request);
 
         return ResponseEntity.ok(response);
     }

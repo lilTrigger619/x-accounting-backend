@@ -57,4 +57,10 @@ public class JournalResponse {
 
     private List<JournalLineResponse> lines;
 
+    /** Set on a reversing entry: the journal it reverses. */
+    private Long reversalOfJournalId;
+
+    /** Set on a reversed journal (single-journal reads only): the entry that reversed it. */
+    private JournalReversalResponse reversal;
+
 }

@@ -2,6 +2,7 @@ package com.unionsg.xaccounting.service.journal;
 
 import com.unionsg.xaccounting.dto.journal.CreateJournalRequest;
 import com.unionsg.xaccounting.dto.journal.JournalResponse;
+import com.unionsg.xaccounting.dto.journal.ReverseJournalRequest;
 import com.unionsg.xaccounting.dto.journal.UpdateJournalRequest;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
@@ -41,6 +42,10 @@ public interface JournalService {
 
     JournalResponse post(Long id);
 
+    /** Reverses a posted journal today with the default "REV-" reference. */
     JournalResponse reverse(Long id, String reason);
+
+    /** Reverses a posted journal on the request's date (today when omitted) and reference. */
+    JournalResponse reverse(Long id, ReverseJournalRequest request);
 
 }

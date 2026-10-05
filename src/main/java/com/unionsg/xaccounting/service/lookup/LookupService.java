@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Serves system-controlled values (statuses, types and calculation options backed by Java
@@ -34,7 +35,7 @@ import java.util.Map;
 @Service
 public class LookupService {
 
-    private record Entry(String title, Class<? extends Enum<?>> type) {}
+    private record Entry(String title, Class<? extends Enum<?>> type, Predicate<Enum<?>> include) {}
 
     private static final Map<String, Entry> REGISTRY = new LinkedHashMap<>();
 
@@ -71,6 +72,7 @@ public class LookupService {
         register("loan-payment-statuses", "Loan Payment Statuses", LoanPaymentStatus.class);
         register("loan-payment-types", "Loan Payment Types", LoanPaymentType.class);
         register("loan-statuses", "Loan Statuses", com.unionsg.xaccounting.enums.loan.LoanStatus.class);
+        register("manual-journal-types", "Journal Types", JournalType.class, t -> ((JournalType) t).isManualEntry());
         register("pay-component-calculation-methods", "Calculation Methods", PayComponentCalculationMethod.class);
         register("pay-component-categories", "Pay Component Categories", PayComponentCategory.class);
         register("pay-component-sides", "Pay Component Sides", PayComponentSide.class);
@@ -89,7 +91,12 @@ public class LookupService {
     }
 
     private static void register(String key, String title, Class<? extends Enum<?>> type) {
-        REGISTRY.put(key, new Entry(title, type));
+        register(key, title, type, c -> true);
+    }
+
+    /** Registers only the constants {@code include} accepts, e.g. the journal types a person may enter by hand. */
+    private static void register(String key, String title, Class<? extends Enum<?>> type, Predicate<Enum<?>> include) {
+        REGISTRY.put(key, new Entry(title, type, include));
     }
 
     public List<LookupDefinitionDto> getAll() {
@@ -102,6 +109,7 @@ public class LookupService {
             throw new ResourceNotFoundException("Unknown lookup: " + key);
         }
         List<LookupOptionDto> options = Arrays.stream(entry.type().getEnumConstants())
+                .filter(entry.include())
                 .map(c -> new LookupOptionDto(c.name(), labelOf(c)))
                 .toList();
         return new LookupDefinitionDto(key, entry.title(), options);

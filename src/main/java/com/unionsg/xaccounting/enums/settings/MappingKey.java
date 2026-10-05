@@ -92,7 +92,18 @@ public enum MappingKey {
     FX_GAIN(MappingGroup.BANKING, "4050",
             "Revenue account credited for a foreign exchange gain realised on a cross-currency bank transfer"),
     FX_LOSS(MappingGroup.BANKING, "5110",
-            "Expense account debited for a foreign exchange loss realised on a cross-currency bank transfer");
+            "Expense account debited for a foreign exchange loss realised on a cross-currency bank transfer"),
+
+    DEPOSIT_PAID_ASSET(MappingGroup.DEPOSITS, "1745",
+            "Asset account debited when the organization pays a deposit, when neither the deposit nor its type names an account"),
+    DEPOSIT_RECEIVED_LIABILITY(MappingGroup.DEPOSITS, "2085",
+            "Liability account credited when a deposit is received from a customer or third party, when neither the deposit nor its type names an account"),
+    DEPOSIT_FORFEIT_INCOME(MappingGroup.DEPOSITS, "4060",
+            "Income account credited when a deposit the organization received is forfeited to it"),
+    DEPOSIT_FORFEIT_EXPENSE(MappingGroup.DEPOSITS, "5095",
+            "Expense account debited when a deposit the organization paid is forfeited"),
+    DEPOSIT_BANK_ACCOUNT(MappingGroup.DEPOSITS, "1010",
+            "Bank account used to pay, receive or refund a deposit when no specific bank account is chosen");
 
     private final MappingGroup group;
     private final String defaultAccountCode;

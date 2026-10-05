@@ -21,5 +21,6 @@ public enum DocumentModule {
     PREPAYMENT,
     DOWNPAYMENT,
     LOAN,
-    BANK_TRANSFER
+    BANK_TRANSFER,
+    DEPOSIT
 }

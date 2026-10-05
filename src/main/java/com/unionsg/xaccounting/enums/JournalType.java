@@ -11,6 +11,7 @@ public enum JournalType {
     REVERSING,
     PREPAYMENT,
     LOAN,
-    BANK_TRANSFER
+    BANK_TRANSFER,
+    DEPOSIT
 
 }

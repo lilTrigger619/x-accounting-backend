@@ -241,6 +241,7 @@ public class DocumentNumberService {
             case "PREPAYMENT" -> "PPY";
             case "LOAN" -> "LN";
             case "BANK_TRANSFER" -> "BTR";
+            case "DEPOSIT" -> "DEP";
             default -> moduleName.substring(0, Math.min(moduleName.length(), 3));
         };
     }
@@ -276,7 +277,8 @@ public class DocumentNumberService {
                 DocumentModule.DOCUMENT_TEMPLATE_RECEIPT,
                 DocumentModule.PREPAYMENT,
                 DocumentModule.LOAN,
-                DocumentModule.BANK_TRANSFER
+                DocumentModule.BANK_TRANSFER,
+                DocumentModule.DEPOSIT
         ).stream().map(this::getConfig).toList();
     }
 

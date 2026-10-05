@@ -34,7 +34,8 @@ public class SettingsPermissionBackfillSeeder implements ApplicationRunner {
     private static final List<String> SETTINGS_PERMISSIONS = List.of(
             "view_settings", "manage_accounting_mappings", "manage_organization", "manage_bank_accounts",
             "manage_mail_configuration", "manage_loan_types", "manage_prepayment_types", "manage_tax_rates",
-            "view_bank_transfers", "manage_bank_transfers", "post_bank_transfers", "reverse_bank_transfers");
+            "view_bank_transfers", "manage_bank_transfers", "post_bank_transfers", "reverse_bank_transfers",
+            "manage_deposit_types", "view_deposits", "manage_deposits", "allocate_deposits", "reverse_deposits");
 
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;

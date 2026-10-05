@@ -7,5 +7,6 @@ public enum MappingGroup {
     CLOSING,
     PREPAYMENTS,
     LOANS,
-    BANKING
+    BANKING,
+    DEPOSITS
 }

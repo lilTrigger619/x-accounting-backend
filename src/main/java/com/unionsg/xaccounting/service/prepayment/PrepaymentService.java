@@ -24,6 +24,7 @@ import com.unionsg.xaccounting.repository.prepayment.PrepaymentRepository;
 import com.unionsg.xaccounting.repository.prepayment.PrepaymentTypeRepository;
 import com.unionsg.xaccounting.repository.settings.BankAccountRepository;
 import com.unionsg.xaccounting.service.DocumentNumberService;
+import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -60,6 +61,7 @@ public class PrepaymentService {
     private final AccountRepository accountRepository;
     private final DocumentNumberService documentNumberService;
     private final PrepaymentJournalService journalService;
+    private final ConfigValueValidator configValues;
 
     @Transactional
     public PrepaymentResponse create(CreatePrepaymentRequest request) {
@@ -68,6 +70,21 @@ public class PrepaymentService {
         }
         if (request.getNumberOfPeriods() == null || request.getNumberOfPeriods() <= 0) {
             throw new BusinessException("Number of periods must be positive");
+        }
+        if (request.getPrepaymentTypeId() == null) {
+            throw new BusinessException("Choose a prepayment type");
+        }
+        if (request.getCounterpartyType() == null) {
+            throw new BusinessException("Choose a counterparty type");
+        }
+        if (request.getPaymentDate() == null) {
+            throw new BusinessException("Payment date is required");
+        }
+        if (request.getRecognitionStartDate() == null) {
+            throw new BusinessException("Recognition start date is required");
+        }
+        if (request.getRecognitionFrequency() == null) {
+            throw new BusinessException("Choose a recognition frequency");
         }
 
         PrepaymentType type = typeRepository.findById(request.getPrepaymentTypeId())
@@ -82,7 +99,7 @@ public class PrepaymentService {
         resolveCounterparty(prepayment, request);
 
         prepayment.setTotalAmount(request.getTotalAmount());
-        prepayment.setCurrency(request.getCurrency() != null ? request.getCurrency() : "USD");
+        prepayment.setCurrency(configValues.require("currencies", request.getCurrency(), null, "Currency"));
         prepayment.setPaymentDate(request.getPaymentDate());
         prepayment.setRecognitionStartDate(request.getRecognitionStartDate());
         prepayment.setNumberOfPeriods(request.getNumberOfPeriods());
@@ -112,11 +129,13 @@ public class PrepaymentService {
 
     private void resolveCounterparty(Prepayment prepayment, CreatePrepaymentRequest request) {
         if (request.getCounterpartyType() == PrepaymentCounterpartyType.SUPPLIER) {
+            if (request.getSupplierId() == null) throw new BusinessException("Choose a supplier");
             Supplier supplier = supplierRepository.findById(request.getSupplierId())
                     .orElseThrow(() -> new BusinessException("Supplier not found with ID: " + request.getSupplierId()));
             prepayment.setSupplier(supplier);
             prepayment.setCounterpartyName(supplier.getDisplayName());
         } else if (request.getCounterpartyType() == PrepaymentCounterpartyType.EMPLOYEE) {
+            if (request.getEmployeeId() == null) throw new BusinessException("Choose an employee");
             Employee employee = employeeRepository.findById(request.getEmployeeId())
                     .orElseThrow(() -> new BusinessException("Employee not found with ID: " + request.getEmployeeId()));
             prepayment.setEmployee(employee);

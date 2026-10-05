@@ -392,17 +392,17 @@ public class DatabaseSeeder implements ApplicationRunner {
             return;
         }
         List<Object[]> defaults = List.of(
-                new Object[]{"Bank Loan", LoanDirection.BORROWED},
-                new Object[]{"Term Loan", LoanDirection.BORROWED},
-                new Object[]{"Working Capital Loan", LoanDirection.BORROWED},
-                new Object[]{"Shareholder Loan", LoanDirection.BORROWED},
-                new Object[]{"Director Loan", LoanDirection.BORROWED},
-                new Object[]{"Short-Term Loan", LoanDirection.BORROWED},
-                new Object[]{"Long-Term Loan", LoanDirection.BORROWED},
-                new Object[]{"Revolving Facility", LoanDirection.BORROWED},
-                new Object[]{"Employee Loan", LoanDirection.LENT},
-                new Object[]{"Customer Loan", LoanDirection.LENT},
-                new Object[]{"Supplier Loan", LoanDirection.LENT}
+                new Object[]{"Bank Loan", LoanDirection.BORROWED_LOAN},
+                new Object[]{"Term Loan", LoanDirection.BORROWED_LOAN},
+                new Object[]{"Working Capital Loan", LoanDirection.BORROWED_LOAN},
+                new Object[]{"Shareholder Loan", LoanDirection.BORROWED_LOAN},
+                new Object[]{"Director Loan", LoanDirection.BORROWED_LOAN},
+                new Object[]{"Short-Term Loan", LoanDirection.BORROWED_LOAN},
+                new Object[]{"Long-Term Loan", LoanDirection.BORROWED_LOAN},
+                new Object[]{"Revolving Facility", LoanDirection.BORROWED_LOAN},
+                new Object[]{"Employee Loan", LoanDirection.LENT_LOAN},
+                new Object[]{"Customer Loan", LoanDirection.LENT_LOAN},
+                new Object[]{"Supplier Loan", LoanDirection.LENT_LOAN}
         );
         defaults.forEach(entry -> {
             LoanType type = new LoanType();
@@ -561,6 +561,8 @@ public class DatabaseSeeder implements ApplicationRunner {
         addAccountIfMissing("2087", "Customer Downpayments", liabilityChart, 85L);
         addAccountIfMissing("1747", "Supplier Downpayments", assetChart, 86L);
         seedBankingAccountsIfMissing(revenueChart, expenseChart);
+        // Bank reconciliation suspense (MappingKey.BANK_RECONCILIATION_SUSPENSE).
+        addAccountIfMissing("1799", "Bank Reconciliation Suspense", assetChart, 90L);
     }
 
     /**
@@ -591,6 +593,8 @@ public class DatabaseSeeder implements ApplicationRunner {
         addAccountIfMissing("4040", "Interest Income", revenueChart, 67L);
         addAccountIfMissing("5080", "Interest Expense", expenseChart, 68L);
         addAccountIfMissing("5090", "Loan Fees Expense", expenseChart, 69L);
+        addAccountIfMissing("4042", "Loan Fee Income", revenueChart, 9101L);
+        addAccountIfMissing("5085", "Loan Write-off Expense", expenseChart, 9102L);
         seedDepositAccountsIfMissing(assetChart, liabilityChart, revenueChart, expenseChart);
     }
 

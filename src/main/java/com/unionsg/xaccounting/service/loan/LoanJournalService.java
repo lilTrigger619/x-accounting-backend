@@ -8,14 +8,15 @@ import com.unionsg.xaccounting.entity.loan.Loan;
 import com.unionsg.xaccounting.entity.loan.LoanRepayment;
 import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.enums.loan.LoanDirection;
+import com.unionsg.xaccounting.enums.loan.LoanFeeTreatment;
 import com.unionsg.xaccounting.enums.settings.MappingKey;
 import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
+import com.unionsg.xaccounting.service.accounting.PeriodLockGuard;
 import com.unionsg.xaccounting.service.journal.JournalService;
 import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,14 +26,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Posts the GL impact of a {@link Loan} at disbursement, each repayment, interest accrual, and
- * write-off (Loans spec §15/§16/§20). Every posting branches on {@code direction}: a BORROWED
- * loan hits Loan Payable/Interest Expense/Interest Payable, a LENT loan hits Loan Receivable/
- * Interest Income/Interest Receivable - the two are never posted to the same accounts, so the
- * organization's own borrowing never gets mixed into money it has lent out, or vice versa (§15's
- * "accounting direction depends on whether the organization is the borrower or lender").
+ * Posts the GL impact of a {@link Loan} through the normal journal create/post path, so period
+ * locks, numbering and balance checks all apply. Every posting branches on {@code direction}:
+ *
+ * <pre>
+ * BORROWED_LOAN  disbursement  Dr Bank/Cash            Cr Loan Liability
+ *                payment       Dr Loan Liability       Cr Bank/Cash
+ *                              Dr Interest Expense (or Interest Payable for accrued interest)
+ *                              Dr Loan Fees Expense
+ * LENT_LOAN      disbursement  Dr Loan Receivable      Cr Bank/Cash
+ *                payment       Dr Bank/Cash            Cr Loan Receivable
+ *                                                      Cr Interest Income (or Interest Receivable)
+ *                                                      Cr Loan Fee Income
+ * </pre>
+ *
+ * Principal, interest and fees always land on separate lines so each is tracked on its own.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LoanJournalService {
@@ -43,147 +52,166 @@ public class LoanJournalService {
     private final JournalEntryRepository journalEntryRepository;
     private final AccountRepository accountRepository;
     private final AccountingMappingService accountingMappingService;
+    private final PeriodLockGuard periodLockGuard;
 
     /**
-     * BORROWED: Dr Bank, Cr Loan Payable (+ Dr Loan Fee Expense / less net cash, when fees are
-     * expensed immediately at disbursement).
-     * LENT: Dr Loan Receivable, Cr Bank.
+     * Upfront fees: when EXPENSED_IMMEDIATELY they are netted off the cash; when CAPITALIZED they
+     * are added to the loan balance. Either way they hit fee expense (borrowed) or fee income (lent).
      */
     @Transactional
-    public JournalEntry postDisbursementJournal(Loan loan) {
+    public JournalEntry postDisbursementJournal(Loan loan, LocalDate date) {
         Long principalAccountId = resolvePrincipalAccountId(loan);
         Long bankAccountId = resolveBankAccountId(loan);
         BigDecimal principal = loan.getPrincipalAmount();
-        BigDecimal fees = loan.getTotalFees() != null ? loan.getTotalFees() : BigDecimal.ZERO;
-        boolean expenseFeesNow = fees.compareTo(BigDecimal.ZERO) > 0
-                && loan.getFeeTreatment() != null
-                && loan.getFeeTreatment() == com.unionsg.xaccounting.enums.loan.LoanFeeTreatment.EXPENSED_IMMEDIATELY;
+        BigDecimal fees = nz(loan.getTotalFees());
+        boolean capitalized = fees.signum() > 0 && loan.getFeeTreatment() == LoanFeeTreatment.CAPITALIZED;
+        BigDecimal balance = capitalized ? principal.add(fees) : principal;
+        BigDecimal cash = capitalized ? principal : principal.subtract(fees);
+        String no = loan.getLoanNumber();
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
-
-        if (loan.getDirection() == LoanDirection.BORROWED) {
-            BigDecimal netCash = expenseFeesNow ? principal.subtract(fees) : principal;
-
-            lines.add(line(bankAccountId, "Loan disbursed: " + loan.getLoanNumber(), netCash, BigDecimal.ZERO));
-            if (expenseFeesNow) {
-                Long feeAccountId = resolveMappedAccountId(MappingKey.LOAN_FEE_EXPENSE);
-                lines.add(line(feeAccountId, "Fees on loan " + loan.getLoanNumber(), fees, BigDecimal.ZERO));
+        if (isBorrowed(loan)) {
+            lines.add(line(bankAccountId, "Loan received: " + no, cash, BigDecimal.ZERO));
+            if (fees.signum() > 0) {
+                lines.add(line(resolveMappedAccountId(MappingKey.LOAN_FEE_EXPENSE), "Fees on loan " + no, fees, BigDecimal.ZERO));
             }
-            lines.add(line(principalAccountId, "Loan payable for " + loan.getLoanNumber(), BigDecimal.ZERO, principal));
+            lines.add(line(principalAccountId, "Loan liability: " + no, BigDecimal.ZERO, balance));
         } else {
-            lines.add(line(principalAccountId, "Loan disbursed: " + loan.getLoanNumber(), principal, BigDecimal.ZERO));
-            lines.add(line(bankAccountId, "Loan disbursed: " + loan.getLoanNumber(), BigDecimal.ZERO, principal));
+            lines.add(line(principalAccountId, "Loan receivable: " + no, balance, BigDecimal.ZERO));
+            lines.add(line(bankAccountId, "Loan disbursed: " + no, BigDecimal.ZERO, cash));
+            if (fees.signum() > 0) {
+                lines.add(line(resolveMappedAccountId(MappingKey.LOAN_FEE_INCOME), "Fees on loan " + no, BigDecimal.ZERO, fees));
+            }
         }
 
-        String description = "Loan " + loan.getLoanNumber() + " disbursed "
-                + (loan.getDirection() == LoanDirection.BORROWED ? "from " : "to ")
+        String description = "Loan " + no + (isBorrowed(loan) ? " received from " : " disbursed to ")
                 + loan.getCounterpartyName() + ".";
-
-        return createAndPostJournal(loan, loan.getStartDate(), lines, "", description);
+        return createAndPost(loan, date, lines, "", description);
     }
 
-    /**
-     * BORROWED: Dr Loan Payable (principal) / Dr Interest Expense (interest) / Dr Loan Fee
-     * Expense (fees), Cr Bank (total).
-     * LENT: Dr Bank (total), Cr Loan Receivable (principal) / Cr Interest Income (interest +
-     * fees, since lending-side fee income has no dedicated account this pass).
-     */
     @Transactional
-    public JournalEntry postRepaymentJournal(Loan loan, LoanRepayment repayment) {
+    public JournalEntry postRepaymentJournal(Loan loan, LoanRepayment p) {
         Long principalAccountId = resolvePrincipalAccountId(loan);
-        Long bankAccountId = resolveRepaymentBankAccountId(loan, repayment);
+        Long bankAccountId = p.getBankAccount() != null
+                ? resolveAccountId(p.getBankAccount().getGlAccountCode())
+                : resolveBankAccountId(loan);
+        String no = loan.getLoanNumber();
 
-        BigDecimal principal = repayment.getPrincipalAmount();
-        BigDecimal interest = repayment.getInterestAmount();
-        BigDecimal fees = repayment.getFeesAmount();
-        BigDecimal total = repayment.getTotalAmount();
+        BigDecimal principal = p.getPrincipalAmount().add(p.getOverpaymentAmount());
+        BigDecimal accrued = p.getAccruedInterestApplied();
+        BigDecimal interestNow = p.getInterestAmount().subtract(accrued);
+        BigDecimal fees = p.getFeesAmount();
+        BigDecimal total = p.getTotalAmount();
 
         List<CreateJournalLineRequest> lines = new ArrayList<>();
-
-        if (loan.getDirection() == LoanDirection.BORROWED) {
-            if (principal.compareTo(BigDecimal.ZERO) > 0) {
-                lines.add(line(principalAccountId, "Principal repayment for " + loan.getLoanNumber(), principal, BigDecimal.ZERO));
+        if (isBorrowed(loan)) {
+            if (principal.signum() > 0) {
+                lines.add(line(principalAccountId, "Principal repaid: " + no, principal, BigDecimal.ZERO));
             }
-            if (interest.compareTo(BigDecimal.ZERO) > 0) {
-                Long interestAccountId = resolveInterestAccountId(loan);
-                lines.add(line(interestAccountId, "Interest paid on " + loan.getLoanNumber(), interest, BigDecimal.ZERO));
+            if (interestNow.signum() > 0) {
+                lines.add(line(resolveInterestAccountId(loan), "Interest paid: " + no, interestNow, BigDecimal.ZERO));
             }
-            if (fees.compareTo(BigDecimal.ZERO) > 0) {
-                Long feeAccountId = resolveMappedAccountId(MappingKey.LOAN_FEE_EXPENSE);
-                lines.add(line(feeAccountId, "Fees paid on " + loan.getLoanNumber(), fees, BigDecimal.ZERO));
+            if (accrued.signum() > 0) {
+                lines.add(line(resolveMappedAccountId(MappingKey.LOAN_INTEREST_PAYABLE), "Accrued interest paid: " + no, accrued, BigDecimal.ZERO));
             }
-            lines.add(line(bankAccountId, "Repayment made: " + loan.getLoanNumber(), BigDecimal.ZERO, total));
+            if (fees.signum() > 0) {
+                lines.add(line(resolveMappedAccountId(MappingKey.LOAN_FEE_EXPENSE), "Fees paid: " + no, fees, BigDecimal.ZERO));
+            }
+            lines.add(line(bankAccountId, "Loan payment made: " + no, BigDecimal.ZERO, total));
         } else {
-            lines.add(line(bankAccountId, "Repayment received: " + loan.getLoanNumber(), total, BigDecimal.ZERO));
-            if (principal.compareTo(BigDecimal.ZERO) > 0) {
-                lines.add(line(principalAccountId, "Principal received for " + loan.getLoanNumber(), BigDecimal.ZERO, principal));
+            lines.add(line(bankAccountId, "Loan payment received: " + no, total, BigDecimal.ZERO));
+            if (principal.signum() > 0) {
+                lines.add(line(principalAccountId, "Principal received: " + no, BigDecimal.ZERO, principal));
             }
-            BigDecimal incomePortion = interest.add(fees);
-            if (incomePortion.compareTo(BigDecimal.ZERO) > 0) {
-                Long interestAccountId = resolveInterestAccountId(loan);
-                lines.add(line(interestAccountId, "Interest received on " + loan.getLoanNumber(), BigDecimal.ZERO, incomePortion));
+            if (interestNow.signum() > 0) {
+                lines.add(line(resolveInterestAccountId(loan), "Interest received: " + no, BigDecimal.ZERO, interestNow));
+            }
+            if (accrued.signum() > 0) {
+                lines.add(line(resolveMappedAccountId(MappingKey.LOAN_INTEREST_RECEIVABLE), "Accrued interest received: " + no, BigDecimal.ZERO, accrued));
+            }
+            if (fees.signum() > 0) {
+                lines.add(line(resolveMappedAccountId(MappingKey.LOAN_FEE_INCOME), "Fees received: " + no, BigDecimal.ZERO, fees));
             }
         }
-
-        String description = "Repayment on loan " + loan.getLoanNumber() + ".";
-
-        return createAndPostJournal(loan, repayment.getRepaymentDate(), lines,
-                "-R" + repayment.getId(), description);
+        return createAndPost(loan, p.getRepaymentDate(), lines, "-P" + p.getId(), "Payment on loan " + no + ".");
     }
 
-    /**
-     * Interest accrued before payment (§20).
-     * BORROWED: Dr Interest Expense, Cr Interest Payable.
-     * LENT: Dr Interest Receivable, Cr Interest Income.
-     */
+    /** BORROWED: Dr Interest Expense, Cr Interest Payable. LENT: Dr Interest Receivable, Cr Interest Income. */
     @Transactional
-    public JournalEntry postAccrualJournal(Loan loan, BigDecimal amount, LocalDate date) {
+    public JournalEntry postAccrualJournal(Loan loan, BigDecimal amount, LocalDate date, Long accrualId) {
         Long interestAccountId = resolveInterestAccountId(loan);
-        Long accrualAccountId = resolveMappedAccountId(
-                loan.getDirection() == LoanDirection.BORROWED
-                        ? MappingKey.LOAN_INTEREST_PAYABLE
-                        : MappingKey.LOAN_INTEREST_RECEIVABLE
-        );
-
+        String no = loan.getLoanNumber();
         List<CreateJournalLineRequest> lines;
-        if (loan.getDirection() == LoanDirection.BORROWED) {
+        if (isBorrowed(loan)) {
+            Long payable = resolveMappedAccountId(MappingKey.LOAN_INTEREST_PAYABLE);
             lines = List.of(
-                    line(interestAccountId, "Interest accrued on " + loan.getLoanNumber(), amount, BigDecimal.ZERO),
-                    line(accrualAccountId, "Interest accrued on " + loan.getLoanNumber(), BigDecimal.ZERO, amount)
-            );
+                    line(interestAccountId, "Interest accrued: " + no, amount, BigDecimal.ZERO),
+                    line(payable, "Interest accrued: " + no, BigDecimal.ZERO, amount));
         } else {
+            Long receivable = resolveMappedAccountId(MappingKey.LOAN_INTEREST_RECEIVABLE);
             lines = List.of(
-                    line(accrualAccountId, "Interest accrued on " + loan.getLoanNumber(), amount, BigDecimal.ZERO),
-                    line(interestAccountId, "Interest accrued on " + loan.getLoanNumber(), BigDecimal.ZERO, amount)
-            );
+                    line(receivable, "Interest accrued: " + no, amount, BigDecimal.ZERO),
+                    line(interestAccountId, "Interest accrued: " + no, BigDecimal.ZERO, amount));
         }
-
-        String description = "Interest accrual for loan " + loan.getLoanNumber() + ".";
-
-        return createAndPostJournal(loan, date, lines, "-ACCR-" + date, description);
+        return createAndPost(loan, date, lines, "-A" + accrualId, "Interest accrual for loan " + no + ".");
     }
 
     /**
-     * Write-off of a LENT loan's remaining outstanding principal (§21). BORROWED loans are not
-     * supported here - forgiving a debt the organization itself owes is a distinct, formal
-     * debt-restructuring event with its own gain recognition, out of scope this pass.
+     * Writes off what a lent loan's counterparty still owes: Dr Loan Write-off Expense for the
+     * total, Cr Loan Receivable (principal) and Cr Interest Receivable (accrued interest).
      */
     @Transactional
-    public JournalEntry postWriteOffJournal(Loan loan, BigDecimal amount, LocalDate date) {
-        if (loan.getDirection() != LoanDirection.LENT) {
+    public JournalEntry postWriteOffJournal(Loan loan, BigDecimal principal, BigDecimal accruedInterest, LocalDate date) {
+        if (isBorrowed(loan)) {
             throw new BusinessException("Only a loan the organization lent out can be written off");
         }
-        Long principalAccountId = resolvePrincipalAccountId(loan);
-        Long feeAccountId = resolveMappedAccountId(MappingKey.LOAN_FEE_EXPENSE);
+        String no = loan.getLoanNumber();
+        List<CreateJournalLineRequest> lines = new ArrayList<>();
+        lines.add(line(resolveMappedAccountId(MappingKey.LOAN_WRITE_OFF_EXPENSE), "Loan written off: " + no,
+                principal.add(accruedInterest), BigDecimal.ZERO));
+        if (principal.signum() > 0) {
+            lines.add(line(resolvePrincipalAccountId(loan), "Loan written off: " + no, BigDecimal.ZERO, principal));
+        }
+        if (accruedInterest.signum() > 0) {
+            lines.add(line(resolveMappedAccountId(MappingKey.LOAN_INTEREST_RECEIVABLE), "Accrued interest written off: " + no,
+                    BigDecimal.ZERO, accruedInterest));
+        }
+        return createAndPost(loan, date, lines, "-WO", "Write-off of the unpaid balance of loan " + no + ".");
+    }
 
-        List<CreateJournalLineRequest> lines = List.of(
-                line(feeAccountId, "Loan written off: " + loan.getLoanNumber(), amount, BigDecimal.ZERO),
-                line(principalAccountId, "Loan written off: " + loan.getLoanNumber(), BigDecimal.ZERO, amount)
-        );
+    /** Posts the mirror image of a loan journal. The original is marked REVERSED, never edited. */
+    @Transactional
+    public JournalEntry reverse(JournalEntry journal, String reason) {
+        JournalResponse reversal = journalService.reverse(journal.getId(), reason);
+        JournalEntry entry = journalEntryRepository.findById(reversal.getId())
+                .orElseThrow(() -> new BusinessException("Reversal journal not found after posting"));
+        entry.setSourceModule(SOURCE_MODULE);
+        entry.setSourceEntityId(journal.getSourceEntityId());
+        return journalEntryRepository.save(entry);
+    }
 
-        String description = "Write-off of remaining balance for loan " + loan.getLoanNumber() + ".";
+    private JournalEntry createAndPost(Loan loan, LocalDate date, List<CreateJournalLineRequest> lines,
+                                       String referenceSuffix, String description) {
+        periodLockGuard.assertPostable(date);
+        CreateJournalRequest request = CreateJournalRequest.builder()
+                .journalDate(date)
+                .reference(loan.getLoanNumber() + referenceSuffix)
+                .description(description)
+                .journalType(JournalType.LOAN)
+                .currencyCode(loan.getCurrency())
+                .lines(lines)
+                .build();
 
-        return createAndPostJournal(loan, date, lines, "-WO", description);
+        JournalResponse created = journalService.create(request);
+        JournalEntry entry = journalEntryRepository.findById(created.getId())
+                .orElseThrow(() -> new BusinessException("Journal not found after creation"));
+        entry.setSourceModule(SOURCE_MODULE);
+        entry.setSourceEntityId(loan.getId());
+        journalEntryRepository.save(entry);
+
+        JournalResponse posted = journalService.post(created.getId());
+        return journalEntryRepository.findById(posted.getId())
+                .orElseThrow(() -> new BusinessException("Journal not found after posting"));
     }
 
     private CreateJournalLineRequest line(Long accountId, String description, BigDecimal debit, BigDecimal credit) {
@@ -195,47 +223,22 @@ public class LoanJournalService {
                 .build();
     }
 
-    private JournalEntry createAndPostJournal(
-            Loan loan, LocalDate date, List<CreateJournalLineRequest> lines,
-            String referenceSuffix, String description
-    ) {
-        CreateJournalRequest request = CreateJournalRequest.builder()
-                .journalDate(date)
-                .reference(loan.getLoanNumber() + referenceSuffix)
-                .description(description)
-                .journalType(JournalType.LOAN)
-                .currencyCode(loan.getCurrency() != null ? loan.getCurrency() : "USD")
-                .lines(lines)
-                .build();
-
-        JournalResponse created = journalService.create(request);
-
-        JournalEntry entry = journalEntryRepository.findById(created.getId())
-                .orElseThrow(() -> new BusinessException("Journal not found after creation"));
-        entry.setSourceModule(SOURCE_MODULE);
-        entry.setSourceEntityId(loan.getId());
-        journalEntryRepository.save(entry);
-
-        JournalResponse posted = journalService.post(created.getId());
-
-        return journalEntryRepository.findById(posted.getId())
-                .orElseThrow(() -> new BusinessException("Journal not found after posting"));
+    private static boolean isBorrowed(Loan loan) {
+        return loan.getDirection() == LoanDirection.BORROWED_LOAN;
     }
 
     private Long resolvePrincipalAccountId(Loan loan) {
         if (loan.getPrincipalAccount() != null) {
             return resolveAccountId(loan.getPrincipalAccount().getAccountId());
         }
-        return resolveMappedAccountId(loan.getDirection() == LoanDirection.BORROWED
-                ? MappingKey.LOAN_PAYABLE : MappingKey.LOAN_RECEIVABLE);
+        return resolveMappedAccountId(isBorrowed(loan) ? MappingKey.LOAN_PAYABLE : MappingKey.LOAN_RECEIVABLE);
     }
 
     private Long resolveInterestAccountId(Loan loan) {
         if (loan.getInterestAccount() != null) {
             return resolveAccountId(loan.getInterestAccount().getAccountId());
         }
-        return resolveMappedAccountId(loan.getDirection() == LoanDirection.BORROWED
-                ? MappingKey.LOAN_INTEREST_EXPENSE : MappingKey.LOAN_INTEREST_INCOME);
+        return resolveMappedAccountId(isBorrowed(loan) ? MappingKey.LOAN_INTEREST_EXPENSE : MappingKey.LOAN_INTEREST_INCOME);
     }
 
     private Long resolveBankAccountId(Loan loan) {
@@ -245,17 +248,10 @@ public class LoanJournalService {
         return resolveMappedAccountId(MappingKey.LOAN_BANK_ACCOUNT);
     }
 
-    private Long resolveRepaymentBankAccountId(Loan loan, LoanRepayment repayment) {
-        if (repayment.getBankAccount() != null) {
-            return resolveAccountId(repayment.getBankAccount().getGlAccountCode());
-        }
-        return resolveBankAccountId(loan);
-    }
-
-    private Long resolveAccountId(String accountId) {
-        return accountRepository.findByAccountId(accountId)
+    private Long resolveAccountId(String accountCode) {
+        return accountRepository.findByAccountId(accountCode)
                 .map(account -> Long.valueOf(account.getAccountId()))
-                .orElseThrow(() -> new BusinessException("Account not found with ID: " + accountId));
+                .orElseThrow(() -> new BusinessException("Account not found with code: " + accountCode));
     }
 
     private Long resolveMappedAccountId(MappingKey key) {
@@ -266,5 +262,9 @@ public class LoanJournalService {
                         "Required accounting configuration missing: \"" + key.getDescription() + "\" is mapped "
                                 + "to account code \"" + code + "\", which does not exist in the Chart of Accounts. "
                                 + "Configure it under Settings > Accounting Mappings."));
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
     }
 }

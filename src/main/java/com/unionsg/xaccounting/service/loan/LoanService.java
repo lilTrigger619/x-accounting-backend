@@ -83,6 +83,9 @@ public class LoanService {
 
         LoanType loanType = loanTypeRepository.findById(request.getLoanTypeId())
                 .orElseThrow(() -> new BusinessException("Loan type not found with ID: " + request.getLoanTypeId()));
+        if (Boolean.TRUE.equals(loanType.getDeleted()) || !Boolean.TRUE.equals(loanType.getActive())) {
+            throw new BusinessException("Loan type \"" + loanType.getName() + "\" is inactive and cannot be used");
+        }
 
         Loan loan = new Loan();
         loan.setLoanType(loanType);

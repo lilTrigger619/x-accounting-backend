@@ -22,6 +22,8 @@ public class PrepaymentMapper {
         response.setName(type.getName());
         response.setDescription(type.getDescription());
         response.setActive(type.getActive());
+        response.setCreatedAt(type.getCreatedAt());
+        response.setUpdatedAt(type.getUpdatedAt());
         return response;
     }
 

@@ -4,4 +4,6 @@ import com.unionsg.xaccounting.entity.loan.Loan;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface LoanRepository extends JpaRepository<Loan, Long> {
+
+    boolean existsByLoanTypeId(Long loanTypeId);
 }

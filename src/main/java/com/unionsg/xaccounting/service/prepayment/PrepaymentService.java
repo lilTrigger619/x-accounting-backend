@@ -72,6 +72,9 @@ public class PrepaymentService {
 
         PrepaymentType type = typeRepository.findById(request.getPrepaymentTypeId())
                 .orElseThrow(() -> new BusinessException("Prepayment type not found with ID: " + request.getPrepaymentTypeId()));
+        if (Boolean.TRUE.equals(type.getDeleted()) || !Boolean.TRUE.equals(type.getActive())) {
+            throw new BusinessException("Prepayment type \"" + type.getName() + "\" is inactive and cannot be used");
+        }
 
         Prepayment prepayment = new Prepayment();
         prepayment.setPrepaymentType(type);

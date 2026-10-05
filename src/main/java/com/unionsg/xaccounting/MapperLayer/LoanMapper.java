@@ -25,6 +25,8 @@ public class LoanMapper {
         response.setDescription(type.getDescription());
         response.setDefaultDirection(type.getDefaultDirection());
         response.setActive(type.getActive());
+        response.setCreatedAt(type.getCreatedAt());
+        response.setUpdatedAt(type.getUpdatedAt());
         return response;
     }
 

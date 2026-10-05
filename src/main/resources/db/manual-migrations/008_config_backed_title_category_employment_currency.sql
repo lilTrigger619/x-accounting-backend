@@ -16,7 +16,9 @@
 --
 -- This also moves old stored values onto the seeded configuration codes:
 --   currency GHC (the retired Ghana cedi code the enum used) -> GHS
---   country gh/ng/us/ca/uk (old form values) and USA (demo data) -> GH/NG/US/CA/GB
+--   country gh/ng/us/ca/uk/cn (old form values) and USA (demo data) -> ISO codes
+--   supplier payment method bank_transfer/check/credit_card/cash (old form
+--   values) -> the PaymentMethod codes BANK_TRANSFER/CHEQUE/CARD/CASH
 --
 -- Run this once against the target Postgres database:
 --   psql -U postgres -d xaccounting -f 008_config_backed_title_category_employment_currency.sql
@@ -46,7 +48,16 @@ UPDATE addresses SET country = CASE country
         WHEN 'USA' THEN 'US'
         WHEN 'ca'  THEN 'CA'
         WHEN 'uk'  THEN 'GB'
+        WHEN 'cn'  THEN 'CN'
     END
-WHERE country IN ('gh', 'ng', 'us', 'USA', 'ca', 'uk');
+WHERE country IN ('gh', 'ng', 'us', 'USA', 'ca', 'uk', 'cn');
+
+UPDATE supplier_payment_terms SET payment_method = CASE payment_method
+        WHEN 'bank_transfer' THEN 'BANK_TRANSFER'
+        WHEN 'check'         THEN 'CHEQUE'
+        WHEN 'credit_card'   THEN 'CARD'
+        WHEN 'cash'          THEN 'CASH'
+    END
+WHERE payment_method IN ('bank_transfer', 'check', 'credit_card', 'cash');
 
 COMMIT;

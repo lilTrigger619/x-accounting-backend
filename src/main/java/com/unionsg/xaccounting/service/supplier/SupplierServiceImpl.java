@@ -7,6 +7,8 @@ import com.unionsg.xaccounting.repository.SupplierRepository;
 import com.unionsg.xaccounting.response.PaginationResponse;
 import com.unionsg.xaccounting.service.supplier.SupplierService;
 
+import com.unionsg.xaccounting.enums.PaymentMethod;
+import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,6 +39,16 @@ public class SupplierServiceImpl implements SupplierService{
         supplier.setCategory(configValues.require("supplier-categories", supplier.getCategory(), null, "Category"));
         supplier.getPaymentTerms().setCurrency(
                 configValues.require("currencies", supplier.getPaymentTerms().getCurrency(), null, "Currency"));
+        String method = supplier.getPaymentTerms().getPaymentMethod();
+        if (method != null && !method.isBlank()) {
+            try {
+                supplier.getPaymentTerms().setPaymentMethod(PaymentMethod.valueOf(method.trim()).name());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException("\"" + method + "\" is not a valid payment method");
+            }
+        } else {
+            supplier.getPaymentTerms().setPaymentMethod(null);
+        }
         if (supplier.getAddress() != null) {
             supplier.getAddress().setCountry(
                     configValues.validate("countries", supplier.getAddress().getCountry(), null, "Country"));

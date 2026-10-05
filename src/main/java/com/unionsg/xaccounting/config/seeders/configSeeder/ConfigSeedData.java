@@ -373,7 +373,8 @@ public class ConfigSeedData {
                 item("Nigeria", "NG", null, null, false, 2),
                 item("United States", "US", null, null, false, 3),
                 item("Canada", "CA", null, null, false, 4),
-                item("United Kingdom", "GB", null, null, false, 5)
+                item("United Kingdom", "GB", null, null, false, 5),
+                item("China", "CN", null, null, false, 6)
         ));
 
         linkItems(config);

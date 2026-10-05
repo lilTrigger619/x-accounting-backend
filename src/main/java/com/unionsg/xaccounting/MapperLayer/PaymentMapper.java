@@ -173,6 +173,7 @@ public class PaymentMapper {
 
         response.setPaymentDate(payment.getPaymentDate());
         response.setPaymentMethod(payment.getPaymentMethod());
+        response.setCurrency(payment.getCurrency());
         response.setAmountReceived(payment.getAmountReceived());
         response.setAllocatedAmount(payment.getAllocatedAmount());
         response.setUnallocatedAmount(payment.getUnallocatedAmount());

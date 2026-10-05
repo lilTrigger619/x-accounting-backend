@@ -176,6 +176,8 @@ public class InvoiceMapper {
         response.setTotalTax(invoice.getTotalTax());
         response.setTotalAmount(invoice.getTotalAmount());
         response.setTotalDue(invoice.getTotalDue());
+        response.setAmountPaid(invoice.getAmountPaid());
+        response.setBalance(invoice.getBalance());
 
         response.setItems(
                 invoice.getItems()

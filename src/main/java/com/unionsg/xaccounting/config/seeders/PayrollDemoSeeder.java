@@ -23,7 +23,6 @@ import com.unionsg.xaccounting.dto.payroll.PositionResponse;
 import com.unionsg.xaccounting.dto.payroll.SalaryStructureLineRequest;
 import com.unionsg.xaccounting.dto.payroll.SalaryStructureResponse;
 import com.unionsg.xaccounting.dto.payroll.TaxBracketRequest;
-import com.unionsg.xaccounting.enums.EmploymentType;
 import com.unionsg.xaccounting.enums.PayComponentCalculationMethod;
 import com.unionsg.xaccounting.enums.PayComponentCategory;
 import com.unionsg.xaccounting.enums.PayComponentSide;
@@ -319,7 +318,7 @@ public class PayrollDemoSeeder implements ApplicationRunner {
         r.setPhone("+1-555-0100");
         r.setDepartmentId(departmentId);
         r.setPositionId(positionId);
-        r.setEmploymentType(EmploymentType.FULL_TIME);
+        r.setEmploymentType("FULL_TIME");
         r.setDateOfEmployment(effectiveFrom);
         r.setPayrollGroupId(payrollGroupId);
         r.setBankName("Union Trust Bank");

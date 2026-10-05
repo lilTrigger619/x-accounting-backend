@@ -1,7 +1,6 @@
 package com.unionsg.xaccounting.dto.payroll;
 
 import com.unionsg.xaccounting.enums.EmploymentStatus;
-import com.unionsg.xaccounting.enums.EmploymentType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -29,7 +28,7 @@ public class EmployeeResponse {
     private Long workLocationId;
     private String workLocationName;
 
-    private EmploymentType employmentType;
+    private String employmentType;
     private EmploymentStatus employmentStatus;
     private LocalDate dateOfEmployment;
     private LocalDate terminationDate;

@@ -1,6 +1,5 @@
 package com.unionsg.xaccounting.dto.payroll;
 
-import com.unionsg.xaccounting.enums.EmploymentType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,7 +18,7 @@ public class UpdateEmployeeRequest {
     private Long departmentId;
     private Long positionId;
     private Long workLocationId;
-    private EmploymentType employmentType;
+    private String employmentType;
     private Long payrollGroupId;
     private String bankName;
     private String bankAccountName;

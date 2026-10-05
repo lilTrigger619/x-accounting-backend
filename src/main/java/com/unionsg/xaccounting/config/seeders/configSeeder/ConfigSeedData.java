@@ -26,7 +26,12 @@ public class ConfigSeedData {
                 filingFrequencies(),
                 taxAppliesTo(),
                 taxTransactionTypes(),
-                taxGroups()
+                taxGroups(),
+                titles(),
+                countries(),
+                supplierCategories(),
+                employmentTypes(),
+                employeeDocumentTypes()
 
         );
     }
@@ -134,7 +139,9 @@ public class ConfigSeedData {
                 item("Kenyan Shilling", "KES", "KSh", null, true, 1),
                 item("US Dollar", "USD", "$", null, false, 2),
                 item("Euro", "EUR", "€", null, false, 3),
-                item("British Pound", "GBP", "£", null, false, 4)
+                item("British Pound", "GBP", "£", null, false, 4),
+                item("Ghana Cedi", "GHS", "GH₵", null, false, 5),
+                item("Nigerian Naira", "NGN", "₦", null, false, 6)
         ));
 
         linkItems(config);
@@ -331,6 +338,121 @@ public class ConfigSeedData {
         return config;
     }
 
+
+    private Config titles() {
+        Config config = Config.builder()
+                .configKey("titles")
+                .title("Titles")
+                .description("Salutations used for people, e.g. Mr, Mrs, Dr.")
+                .itemLabel("Title")
+                .sortOrder(14)
+                .build();
+
+        config.setItems(List.of(
+                item("Mr", "MR", null, null, false, 1),
+                item("Mrs", "MRS", null, null, false, 2),
+                item("Ms", "MS", null, null, false, 3),
+                item("Dr", "DR", null, null, false, 4)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config countries() {
+        Config config = Config.builder()
+                .configKey("countries")
+                .title("Countries")
+                .description("Countries used on customer and supplier addresses.")
+                .itemLabel("Country")
+                .sortOrder(15)
+                .build();
+
+        config.setItems(List.of(
+                item("Ghana", "GH", null, null, false, 1),
+                item("Nigeria", "NG", null, null, false, 2),
+                item("United States", "US", null, null, false, 3),
+                item("Canada", "CA", null, null, false, 4),
+                item("United Kingdom", "GB", null, null, false, 5)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config supplierCategories() {
+        Config config = Config.builder()
+                .configKey("supplier-categories")
+                .title("Supplier Categories")
+                .description("Group suppliers by what they provide.")
+                .itemLabel("Supplier Category")
+                .sortOrder(16)
+                .build();
+
+        config.setItems(List.of(
+                item("Raw Materials", "RAW_MATERIALS", null, null, false, 1),
+                item("Office Supplies", "OFFICE_SUPPLIES", null, null, false, 2),
+                item("Equipment", "EQUIPMENT", null, null, false, 3),
+                item("Services", "SERVICES", null, null, false, 4),
+                item("Utilities", "UTILITIES", null, null, false, 5),
+                item("Logistics", "LOGISTICS", null, null, false, 6),
+                item("Other", "OTHER", null, null, false, 7)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config employmentTypes() {
+        Config config = Config.builder()
+                .configKey("employment-types")
+                .title("Employment Types")
+                .description("Full-time, part-time, contract and other employment arrangements.")
+                .itemLabel("Employment Type")
+                .sortOrder(17)
+                .build();
+
+        config.setItems(List.of(
+                item("Full-time", "FULL_TIME", null, null, true, 1),
+                item("Part-time", "PART_TIME", null, null, false, 2),
+                item("Contract", "CONTRACT", null, null, false, 3),
+                item("Temporary", "TEMPORARY", null, null, false, 4),
+                item("Intern", "INTERN", null, null, false, 5)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config employeeDocumentTypes() {
+        Config config = Config.builder()
+                .configKey("employee-document-types")
+                .title("Employee Document Types")
+                .description("Tags for documents attached to employee records.")
+                .itemLabel("Document Type")
+                .sortOrder(18)
+                .build();
+
+        config.setItems(List.of(
+                item("CV / Resume", null, null, null, false, 1),
+                item("National ID Card", null, null, null, false, 2),
+                item("Birth Certificate", null, null, null, false, 3),
+                item("Passport", null, null, null, false, 4),
+                item("Academic Certificate / Diploma", null, null, null, false, 5),
+                item("Employment Contract", null, null, null, false, 6),
+                item("Offer Letter", null, null, null, false, 7),
+                item("Reference Letter", null, null, null, false, 8),
+                item("Medical Certificate", null, null, null, false, 9),
+                item("Tax Document", null, null, null, false, 10),
+                item("Bank Confirmation Letter", null, null, null, false, 11),
+                item("Proof of Address", null, null, null, false, 12),
+                item("Next of Kin Form", null, null, null, false, 13),
+                item("Other", null, null, null, false, 14)
+        ));
+
+        linkItems(config);
+        return config;
+    }
 
     private ConfigItem item(
             String name,

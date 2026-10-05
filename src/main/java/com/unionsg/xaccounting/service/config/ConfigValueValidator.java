@@ -48,6 +48,17 @@ public class ConfigValueValidator {
         return validate(configKey, value, previous, fieldLabel);
     }
 
+    /** The stored value of the configuration's active default item, or null when it has none. */
+    @Transactional(readOnly = true)
+    public String defaultValue(String configKey) {
+        return configRepository.findByConfigKey(configKey)
+                .flatMap(c -> c.getItems().stream()
+                        .filter(i -> isActive(i) && Boolean.TRUE.equals(i.getIsDefault()))
+                        .findFirst())
+                .map(ConfigValueValidator::storedValue)
+                .orElse(null);
+    }
+
     private static boolean isActive(ConfigItem item) {
         return item.getStatus() == null || "ACTIVE".equalsIgnoreCase(item.getStatus());
     }

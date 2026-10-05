@@ -13,7 +13,6 @@ import com.unionsg.xaccounting.entity.customer.Customer;
 
 
 import com.unionsg.xaccounting.entity.supplier.Supplier;
-import com.unionsg.xaccounting.enums.Currency;
 
 
 public class SupplierMapper {
@@ -38,7 +37,7 @@ public class SupplierMapper {
         SupplierPaymentTerms paymentTerms = SupplierPaymentTerms.builder()
                 .paymentTermType(PaymentTermType.valueOf(dto.getPaymentTerms().getPaymentTermType()))
                 .paymentMethod(dto.getPaymentTerms().getPaymentMethod())
-                .currency(Currency.valueOf(dto.getPaymentTerms().getCurrency()))
+                .currency(dto.getPaymentTerms().getCurrency())
                 .build();
 
         return Supplier.builder()
@@ -50,7 +49,7 @@ public class SupplierMapper {
                 .companyName(dto.getCompanyName())
                 .displayName(dto.getDisplayName())
                 .status(CustomerStatus.valueOf(dto.getStatus())) // used customer status cos its going to be same for the suppler
-                .category(SupplierCategory.valueOf(dto.getCategory()))
+                .category(dto.getCategory())
                 .email(dto.getEmail())
                 .phone(dto.getPhone())
                 .mobile(dto.getMobile())

@@ -1,5 +1,4 @@
 package com.unionsg.xaccounting.entity.customer;
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentTermType;
 import  jakarta.persistence.*;
 import lombok.*;
@@ -26,9 +25,9 @@ public class PaymentTerms {
     @Column(name = "credit_limit", precision = 19, scale = 2)
     private BigDecimal creditLimit;
 
-    @Enumerated(EnumType.STRING)
+    /** Code of a "currencies" config item. */
     @Column(nullable = false)
-    private Currency currency;
+    private String currency;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

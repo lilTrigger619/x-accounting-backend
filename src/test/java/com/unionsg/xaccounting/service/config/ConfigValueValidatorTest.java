@@ -31,7 +31,7 @@ class ConfigValueValidatorTest {
     void setUp() {
         Config config = Config.builder().configKey("tax-authorities").build();
         config.setItems(List.of(
-                ConfigItem.builder().name("Ghana Revenue Authority").code("GRA").status("ACTIVE").build(),
+                ConfigItem.builder().name("Ghana Revenue Authority").code("GRA").status("ACTIVE").isDefault(true).build(),
                 ConfigItem.builder().name("Old Agency").code("OLD").status("INACTIVE").build(),
                 ConfigItem.builder().name("No Code Agency").status("ACTIVE").build()
         ));
@@ -63,5 +63,10 @@ class ConfigValueValidatorTest {
         assertThat(validator.validate("tax-authorities", " ", null, "Tax authority")).isNull();
         assertThatThrownBy(() -> validator.require("tax-authorities", "", null, "Tax authority"))
                 .hasMessageContaining("Tax authority is required");
+    }
+
+    @Test
+    void defaultValueIsTheActiveDefaultItemsCode() {
+        assertThat(validator.defaultValue("tax-authorities")).isEqualTo("GRA");
     }
 }

@@ -4,7 +4,6 @@ import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
 import com.unionsg.xaccounting.entity.payment.PaymentEntity;
 import com.unionsg.xaccounting.entity.settings.BankAccount;
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentStatus;
 import com.unionsg.xaccounting.exception.BadRequestException;
 import com.unionsg.xaccounting.exception.BusinessException;
@@ -12,6 +11,7 @@ import com.unionsg.xaccounting.repository.CustomerRepository;
 import com.unionsg.xaccounting.repository.settings.BankAccountRepository;
 import com.unionsg.xaccounting.repository.invoice.InvoiceRepository;
 import com.unionsg.xaccounting.utils.PaymentConstants;
+import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PaymentValidator {
 
+    private final ConfigValueValidator configValues;
     private final CustomerRepository customerRepository;
     private final BankAccountRepository bankAccountRepository;
     private final InvoiceRepository invoiceRepository;
@@ -69,10 +70,12 @@ public class PaymentValidator {
         }
     }
 
-    public void validateCurrency(Currency currency) {
-        if (currency == null) {
-            throw new BadRequestException("Currency is required");
-        }
+    /**
+     * Currency must be an active item of the "currencies" configuration. {@code previous} is the
+     * value already on the record (null on create); keeping it is always allowed.
+     */
+    public String validateCurrency(String currency, String previous) {
+        return configValues.require("currencies", currency, previous, "Currency");
     }
 
     public void validateExchangeRate(BigDecimal exchangeRate) {

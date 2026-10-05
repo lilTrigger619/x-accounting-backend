@@ -222,7 +222,11 @@ public class JournalServiceImpl implements JournalService {
 
         JournalEntry reversal = new JournalEntry();
 
-        reversal.setJournalNumber(numberGenerator.generate());
+        // Same numbering as create(); the legacy JournalNumberGenerator needs a "JOURNAL" row in
+        // document_sequences that nothing seeds, so every reversal failed with "Journal sequence
+        // not configured".
+        reversal.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
+        reversal.setCurrencyCode(original.getCurrencyCode());
         reversal.setJournalDate(LocalDate.now());
         reversal.setPostingDate(LocalDate.now());
         reversal.setPostedAt(LocalDateTime.now());

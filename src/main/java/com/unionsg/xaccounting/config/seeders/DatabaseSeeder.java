@@ -522,6 +522,17 @@ public class DatabaseSeeder implements ApplicationRunner {
         // Downpayment control accounts (MappingKey.CUSTOMER_DOWNPAYMENT_LIABILITY / SUPPLIER_DOWNPAYMENT_ASSET).
         addAccountIfMissing("2085", "Customer Downpayments", liabilityChart, 85L);
         addAccountIfMissing("1745", "Supplier Downpayments", assetChart, 86L);
+        seedBankingAccountsIfMissing(revenueChart, expenseChart);
+    }
+
+    /**
+     * Default targets for {@code MappingKey.BANK_TRANSFER_CHARGES}/{@code FX_GAIN}/{@code FX_LOSS}
+     * so a bank transfer with a fee or an exchange difference can post on a fresh install.
+     */
+    private void seedBankingAccountsIfMissing(ChartOfAccount revenueChart, ChartOfAccount expenseChart) {
+        addAccountIfMissing("5100", "Bank Charges", expenseChart, 70L);
+        addAccountIfMissing("4050", "Foreign Exchange Gain", revenueChart, 71L);
+        addAccountIfMissing("5110", "Foreign Exchange Loss", expenseChart, 72L);
     }
 
     /**

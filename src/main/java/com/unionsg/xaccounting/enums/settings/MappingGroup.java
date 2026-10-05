@@ -6,5 +6,6 @@ public enum MappingGroup {
     PAYROLL,
     CLOSING,
     PREPAYMENTS,
-    LOANS
+    LOANS,
+    BANKING
 }

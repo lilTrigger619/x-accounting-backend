@@ -461,7 +461,7 @@ and Recurring Journal Entries.
 - [ ] Reconciliation Adjustments — not implemented
 - [ ] Reconciliation History — not implemented
 - [ ] Outstanding Transactions view — not implemented
-- [ ] Bank Transfers — not implemented (only a `BANK_TRANSFER`-style payment method value exists)
+- [x] Bank Transfers (BE: `BankTransfer` entity/`BankTransferService`/`BankTransferController` at `/api/bank-transfers`; DRAFT → POSTED → REVERSED, or DRAFT → CANCELLED; posting creates one `BANK_TRANSFER` journal through `JournalService` (Dr destination, Cr source, Dr Bank Charges/Cr source for fees, FX gain/loss line for cross-currency), reversal posts a reversal journal; row-locked post/cancel/reverse plus unique journal reference and `journal_id` stop double posting; balance check unless the bank account allows overdraft; attachments via the generic files table (`BANK_TRANSFER`); activity history; run `009_bank_transfers.sql` on existing databases. FE: `BankTransfersPage`, new/edit/view pages)
 - [ ] Cash Accounts as part of banking/reconciliation — not implemented
 
 ## 5. INVENTORY

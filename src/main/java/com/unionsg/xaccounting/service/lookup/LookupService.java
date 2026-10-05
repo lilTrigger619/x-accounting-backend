@@ -3,6 +3,10 @@ package com.unionsg.xaccounting.service.lookup;
 import com.unionsg.xaccounting.dto.lookup.LookupDefinitionDto;
 import com.unionsg.xaccounting.dto.lookup.LookupOptionDto;
 import com.unionsg.xaccounting.enums.*;
+import com.unionsg.xaccounting.enums.downpayment.DownpaymentStatus;
+import com.unionsg.xaccounting.enums.downpayment.DownpaymentType;
+import com.unionsg.xaccounting.enums.banking.BankTransferStatus;
+import com.unionsg.xaccounting.enums.deposit.*;
 import com.unionsg.xaccounting.enums.loan.*;
 import com.unionsg.xaccounting.enums.prepayment.PrepaymentCounterpartyType;
 import com.unionsg.xaccounting.enums.prepayment.PrepaymentFrequency;
@@ -29,10 +33,18 @@ public class LookupService {
 
     static {
         register("account-types", "Account Types", AccountType.class);
+        register("bank-transfer-statuses", "Bank Transfer Statuses", BankTransferStatus.class);
         register("bill-statuses", "Bill Statuses", BillStatus.class);
         register("customer-statuses", "Customer Statuses", CustomerStatus.class);
         register("customer-types", "Customer Types", CustomerType.class);
+        register("deposit-allocation-types", "Deposit Allocation Types", DepositAllocationType.class);
+        register("deposit-classifications", "Deposit Classifications", DepositClassification.class);
+        register("deposit-counterparty-types", "Deposit Counterparty Types", DepositCounterpartyType.class);
+        register("deposit-directions", "Deposit Directions", DepositDirection.class);
+        register("deposit-statuses", "Deposit Statuses", DepositStatus.class);
         register("discount-types", "Discount Types", DiscountType.class);
+        register("downpayment-statuses", "Downpayment Statuses", DownpaymentStatus.class);
+        register("downpayment-types", "Downpayment Types", DownpaymentType.class);
         register("employment-statuses", "Employment Statuses", EmploymentStatus.class);
         register("invoice-statuses", "Invoice Statuses", InvoiceStatus.class);
         register("journal-statuses", "Journal Statuses", JournalStatus.class);

@@ -22,4 +22,5 @@ public class BankAccountResponse {
     private BankAccountStatus status;
     private Boolean isDefault;
     private Boolean enableReconciliation;
+    private Boolean allowOverdraft;
 }

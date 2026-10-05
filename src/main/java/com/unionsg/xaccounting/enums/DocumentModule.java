@@ -19,5 +19,8 @@ public enum DocumentModule {
     BILL,
     SUPPLIER_PAYMENT,
     PREPAYMENT,
-    LOAN
+    DOWNPAYMENT,
+    LOAN,
+    BANK_TRANSFER,
+    DEPOSIT
 }

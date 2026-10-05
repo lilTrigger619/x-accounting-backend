@@ -9,7 +9,10 @@ import com.unionsg.xaccounting.entity.ChartOfAccountClearTo_ENTITY;
 import com.unionsg.xaccounting.entity.ChartOfAccount;
 import com.unionsg.xaccounting.entity.TaxCategory;
 import com.unionsg.xaccounting.entity.loan.LoanType;
+import com.unionsg.xaccounting.entity.deposit.DepositType;
 import com.unionsg.xaccounting.entity.prepayment.PrepaymentType;
+import com.unionsg.xaccounting.enums.deposit.DepositDirection;
+import com.unionsg.xaccounting.repository.deposit.DepositTypeRepository;
 import com.unionsg.xaccounting.enums.AccountType;
 import com.unionsg.xaccounting.enums.NormalBalance;
 import com.unionsg.xaccounting.enums.TaxCategoryType;
@@ -53,6 +56,7 @@ public class DatabaseSeeder implements ApplicationRunner {
     private final TaxCategoryRepository taxCategoryRepository;
     private final PrepaymentTypeRepository prepaymentTypeRepository;
     private final LoanTypeRepository loanTypeRepository;
+    private final DepositTypeRepository depositTypeRepository;
     private List<ChartOfAccountClearTo_ENTITY> assetsClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> liabilityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
     private List<ChartOfAccountClearTo_ENTITY> equityClearTo = new ArrayList<ChartOfAccountClearTo_ENTITY>();
@@ -379,6 +383,7 @@ public class DatabaseSeeder implements ApplicationRunner {
         seedControlAccountFlagsIfMissing();
         seedPrepaymentTypesIfMissing();
         seedLoanTypesIfMissing();
+        seedDepositTypesIfMissing();
     }
 
     /** Default {@link LoanType} rows (Loans spec §14's example list). */
@@ -405,6 +410,37 @@ public class DatabaseSeeder implements ApplicationRunner {
             type.setDefaultDirection((LoanDirection) entry[1]);
             type.setActive(true);
             loanTypeRepository.save(type);
+        });
+    }
+
+    /**
+     * Default {@link DepositType} rows. They carry no account of their own, so each resolves to
+     * the direction's mapped default (Deposits Paid asset / Deposits Received liability) until an
+     * admin points a type at a more specific account.
+     */
+    private void seedDepositTypesIfMissing() {
+        if (depositTypeRepository.count() > 0) {
+            return;
+        }
+        List.of(
+                new Object[]{"Security Deposit", DepositDirection.DEPOSIT_PAID, true, "Refundable security deposit paid to a landlord, supplier or service provider"},
+                new Object[]{"Rent Deposit", DepositDirection.DEPOSIT_PAID, true, "Refundable deposit paid on leased premises"},
+                new Object[]{"Utility Deposit", DepositDirection.DEPOSIT_PAID, true, "Refundable deposit paid to a utility provider"},
+                new Object[]{"Tender / Bid Deposit", DepositDirection.DEPOSIT_PAID, true, "Bid security returned after the tender is awarded"},
+                new Object[]{"Supplier Advance Deposit", DepositDirection.DEPOSIT_PAID, false, "Non-refundable deposit paid to a supplier, applied against its bill"},
+                new Object[]{"Customer Security Deposit", DepositDirection.DEPOSIT_RECEIVED, true, "Refundable security deposit held for a customer"},
+                new Object[]{"Tenant Deposit", DepositDirection.DEPOSIT_RECEIVED, true, "Refundable deposit received from a tenant"},
+                new Object[]{"Equipment / Container Deposit", DepositDirection.DEPOSIT_RECEIVED, true, "Refundable deposit received for returnable equipment or containers"},
+                new Object[]{"Customer Advance Deposit", DepositDirection.DEPOSIT_RECEIVED, false, "Non-refundable deposit received from a customer, applied against its invoice"}
+        ).forEach(entry -> {
+            DepositType type = new DepositType();
+            type.setName((String) entry[0]);
+            type.setDirection((DepositDirection) entry[1]);
+            type.setRefundableByDefault((Boolean) entry[2]);
+            type.setDescription((String) entry[3]);
+            type.setInterestBearingByDefault(false);
+            type.setActive(true);
+            depositTypeRepository.save(type);
         });
     }
 
@@ -454,7 +490,9 @@ public class DatabaseSeeder implements ApplicationRunner {
                 "1780", // Loans Receivable
                 "1790", // Interest Receivable
                 "2160", // Loans Payable
-                "2170"  // Interest Payable
+                "2170", // Interest Payable
+                "1745", // Deposits Paid
+                "2085"  // Deposits Received
         ).forEach(code -> accountRepository.findByAccountId(code).ifPresent(account -> {
             if (!Boolean.TRUE.equals(account.getIsControlAccount())) {
                 account.setIsControlAccount(true);
@@ -519,6 +557,20 @@ public class DatabaseSeeder implements ApplicationRunner {
         addAccountIfMissing("1770", "Purchase Tax Receivable", assetChart, 60L);
         addAccountIfMissing("2150", "Withholding Tax Payable", liabilityChart, 61L);
         seedPrepaymentAndLoanControlAccountsIfMissing(assetChart, liabilityChart, revenueChart, expenseChart);
+        // Downpayment control accounts (MappingKey.CUSTOMER_DOWNPAYMENT_LIABILITY / SUPPLIER_DOWNPAYMENT_ASSET).
+        addAccountIfMissing("2087", "Customer Downpayments", liabilityChart, 85L);
+        addAccountIfMissing("1747", "Supplier Downpayments", assetChart, 86L);
+        seedBankingAccountsIfMissing(revenueChart, expenseChart);
+    }
+
+    /**
+     * Default targets for {@code MappingKey.BANK_TRANSFER_CHARGES}/{@code FX_GAIN}/{@code FX_LOSS}
+     * so a bank transfer with a fee or an exchange difference can post on a fresh install.
+     */
+    private void seedBankingAccountsIfMissing(ChartOfAccount revenueChart, ChartOfAccount expenseChart) {
+        addAccountIfMissing("5100", "Bank Charges", expenseChart, 70L);
+        addAccountIfMissing("4050", "Foreign Exchange Gain", revenueChart, 71L);
+        addAccountIfMissing("5110", "Foreign Exchange Loss", expenseChart, 72L);
     }
 
     /**
@@ -539,6 +591,18 @@ public class DatabaseSeeder implements ApplicationRunner {
         addAccountIfMissing("4040", "Interest Income", revenueChart, 67L);
         addAccountIfMissing("5080", "Interest Expense", expenseChart, 68L);
         addAccountIfMissing("5090", "Loan Fees Expense", expenseChart, 69L);
+        seedDepositAccountsIfMissing(assetChart, liabilityChart, revenueChart, expenseChart);
+    }
+
+    /** Default accounts the Deposits module resolves through {@code MappingKey.DEPOSIT_*}. */
+    private void seedDepositAccountsIfMissing(
+            ChartOfAccount assetChart, ChartOfAccount liabilityChart,
+            ChartOfAccount revenueChart, ChartOfAccount expenseChart
+    ) {
+        addAccountIfMissing("1745", "Deposits Paid", assetChart, 80L);
+        addAccountIfMissing("2085", "Deposits Received", liabilityChart, 81L);
+        addAccountIfMissing("4060", "Forfeited Deposits Income", revenueChart, 82L);
+        addAccountIfMissing("5095", "Forfeited Deposits Expense", expenseChart, 83L);
     }
 
     /**

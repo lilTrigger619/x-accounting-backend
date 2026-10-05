@@ -7,6 +7,13 @@ import com.unionsg.xaccounting.enums.downpayment.DownpaymentStatus;
 import com.unionsg.xaccounting.enums.downpayment.DownpaymentType;
 import com.unionsg.xaccounting.enums.banking.BankTransferStatus;
 import com.unionsg.xaccounting.enums.deposit.*;
+import com.unionsg.xaccounting.enums.bankrec.AmountSignConvention;
+import com.unionsg.xaccounting.enums.bankrec.BookTransactionStatus;
+import com.unionsg.xaccounting.enums.bankrec.MatchStatus;
+import com.unionsg.xaccounting.enums.bankrec.MatchType;
+import com.unionsg.xaccounting.enums.bankrec.ReconciliationAdjustmentType;
+import com.unionsg.xaccounting.enums.bankrec.ReconciliationStatus;
+import com.unionsg.xaccounting.enums.bankrec.StatementTransactionStatus;
 import com.unionsg.xaccounting.enums.loan.*;
 import com.unionsg.xaccounting.enums.prepayment.PrepaymentCounterpartyType;
 import com.unionsg.xaccounting.enums.prepayment.PrepaymentFrequency;
@@ -34,6 +41,12 @@ public class LookupService {
     static {
         register("account-types", "Account Types", AccountType.class);
         register("bank-transfer-statuses", "Bank Transfer Statuses", BankTransferStatus.class);
+        register("amount-sign-conventions", "Amount Sign Conventions", AmountSignConvention.class);
+        register("bank-match-statuses", "Match Statuses", MatchStatus.class);
+        register("bank-match-types", "Match Types", MatchType.class);
+        register("bank-reconciliation-adjustment-types", "Adjustment Types", ReconciliationAdjustmentType.class);
+        register("bank-reconciliation-statuses", "Reconciliation Statuses", ReconciliationStatus.class);
+        register("bank-transaction-match-statuses", "Transaction Match Statuses", StatementTransactionStatus.class);
         register("bill-statuses", "Bill Statuses", BillStatus.class);
         register("customer-statuses", "Customer Statuses", CustomerStatus.class);
         register("customer-types", "Customer Types", CustomerType.class);

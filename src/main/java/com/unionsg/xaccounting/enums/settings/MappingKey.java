@@ -103,7 +103,14 @@ public enum MappingKey {
     DEPOSIT_FORFEIT_EXPENSE(MappingGroup.DEPOSITS, "5095",
             "Expense account debited when a deposit the organization paid is forfeited"),
     DEPOSIT_BANK_ACCOUNT(MappingGroup.DEPOSITS, "1010",
-            "Bank account used to pay, receive or refund a deposit when no specific bank account is chosen");
+            "Bank account used to pay, receive or refund a deposit when no specific bank account is chosen"),
+
+    BANK_CHARGES_EXPENSE(MappingGroup.BANKING, "5100",
+            "Expense account debited for bank charges brought in through a bank reconciliation adjustment"),
+    BANK_INTEREST_INCOME(MappingGroup.BANKING, "4040",
+            "Revenue account credited for bank interest brought in through a bank reconciliation adjustment"),
+    BANK_RECONCILIATION_SUSPENSE(MappingGroup.BANKING, "1799",
+            "Suspense account for direct debits/credits and unknown bank items posted during a bank reconciliation");
 
     private final MappingGroup group;
     private final String defaultAccountCode;

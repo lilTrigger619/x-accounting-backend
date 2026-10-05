@@ -22,5 +22,6 @@ public enum DocumentModule {
     DOWNPAYMENT,
     LOAN,
     BANK_TRANSFER,
-    DEPOSIT
+    DEPOSIT,
+    BANK_RECONCILIATION
 }

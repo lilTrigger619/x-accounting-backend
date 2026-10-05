@@ -243,6 +243,7 @@ public class DocumentNumberService {
             case "LOAN" -> "LN";
             case "BANK_TRANSFER" -> "BTR";
             case "DEPOSIT" -> "DEP";
+            case "BANK_RECONCILIATION" -> "BREC";
             default -> moduleName.substring(0, Math.min(moduleName.length(), 3));
         };
     }
@@ -280,7 +281,8 @@ public class DocumentNumberService {
                 DocumentModule.DOWNPAYMENT,
                 DocumentModule.LOAN,
                 DocumentModule.BANK_TRANSFER,
-                DocumentModule.DEPOSIT
+                DocumentModule.DEPOSIT,
+                DocumentModule.BANK_RECONCILIATION
         ).stream().map(this::getConfig).toList();
     }
 

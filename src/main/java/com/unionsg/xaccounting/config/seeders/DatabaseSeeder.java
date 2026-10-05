@@ -561,6 +561,8 @@ public class DatabaseSeeder implements ApplicationRunner {
         addAccountIfMissing("2087", "Customer Downpayments", liabilityChart, 85L);
         addAccountIfMissing("1747", "Supplier Downpayments", assetChart, 86L);
         seedBankingAccountsIfMissing(revenueChart, expenseChart);
+        // Bank reconciliation suspense (MappingKey.BANK_RECONCILIATION_SUSPENSE).
+        addAccountIfMissing("1799", "Bank Reconciliation Suspense", assetChart, 90L);
     }
 
     /**

@@ -239,6 +239,7 @@ public class DocumentNumberService {
             case "DOCUMENT_TEMPLATE_DELIVERY_NOTE" -> "TMPL-DN";
             case "DOCUMENT_TEMPLATE_RECEIPT" -> "TMPL-RCT";
             case "PREPAYMENT" -> "PPY";
+            case "DOWNPAYMENT" -> "DP";
             case "LOAN" -> "LN";
             default -> moduleName.substring(0, Math.min(moduleName.length(), 3));
         };
@@ -274,6 +275,7 @@ public class DocumentNumberService {
                 DocumentModule.DOCUMENT_TEMPLATE_DELIVERY_NOTE,
                 DocumentModule.DOCUMENT_TEMPLATE_RECEIPT,
                 DocumentModule.PREPAYMENT,
+                DocumentModule.DOWNPAYMENT,
                 DocumentModule.LOAN
         ).stream().map(this::getConfig).toList();
     }

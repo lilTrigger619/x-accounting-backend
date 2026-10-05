@@ -10,6 +10,7 @@ public enum JournalType {
     CLOSING,
     REVERSING,
     PREPAYMENT,
+    DOWNPAYMENT,
     LOAN
 
 }

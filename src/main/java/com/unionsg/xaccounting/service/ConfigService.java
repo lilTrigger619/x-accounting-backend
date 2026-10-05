@@ -111,10 +111,15 @@ public class ConfigService {
         item.setCode(request.getCode());
         item.setValue(request.getValue());
         item.setDescription(request.getDescription());
+        if (request.getStatus() != null) {
+            item.setStatus(request.getStatus() ? "ACTIVE" : "INACTIVE");
+        }
 
         if (Boolean.TRUE.equals(request.getIsDefault())) {
             clearDefault(item.getConfig());
             item.setIsDefault(true);
+        } else if (Boolean.FALSE.equals(request.getIsDefault())) {
+            item.setIsDefault(false);
         }
 
         return configMapper.toItemDto(configItemRepository.save(item));
@@ -153,6 +158,7 @@ public class ConfigService {
                 .value(request.getValue())
                 .description(request.getDescription())
                 .isDefault(request.getIsDefault())
+                .status(Boolean.FALSE.equals(request.getStatus()) ? "INACTIVE" : "ACTIVE")
                 .config(config)
                 .build();
 

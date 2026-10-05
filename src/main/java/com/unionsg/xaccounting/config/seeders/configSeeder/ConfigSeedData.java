@@ -21,7 +21,12 @@ public class ConfigSeedData {
                 units(),
                 categories(),
                 shippingMethods(),
-                expenseCategories()
+                expenseCategories(),
+                taxAuthorities(),
+                filingFrequencies(),
+                taxAppliesTo(),
+                taxTransactionTypes(),
+                taxGroups()
 
         );
     }
@@ -217,6 +222,109 @@ public class ConfigSeedData {
                 item("Utilities", "UTL", null, null, false, 3),
                 item("Marketing", "MKT", null, null, false, 4),
                 item("Salaries", "SAL", null, null, false, 5)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+
+    private Config taxAuthorities() {
+        Config config = Config.builder()
+                .configKey("tax-authorities")
+                .title("Tax Authorities")
+                .description("Agencies that tax rates are filed with.")
+                .itemLabel("Tax Authority")
+                .sortOrder(9)
+                .build();
+
+        config.setItems(List.of(
+                item("Ghana Revenue Authority", "GRA", null, null, true, 1),
+                item("Kenya Revenue Authority", "KRA", null, null, false, 2),
+                item("Internal Revenue Service", "IRS", null, null, false, 3),
+                item("HM Revenue & Customs", "HMRC", null, null, false, 4),
+                item("Australian Taxation Office", "ATO", null, null, false, 5)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config filingFrequencies() {
+        Config config = Config.builder()
+                .configKey("filing-frequencies")
+                .title("Filing Frequencies")
+                .description("How often a tax is filed with its authority.")
+                .itemLabel("Filing Frequency")
+                .sortOrder(10)
+                .build();
+
+        config.setItems(List.of(
+                item("Monthly", "MONTHLY", null, null, true, 1),
+                item("Quarterly", "QUARTERLY", null, null, false, 2),
+                item("Bi-Annual", "BIANNUAL", null, null, false, 3),
+                item("Annual", "ANNUAL", null, null, false, 4)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config taxAppliesTo() {
+        Config config = Config.builder()
+                .configKey("tax-applies-to")
+                .title("Tax Applies To")
+                .description("What kind of supply a tax rate covers.")
+                .itemLabel("Applies To")
+                .sortOrder(11)
+                .build();
+
+        config.setItems(List.of(
+                item("Goods & Services", "BOTH", null, null, true, 1),
+                item("Goods Only", "GOODS", null, null, false, 2),
+                item("Services Only", "SERVICES", null, null, false, 3),
+                item("Digital Products", "DIGITAL", null, null, false, 4),
+                item("Imports Only", "IMPORTS", null, null, false, 5),
+                item("Exports Only", "EXPORTS", null, null, false, 6)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config taxTransactionTypes() {
+        Config config = Config.builder()
+                .configKey("tax-transaction-types")
+                .title("Tax Transaction Types")
+                .description("Whether a tax rate is used on sales, purchases or both.")
+                .itemLabel("Transaction Type")
+                .sortOrder(12)
+                .build();
+
+        config.setItems(List.of(
+                item("All Transactions", "ALL", null, null, true, 1),
+                item("Sales Only", "SALES", null, null, false, 2),
+                item("Purchases Only", "PURCHASES", null, null, false, 3)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config taxGroups() {
+        Config config = Config.builder()
+                .configKey("tax-groups")
+                .title("Tax Groups")
+                .description("Groups tax rates for reporting, e.g. standard, reduced, zero rated.")
+                .itemLabel("Tax Group")
+                .sortOrder(13)
+                .build();
+
+        config.setItems(List.of(
+                item("Standard Rates", "STANDARD", null, null, false, 1),
+                item("Reduced Rates", "REDUCED", null, null, false, 2),
+                item("Zero Rated", "ZERO", null, null, false, 3),
+                item("Exempt", "EXEMPT", null, null, false, 4)
         ));
 
         linkItems(config);

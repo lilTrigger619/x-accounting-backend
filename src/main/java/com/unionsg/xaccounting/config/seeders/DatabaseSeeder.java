@@ -363,12 +363,12 @@ public class DatabaseSeeder implements ApplicationRunner {
         }
 
         if (taxCategoryRepository.count() == 0) {
-            taxCategoryRepository.save(TaxCategory.builder().name("Sales Tax (Standard)").type(TaxCategoryType.SALES_TAX).rate(new BigDecimal("5.00")).build());
-            taxCategoryRepository.save(TaxCategory.builder().name("Sales Tax (Reduced)").type(TaxCategoryType.SALES_TAX).rate(new BigDecimal("2.50")).build());
-            taxCategoryRepository.save(TaxCategory.builder().name("VAT (Standard)").type(TaxCategoryType.VAT).rate(new BigDecimal("15.00")).build());
-            taxCategoryRepository.save(TaxCategory.builder().name("VAT (Zero-Rated)").type(TaxCategoryType.VAT).rate(BigDecimal.ZERO).build());
-            taxCategoryRepository.save(TaxCategory.builder().name("Withholding Tax 5%").type(TaxCategoryType.WITHHOLDING_TAX).rate(new BigDecimal("5.00")).build());
-            taxCategoryRepository.save(TaxCategory.builder().name("Withholding Tax 10%").type(TaxCategoryType.WITHHOLDING_TAX).rate(new BigDecimal("10.00")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("Sales Tax (Standard)").code("ST-STD").active(true).type(TaxCategoryType.SALES_TAX).rate(new BigDecimal("5.00")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("Sales Tax (Reduced)").code("ST-RED").active(true).type(TaxCategoryType.SALES_TAX).rate(new BigDecimal("2.50")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("VAT (Standard)").code("VAT-STD").active(true).type(TaxCategoryType.VAT).rate(new BigDecimal("15.00")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("VAT (Zero-Rated)").code("VAT-ZERO").active(true).type(TaxCategoryType.VAT).rate(BigDecimal.ZERO).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("Withholding Tax 5%").code("WHT-5").active(true).type(TaxCategoryType.WITHHOLDING_TAX).rate(new BigDecimal("5.00")).build());
+            taxCategoryRepository.save(TaxCategory.builder().name("Withholding Tax 10%").code("WHT-10").active(true).type(TaxCategoryType.WITHHOLDING_TAX).rate(new BigDecimal("10.00")).build());
         }
 
         // Runs unconditionally (each guarded individually by existsByAccountId) so these two

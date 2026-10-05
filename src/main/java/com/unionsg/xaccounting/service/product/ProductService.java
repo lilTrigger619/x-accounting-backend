@@ -6,11 +6,10 @@ import com.unionsg.xaccounting.dto.product.CreateProductRequest;
 import com.unionsg.xaccounting.dto.product.ProductResponse;
 import com.unionsg.xaccounting.dto.product.UpdateProductRequest;
 import com.unionsg.xaccounting.entity.AccountEntity;
-import com.unionsg.xaccounting.entity.TaxCategory;
 import com.unionsg.xaccounting.entity.product.Product;
 import com.unionsg.xaccounting.enums.EntityType;
 import com.unionsg.xaccounting.repository.AccountRepository;
-import com.unionsg.xaccounting.repository.TaxCategoryRepository;
+import com.unionsg.xaccounting.service.TaxCategoryService;
 import com.unionsg.xaccounting.repository.product.ProductRepository;
 import com.unionsg.xaccounting.security.util.SecurityUtils;
 import com.unionsg.xaccounting.service.FileService.FileService;
@@ -29,7 +28,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final AccountRepository accountRepository;
-    private final TaxCategoryRepository taxCategoryRepository;
+    private final TaxCategoryService taxCategoryService;
     private final FileService fileService;
 
     @Transactional
@@ -42,7 +41,7 @@ public class ProductService {
                 .description(request.getDescription())
                 .price(request.getPrice())
                 .incomeAccount(resolveAccount(request.getIncomeAccountId()))
-                .taxCategory(resolveTaxCategory(request.getTaxCategoryId()))
+                .taxCategory(taxCategoryService.getUsable(request.getTaxCategoryId(), null))
                 .build();
 
         Product saved = productRepository.save(product);
@@ -67,7 +66,9 @@ public class ProductService {
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
         product.setIncomeAccount(resolveAccount(request.getIncomeAccountId()));
-        product.setTaxCategory(resolveTaxCategory(request.getTaxCategoryId()));
+        product.setTaxCategory(taxCategoryService.getUsable(
+                request.getTaxCategoryId(),
+                product.getTaxCategory() == null ? null : product.getTaxCategory().getId()));
 
         if (image != null && !image.isEmpty()) {
             deleteExistingImage(product);
@@ -108,12 +109,6 @@ public class ProductService {
         if (accountId == null) return null;
         return accountRepository.findById(accountId)
                 .orElseThrow(() -> new RuntimeException("Account not found with id: " + accountId));
-    }
-
-    private TaxCategory resolveTaxCategory(Long taxCategoryId) {
-        if (taxCategoryId == null) return null;
-        return taxCategoryRepository.findById(taxCategoryId)
-                .orElseThrow(() -> new RuntimeException("Tax category not found with id: " + taxCategoryId));
     }
 
     private void deleteExistingImage(Product product) {

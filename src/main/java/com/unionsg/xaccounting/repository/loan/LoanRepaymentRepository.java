@@ -6,5 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface LoanRepaymentRepository extends JpaRepository<LoanRepayment, Long> {
-    List<LoanRepayment> findByLoanIdOrderByRepaymentDateDesc(Long loanId);
+    List<LoanRepayment> findByLoanIdOrderByRepaymentDateDescIdDesc(Long loanId);
+
+    List<LoanRepayment> findByLoanIdOrderByRepaymentDateAscIdAsc(Long loanId);
+
+    List<LoanRepayment> findByLoanIdIn(List<Long> loanIds);
 }

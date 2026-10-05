@@ -65,9 +65,12 @@ public class LookupService {
         register("loan-counterparty-types", "Loan Counterparty Types", LoanCounterpartyType.class);
         register("loan-directions", "Loan Directions", LoanDirection.class);
         register("loan-frequencies", "Loan Payment Frequencies", LoanFrequency.class);
-        register("loan-interest-methods", "Loan Interest Methods", LoanInterestMethod.class);
-        register("loan-interest-types", "Loan Interest Types", LoanInterestType.class);
-        register("loan-repayment-methods", "Loan Repayment Methods", LoanRepaymentMethod.class);
+        register("loan-fee-treatments", "Loan Fee Treatments", LoanFeeTreatment.class);
+        register("loan-installment-statuses", "Installment Statuses", LoanInstallmentStatus.class);
+        register("loan-interest-methods", "Interest Calculation Methods", LoanInterestMethod.class);
+        register("loan-payment-statuses", "Loan Payment Statuses", LoanPaymentStatus.class);
+        register("loan-payment-types", "Loan Payment Types", LoanPaymentType.class);
+        register("loan-statuses", "Loan Statuses", com.unionsg.xaccounting.enums.loan.LoanStatus.class);
         register("pay-component-calculation-methods", "Calculation Methods", PayComponentCalculationMethod.class);
         register("pay-component-categories", "Pay Component Categories", PayComponentCategory.class);
         register("pay-component-sides", "Pay Component Sides", PayComponentSide.class);

@@ -35,7 +35,8 @@ public class SettingsPermissionBackfillSeeder implements ApplicationRunner {
             "view_settings", "manage_accounting_mappings", "manage_organization", "manage_bank_accounts",
             "manage_mail_configuration", "manage_loan_types", "manage_prepayment_types", "manage_tax_rates",
             "view_bank_transfers", "manage_bank_transfers", "post_bank_transfers", "reverse_bank_transfers",
-            "manage_deposit_types", "view_deposits", "manage_deposits", "allocate_deposits", "reverse_deposits");
+            "manage_deposit_types", "view_deposits", "manage_deposits", "allocate_deposits", "reverse_deposits",
+            "view_loans", "manage_loans", "approve_loans", "record_loan_payments", "reverse_loans");
 
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;

@@ -86,6 +86,10 @@ public enum MappingKey {
             "Expense account debited for origination/processing/arrangement/penalty fees on a borrowed loan"),
     LOAN_BANK_ACCOUNT(MappingGroup.LOANS, "1010",
             "Bank account used for loan disbursement/repayment when no specific bank account is chosen"),
+    LOAN_FEE_INCOME(MappingGroup.LOANS, "4042",
+            "Revenue account credited for fees charged on a loan the organization lent out"),
+    LOAN_WRITE_OFF_EXPENSE(MappingGroup.LOANS, "5085",
+            "Expense account debited when the unpaid balance of a defaulted lent loan is written off"),
 
     BANK_TRANSFER_CHARGES(MappingGroup.BANKING, "5100",
             "Expense account debited for bank charges/fees on a bank transfer, when the transfer has no fee account override"),

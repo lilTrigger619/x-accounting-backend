@@ -47,6 +47,7 @@ public class AccountCreationDTO {
 
 
 public class AccountCreationDTO {
+    private Long id;
     private String accountId;
     private String accountName;
     private String ChartCode;
@@ -54,6 +55,8 @@ public class AccountCreationDTO {
     private String currency;
     private String defaultTaxRate;
     private String description;
+    /** Omitted means active. */
+    private Boolean isActive;
     @Builder.Default
     private Optional<String> openingBalance = Optional.empty();
     @Builder.Default

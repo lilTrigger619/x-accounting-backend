@@ -7,6 +7,8 @@ import com.unionsg.xaccounting.entity.ChartOfAccountClearTo_ENTITY;
 import com.unionsg.xaccounting.entity.User.User;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.ChartOfAccountClearToRepository;
+import com.unionsg.xaccounting.exception.BusinessException;
+import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,28 +25,56 @@ public class AccountCommandServiceImpl implements AccountCommandService {
 
     private final AccountRepository accountRepository;
     private final ChartOfAccountClearToRepository chartOfAccountClearToRepository;
+    private final TaxCategoryService taxCategoryService;
+    private final ConfigValueValidator configValues;
 
     @Override
     @Transactional
     public AccountCreationDTO createAccount(AccountCreationDTO accountCreationDTO) {
-        Long clearToCode = Long.parseLong(accountCreationDTO.getClearsTo());
+        if (accountCreationDTO.getAccountId() == null || accountCreationDTO.getAccountId().isBlank()) {
+            throw new BusinessException("Account code is required");
+        }
+        if (accountCreationDTO.getAccountName() == null || accountCreationDTO.getAccountName().isBlank()) {
+            throw new BusinessException("Account name is required");
+        }
+        if (accountCreationDTO.getClearsTo() == null || accountCreationDTO.getClearsTo().isBlank()) {
+            throw new BusinessException("Clears to is required");
+        }
+        Long clearToCode;
+        try {
+            clearToCode = Long.parseLong(accountCreationDTO.getClearsTo().trim());
+        } catch (NumberFormatException e) {
+            throw new BusinessException("\"" + accountCreationDTO.getClearsTo() + "\" is not a valid clears-to code");
+        }
         ChartOfAccountClearTo_ENTITY chartOfAccountClearTo = chartOfAccountClearToRepository.findByClearToCode(clearToCode)
-                .orElseThrow(() -> new RuntimeException("Chart of account clear to not found with code: " + accountCreationDTO.getClearsTo()));
+                .orElseThrow(() -> new BusinessException("Chart of account clear to not found with code: " + accountCreationDTO.getClearsTo()));
 
         if (accountRepository.existsByAccountId(accountCreationDTO.getAccountId())) {
-            throw new RuntimeException("Account ID already exists: " + accountCreationDTO.getAccountId());
+            throw new BusinessException("Account code already exists: " + accountCreationDTO.getAccountId());
+        }
+
+        String taxRate = accountCreationDTO.getDefaultTaxRate();
+        if (taxRate != null && !taxRate.isBlank()) {
+            try {
+                taxCategoryService.getUsable(Long.parseLong(taxRate.trim()), null);
+            } catch (NumberFormatException e) {
+                throw new BusinessException("\"" + taxRate + "\" is not a valid tax rate");
+            }
+        } else {
+            taxRate = null;
         }
 
         User user = SecurityUtils.getCurrentUser();
 
         AccountEntity entity = AccountEntity.builder()
-                .accountId(accountCreationDTO.getAccountId())
-                .accountName(accountCreationDTO.getAccountName())
+                .accountId(accountCreationDTO.getAccountId().trim())
+                .accountName(accountCreationDTO.getAccountName().trim())
                 .coaClearTo(chartOfAccountClearTo)
-                .taxRate(accountCreationDTO.getDefaultTaxRate())
+                .taxRate(taxRate)
                 .createdBy(user)
                 .description(accountCreationDTO.getDescription())
-                .currency(accountCreationDTO.getCurrency())
+                .currency(configValues.validate("currencies", accountCreationDTO.getCurrency(), null, "Currency"))
+                .isActive(accountCreationDTO.getIsActive() == null || accountCreationDTO.getIsActive())
                 .build();
 
         AccountEntity saved = accountRepository.save(entity);
@@ -112,12 +142,14 @@ public class AccountCommandServiceImpl implements AccountCommandService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         String dateString = null;
         return AccountCreationDTO.builder()
+                .id(entity.getId())
                 .accountId(entity.getAccountId())
                 .accountName(entity.getAccountName())
                 .clearsTo(entity.getCoaClearTo().getId().toString())
                 .currency(entity.getCurrency())
                 .description(entity.getDescription())
                 .defaultTaxRate(entity.getTaxRate())
+                .isActive(entity.getIsActive())
                 .build();
     }
 

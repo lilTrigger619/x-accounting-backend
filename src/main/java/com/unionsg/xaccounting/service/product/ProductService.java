@@ -8,6 +8,8 @@ import com.unionsg.xaccounting.dto.product.UpdateProductRequest;
 import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.entity.product.Product;
 import com.unionsg.xaccounting.enums.EntityType;
+import com.unionsg.xaccounting.enums.ProductItemType;
+import com.unionsg.xaccounting.exception.BusinessException;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.service.TaxCategoryService;
 import com.unionsg.xaccounting.repository.product.ProductRepository;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
@@ -33,8 +36,9 @@ public class ProductService {
 
     @Transactional
     public ProductResponse createProduct(MultipartFile image, CreateProductRequest request) {
+        validate(request.getName(), request.getItemType(), request.getPrice());
         Product product = Product.builder()
-                .name(request.getName())
+                .name(request.getName().trim())
                 .itemType(request.getItemType())
                 .category(request.getCategory())
                 .costGroup(request.getCostGroup())
@@ -58,8 +62,9 @@ public class ProductService {
     public ProductResponse updateProduct(Long id, MultipartFile image, UpdateProductRequest request) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+        validate(request.getName(), request.getItemType(), request.getPrice());
 
-        product.setName(request.getName());
+        product.setName(request.getName().trim());
         product.setItemType(request.getItemType());
         product.setCategory(request.getCategory());
         product.setCostGroup(request.getCostGroup());
@@ -105,10 +110,17 @@ public class ProductService {
         productRepository.save(product);
     }
 
+    private void validate(String name, ProductItemType itemType, BigDecimal price) {
+        if (name == null || name.isBlank()) throw new BusinessException("Product name is required");
+        if (itemType == null) throw new BusinessException("Item type is required");
+        if (price != null && price.signum() < 0) throw new BusinessException("Price can't be negative");
+    }
+
     private AccountEntity resolveAccount(Long accountId) {
         if (accountId == null) return null;
         return accountRepository.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Account not found with id: " + accountId));
+                .filter(a -> !a.isDeleted())
+                .orElseThrow(() -> new BusinessException("Income account not found"));
     }
 
     private void deleteExistingImage(Product product) {

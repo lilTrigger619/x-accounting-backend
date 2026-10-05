@@ -421,7 +421,8 @@ and Recurring Journal Entries.
 - [~] Customer Refunds — `PaymentRefundEntity`/`RefundPaymentRequest` exist generically; verify full accounting impact (GL entries) is wired
 - [x] Customer Statements (BE: `StatementService.getCustomerStatement`, `GET /api/customers/{id}/statement`; FE: `CustomerStatementPage`)
 - [ ] Credit Notes (customer credit/invoice adjustment) — only a document-template category exists, no transaction entity/workflow
-- [ ] Customer Deposits (money received pre-invoice) — not implemented
+- [x] Customer Deposits — Deposits module, DEPOSIT_RECEIVED (BE: `Deposit`/`DepositAllocation`/`DepositType`, `DepositService`, `DepositController` at `/api/deposits`; posts Dr Bank / Cr Deposits Received liability, never income; apply to invoices, refund, forfeit to income, transfer, reverse; DRAFT → ACTIVE → PARTIALLY_APPLIED/FULLY_APPLIED/REFUNDED/FORFEITED, CANCELLED, REVERSED; allocations can never exceed the available balance; FE: Deposits dashboard, list, new/edit, details with allocations/statement/activity/attachments, counterparty statement, activity, Deposit Types setup)
+- [x] Shared invoice/bill settlement ledger (BE: `DocumentSettlement`, `DocumentSettlementService`, `GET /api/settlements/invoices/{id}` and `/bills/{id}`) — deposits and downpayments settle invoices and bills through it; invoice and bill screens show original amount, payments, each credit applied and amount due
 - [ ] Customer Credits (track/allocate unapplied credits) — not implemented
 - [x] Customer Aging (BE: `AgingReportService.getArAging`, `GET /api/reports/ar-aging`; FE: `ArAgingPage`)
 - [ ] Collections (overdue follow-up tooling) — not implemented
@@ -443,6 +444,7 @@ and Recurring Journal Entries.
 - [x] Supplier Aging / AP Aging (BE: `AgingReportService.getApAging`, `GET /api/reports/ap-aging`; FE: `ApAgingPage`)
 - [ ] Supplier Credits — not implemented
 - [ ] Supplier Refunds — not implemented (AP mirror of `PaymentRefundEntity` wasn't built; see §0)
+- [x] Deposits Paid (security, rent, utility, tender deposits) — Deposits module, DEPOSIT_PAID: Dr Deposits Paid asset / Cr Bank; refund, apply to bills, forfeit to expense, transfer, reverse; current vs non-current classification from the expected return date
 - [ ] Purchase Orders — not implemented (document-template category only)
 - [ ] Purchase-to-Bill conversion — not implemented
 - [ ] Recurring Bills — not implemented

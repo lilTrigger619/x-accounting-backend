@@ -92,6 +92,9 @@ public class BankAccountService {
         if (request.getEnableReconciliation() != null) {
             account.setEnableReconciliation(request.getEnableReconciliation());
         }
+        if (request.getAllowOverdraft() != null) {
+            account.setAllowOverdraft(request.getAllowOverdraft());
+        }
     }
 
     private BankAccountResponse toResponse(BankAccount account) {
@@ -108,6 +111,7 @@ public class BankAccountService {
                 .status(account.getStatus())
                 .isDefault(account.getIsDefault())
                 .enableReconciliation(account.getEnableReconciliation())
+                .allowOverdraft(Boolean.TRUE.equals(account.getAllowOverdraft()))
                 .build();
     }
 }

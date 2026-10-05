@@ -519,6 +519,17 @@ public class DatabaseSeeder implements ApplicationRunner {
         addAccountIfMissing("1770", "Purchase Tax Receivable", assetChart, 60L);
         addAccountIfMissing("2150", "Withholding Tax Payable", liabilityChart, 61L);
         seedPrepaymentAndLoanControlAccountsIfMissing(assetChart, liabilityChart, revenueChart, expenseChart);
+        seedBankingAccountsIfMissing(revenueChart, expenseChart);
+    }
+
+    /**
+     * Default targets for {@code MappingKey.BANK_TRANSFER_CHARGES}/{@code FX_GAIN}/{@code FX_LOSS}
+     * so a bank transfer with a fee or an exchange difference can post on a fresh install.
+     */
+    private void seedBankingAccountsIfMissing(ChartOfAccount revenueChart, ChartOfAccount expenseChart) {
+        addAccountIfMissing("5100", "Bank Charges", expenseChart, 70L);
+        addAccountIfMissing("4050", "Foreign Exchange Gain", revenueChart, 71L);
+        addAccountIfMissing("5110", "Foreign Exchange Loss", expenseChart, 72L);
     }
 
     /**

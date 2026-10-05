@@ -81,7 +81,14 @@ public enum MappingKey {
     LOAN_FEE_EXPENSE(MappingGroup.LOANS, "5090",
             "Expense account debited for origination/processing/arrangement/penalty fees on a borrowed loan"),
     LOAN_BANK_ACCOUNT(MappingGroup.LOANS, "1010",
-            "Bank account used for loan disbursement/repayment when no specific bank account is chosen");
+            "Bank account used for loan disbursement/repayment when no specific bank account is chosen"),
+
+    BANK_TRANSFER_CHARGES(MappingGroup.BANKING, "5100",
+            "Expense account debited for bank charges/fees on a bank transfer, when the transfer has no fee account override"),
+    FX_GAIN(MappingGroup.BANKING, "4050",
+            "Revenue account credited for a foreign exchange gain realised on a cross-currency bank transfer"),
+    FX_LOSS(MappingGroup.BANKING, "5110",
+            "Expense account debited for a foreign exchange loss realised on a cross-currency bank transfer");
 
     private final MappingGroup group;
     private final String defaultAccountCode;

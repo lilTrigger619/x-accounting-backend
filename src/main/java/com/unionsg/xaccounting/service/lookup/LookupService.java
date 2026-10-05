@@ -3,6 +3,7 @@ package com.unionsg.xaccounting.service.lookup;
 import com.unionsg.xaccounting.dto.lookup.LookupDefinitionDto;
 import com.unionsg.xaccounting.dto.lookup.LookupOptionDto;
 import com.unionsg.xaccounting.enums.*;
+import com.unionsg.xaccounting.enums.banking.BankTransferStatus;
 import com.unionsg.xaccounting.enums.loan.*;
 import com.unionsg.xaccounting.enums.prepayment.PrepaymentCounterpartyType;
 import com.unionsg.xaccounting.enums.prepayment.PrepaymentFrequency;
@@ -29,6 +30,7 @@ public class LookupService {
 
     static {
         register("account-types", "Account Types", AccountType.class);
+        register("bank-transfer-statuses", "Bank Transfer Statuses", BankTransferStatus.class);
         register("bill-statuses", "Bill Statuses", BillStatus.class);
         register("customer-statuses", "Customer Statuses", CustomerStatus.class);
         register("customer-types", "Customer Types", CustomerType.class);

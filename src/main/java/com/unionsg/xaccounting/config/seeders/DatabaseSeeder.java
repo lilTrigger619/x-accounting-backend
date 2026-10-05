@@ -558,8 +558,8 @@ public class DatabaseSeeder implements ApplicationRunner {
         addAccountIfMissing("2150", "Withholding Tax Payable", liabilityChart, 61L);
         seedPrepaymentAndLoanControlAccountsIfMissing(assetChart, liabilityChart, revenueChart, expenseChart);
         // Downpayment control accounts (MappingKey.CUSTOMER_DOWNPAYMENT_LIABILITY / SUPPLIER_DOWNPAYMENT_ASSET).
-        addAccountIfMissing("2085", "Customer Downpayments", liabilityChart, 85L);
-        addAccountIfMissing("1745", "Supplier Downpayments", assetChart, 86L);
+        addAccountIfMissing("2087", "Customer Downpayments", liabilityChart, 85L);
+        addAccountIfMissing("1747", "Supplier Downpayments", assetChart, 86L);
         seedBankingAccountsIfMissing(revenueChart, expenseChart);
     }
 

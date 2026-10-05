@@ -16,7 +16,7 @@ public enum MappingKey {
             "Accounts Receivable control account credited when a customer payment is applied"),
     PAYMENT_CUSTOMER_ADVANCES(MappingGroup.SALES, "2080",
             "Liability account credited for unapplied customer payments (advances/overpayments)"),
-    CUSTOMER_DOWNPAYMENT_LIABILITY(MappingGroup.SALES, "2085",
+    CUSTOMER_DOWNPAYMENT_LIABILITY(MappingGroup.SALES, "2087",
             "Liability account credited when a customer downpayment is received, and debited as it is applied to invoices or refunded"),
 
     INVOICE_ACCOUNTS_RECEIVABLE(MappingGroup.SALES, "6220",
@@ -38,7 +38,7 @@ public enum MappingKey {
             "Cash account credited when a supplier payment is made in cash"),
     SUPPLIER_PAYMENT_ADVANCES(MappingGroup.PURCHASES, "1740",
             "Asset account debited for unapplied supplier payments (advances)"),
-    SUPPLIER_DOWNPAYMENT_ASSET(MappingGroup.PURCHASES, "1745",
+    SUPPLIER_DOWNPAYMENT_ASSET(MappingGroup.PURCHASES, "1747",
             "Asset account debited when a downpayment is paid to a supplier, and credited as it is applied to bills or refunded"),
     TAX_WITHHOLDING_PAYABLE(MappingGroup.PURCHASES, "2150",
             "Liability account credited for tax withheld from a supplier payment, payable to the tax authority"),

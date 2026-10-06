@@ -4,7 +4,10 @@ import com.unionsg.xaccounting.dto.reports.ReportTemplateRequestDto;
 import com.unionsg.xaccounting.dto.reports.ReportTemplateResponseDto;
 import com.unionsg.xaccounting.enums.ReportTemplateStatus;
 import com.unionsg.xaccounting.entity.reports.ReportTemplate;
+import com.unionsg.xaccounting.entity.reports.ReportTemplateSection;
 import com.unionsg.xaccounting.repository.reports.ReportTemplateRepository;
+import com.unionsg.xaccounting.repository.reports.ReportTemplateSectionAccountRepository;
+import com.unionsg.xaccounting.repository.reports.ReportTemplateSectionRepository;
 import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import com.unionsg.xaccounting.service.reports.exception.TemplateCodeAlreadyExistsException;
 import com.unionsg.xaccounting.service.reports.exception.TemplateNotFoundException;
@@ -22,6 +25,8 @@ import java.util.List;
 public class ReportTemplateServiceImpl implements ReportTemplateService {
 
     private final ReportTemplateRepository repository;
+    private final ReportTemplateSectionRepository sectionRepository;
+    private final ReportTemplateSectionAccountRepository sectionAccountRepository;
     private final ReportTemplateMapper mapper;
     private final ConfigValueValidator configValues;
 
@@ -97,6 +102,16 @@ public class ReportTemplateServiceImpl implements ReportTemplateService {
         if (entity.getStatus() == ReportTemplateStatus.PUBLISHED) {
             throw new TemplatePublishedDeletionException("Cannot delete published template. id=" + id);
         }
+
+        // A draft's sections and their account assignments go with it. Parent links are cleared
+        // first so the sections can be removed in any order.
+        List<ReportTemplateSection> sections = sectionRepository.findByReportTemplateId(id);
+        for (ReportTemplateSection section : sections) {
+            sectionAccountRepository.deleteAll(sectionAccountRepository.findByReportTemplateSectionId(section.getId()));
+            section.setParentSection(null);
+        }
+        sectionRepository.saveAllAndFlush(sections);
+        sectionRepository.deleteAll(sections);
 
         repository.delete(entity);
     }

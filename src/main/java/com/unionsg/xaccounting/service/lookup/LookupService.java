@@ -17,6 +17,7 @@ import com.unionsg.xaccounting.enums.bankrec.StatementTransactionStatus;
 import com.unionsg.xaccounting.enums.loan.*;
 import com.unionsg.xaccounting.enums.prepayment.PrepaymentCounterpartyType;
 import com.unionsg.xaccounting.enums.prepayment.PrepaymentFrequency;
+import com.unionsg.xaccounting.enums.settings.MappingGroup;
 import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +42,7 @@ public class LookupService {
 
     static {
         register("account-types", "Account Types", AccountType.class);
+        register("accounting-mapping-groups", "Accounting Mapping Groups", MappingGroup.class);
         register("bank-transfer-statuses", "Bank Transfer Statuses", BankTransferStatus.class);
         register("amount-sign-conventions", "Amount Sign Conventions", AmountSignConvention.class);
         register("bank-match-statuses", "Match Statuses", MatchStatus.class);

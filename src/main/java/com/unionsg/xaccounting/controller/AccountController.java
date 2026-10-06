@@ -39,6 +39,12 @@ public class AccountController {
         return ResponseEntity.ok(accountService.getAccounts(search, accountType, status, pageable));
     }
 
+    // GET /api/accounts/v1/by-number?numbers=1010,5030 — current balances for specific accounts
+    @GetMapping("/v1/by-number")
+    public ResponseEntity<List<AccountListResponse>> getAccountsByNumbers(@RequestParam List<String> numbers) {
+        return ResponseEntity.ok(accountService.getAccountsByNumbers(numbers));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<AccountDTO> getAccountById(@PathVariable Long id) {
         return ResponseEntity.ok(accountCommandService.getAccountById(id));

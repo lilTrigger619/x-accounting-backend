@@ -32,4 +32,24 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
             @Param("accountCode") String accountCode,
             @Param("statuses") Collection<JournalStatus> statuses
     );
+
+    /** Net debit-minus-credit movement per GL account code, for many accounts at once. */
+    @Query("""
+        SELECT l.account.accountId AS accountCode, COALESCE(SUM(l.debitAmount - l.creditAmount), 0) AS netMovement
+        FROM JournalLine l
+        WHERE l.account.accountId IN :accountCodes
+          AND l.journalEntry.status IN :statuses
+          AND l.journalEntry.deleted = false
+        GROUP BY l.account.accountId
+        """)
+    List<AccountMovement> sumNetMovementByAccountCodes(
+            @Param("accountCodes") Collection<String> accountCodes,
+            @Param("statuses") Collection<JournalStatus> statuses
+    );
+
+    interface AccountMovement {
+        String getAccountCode();
+
+        BigDecimal getNetMovement();
+    }
 }

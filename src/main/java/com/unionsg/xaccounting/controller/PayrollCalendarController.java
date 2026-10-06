@@ -22,6 +22,17 @@ public class PayrollCalendarController {
         return ResponseEntity.ok(payrollCalendarService.create(request));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<PayrollCalendarPeriodResponse> update(@PathVariable Long id, @Valid @RequestBody CreatePayrollCalendarPeriodRequest request) {
+        return ResponseEntity.ok(payrollCalendarService.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        payrollCalendarService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/group/{payrollGroupId}")
     public ResponseEntity<List<PayrollCalendarPeriodResponse>> getByGroup(@PathVariable Long payrollGroupId) {
         return ResponseEntity.ok(payrollCalendarService.getByGroup(payrollGroupId));

@@ -22,6 +22,16 @@ this codebase specifically does with it — the entity, the enum, the GL account
 implementation if you already know what a control account or an amortization schedule is and just
 need the account codes.
 
+**This is a large, actively-developed system, and this manual covers all seventeen of its parts as
+of this writing.** Part 1 through Part 6 cover the accounting backbone and the original five
+transaction-posting modules (AR, AP, Prepayments, Loans). Parts 7 through 11 cover five modules that
+were added to the system after the first version of this manual was written — Expenses, Deposits,
+Down Payments, Bank Transfers, and Bank Reconciliation — and Part 15 covers a Business Intelligence
+reporting layer added at the same time. If you read an earlier version of this document, be aware
+that the Loans module (Part 6) was substantially rebuilt alongside these additions — its interest
+methods, status lifecycle, and several of its GL accounts changed — so re-read that Part even if
+you already know the rest.
+
 ---
 
 # Part 1 — Foundations: How Double-Entry Works Here
@@ -86,24 +96,55 @@ report in this system (Balance Sheet, Trial Balance, aging, everything) only eve
 journals; `DRAFT`, `REVERSED`, and `CANCELLED` lines are invisible to the ledger. If a posted entry
 turns out to be wrong, it is never edited or deleted — it is **reversed**.
 
+Every journal carries a `journalType` (`JournalType`), and the current full list of values is:
+`GENERAL`, `SALES`, `PURCHASE`, `PAYROLL`, `ADJUSTMENT`, `OPENING_BALANCE`, `CLOSING`, `REVERSING`,
+`PREPAYMENT`, `LOAN`, `DOWNPAYMENT`, `EXPENSE`, `DEPOSIT`, and `BANK_TRANSFER` — fourteen values in
+total, each introduced as its owning module was built. **Only five of these fourteen can be chosen
+on a manually-entered journal**: `GENERAL`, `SALES`, `PURCHASE`, `PAYROLL`, and `ADJUSTMENT`. Every
+other value is reserved for the module that owns it — `JournalType.isManualEntry()` is checked the
+moment a manual journal is created or its type is changed, and the system refuses with a message
+naming the type and explaining that journals of that type "are posted by their own module and can't
+be entered by hand." This exists for the same reason control accounts exist (§1.3): an invoice, a
+bill, a loan disbursement, a bank transfer — each already has its own posting engine with its own
+validation, and letting a human freehand a journal tagged with that same type would let the ledger
+disagree with the very subledger the type is supposed to identify.
+
+A manually-entered journal's currency is validated too: it must be a value already present in the
+system's "currencies" configuration list, rather than silently defaulting to a hardcoded currency —
+so an organization that has only configured USD and EUR cannot accidentally post a journal tagged
+GHS just because that happened to be an old default somewhere in the code.
+
 ### Reversal is a mirror, not an undo
 
-`JournalServiceImpl.reverse(id, reason)` is the one mechanism every "undo" in this system — a
-cancelled payment, a reversed payroll run — ultimately calls. It does not touch the original entry
-at all. Instead it:
+`JournalServiceImpl.reverse(id, request)` is the one mechanism every "undo" in this system — a
+cancelled payment, a reversed payroll run, a reversed loan write-off — ultimately calls. It does not
+touch the original entry at all. Instead it:
 
 - Requires the original to currently be `POSTED` (you can't reverse a draft or an already-reversed
   entry).
-- Checks that **today's date** (not the original entry's date) is postable — you're creating a new
-  entry dated today, so today's period has to be open.
-- Creates a brand-new journal entry, dated today, numbered by the normal sequence, with reference
-  `"REV-" + <original journal number>`, same `journalType` as the original.
+- Determines the **reversal date**: the caller can supply an explicit date, or it defaults to
+  today. This date is validated two ways — it can never be *before* the original journal's own
+  date (you can't reverse something before it happened), and it is checked against the accounting
+  calendar (§2.3) exactly like any other posting, so a reversal dated into a locked or closed
+  period is refused just as a new transaction would be.
+- Creates a brand-new journal entry dated the reversal date, numbered by the normal sequence, with
+  a reference the caller can override (defaulting to `"REV-" + <original journal number>`), same
+  `journalType` as the original.
 - Copies every line from the original, but **swaps debit and credit on each one** — what was a
   debit becomes a credit of the same amount, and vice versa. Because the original balanced, the
   mirror automatically balances too.
 - Marks the original `REVERSED` (stamped with a timestamp) — it stays in the database forever,
   exactly as it was posted, for audit purposes. Nothing is ever actually deleted from the general
   ledger.
+
+Because a reversal can now be dated anywhere on or after the original entry (not only today), a
+plain journal lookup also now shows the reversal relationship explicitly in both directions: a
+reversed journal's response names the entry that reversed it (with that reversal's own date, reason,
+and who posted it), and a reversing entry's own response names the journal it reverses. Most module
+services that reverse their own journal internally (the Loans module reversing a write-off, for
+instance) still use the simpler convenience form that always reverses as of today — only the
+journal screen itself, and any module action that explicitly asks for a backdated reversal, supplies
+an explicit date.
 
 This is the accounting-textbook-correct way to fix a mistake: you never erase history, you add an
 equal-and-opposite entry that cancels it out, so the full story — the mistake and its correction —
@@ -189,12 +230,22 @@ The accounts flagged this way, as seeded:
 | 2100 / 2110 / 2120 / 2130 / 2140 | Salary Payable / Employee Income Tax Payable / Statutory Payable (employee) / Statutory Payable (employer) / Reimbursements Payable | Mirror the payroll engine's liabilities |
 
 This is a real, enforced rule — every single one of the automated posting engines described in this
-manual (invoices, payments, bills, supplier payments, prepayments, loans, payroll) is allowed to
-post to these accounts because it goes through the system's own internal posting path, not the
-manual-entry screen a human uses. A human at the Journal Entries screen simply cannot touch these
-nineteen accounts directly. If the GL and a subledger ever disagree, it is a bug in the automated
-posting logic, not a stray manual entry — which is exactly the guarantee a control account is
-supposed to provide.
+manual is allowed to post to these accounts because it goes through the system's own internal
+posting path, not the manual-entry screen a human uses. A human at the Journal Entries screen simply
+cannot touch these nineteen accounts directly. If the GL and a subledger ever disagree, it is a bug
+in the automated posting logic, not a stray manual entry — which is exactly the guarantee a control
+account is supposed to provide.
+
+**One gap worth flagging here rather than later:** the five newer modules covered in Parts 7–11
+(Expenses, Deposits, Down Payments, Bank Transfers, Bank Reconciliation) each introduced their own
+new GL accounts, several of which mirror a subledger in exactly the way the accounts above do (the
+Customer/Supplier Downpayment accounts, the Deposit asset/liability accounts, the Bank
+Reconciliation suspense account). As of this writing, **none of those newer accounts have been added
+to this control-account protection list** — confirmed directly for the Downpayment accounts (2087,
+1747), and not found anywhere in the seeder for the others either. A manual journal entry today
+*can* still be posted directly to, say, the Customer Downpayments liability account, which would
+desync it from the Down Payments module's own running balance in exactly the way this mechanism
+exists to prevent. See Part 17 for the consolidated list of gaps like this one.
 
 ## 1.4 Document numbering
 
@@ -226,6 +277,11 @@ default format:
 | `PAYMENT` | RCP | `RCP-00001` |
 | `PREPAYMENT` | PPY | `PPY-00001` |
 | `LOAN` | LN | `LN-00001` |
+| `EXPENSE` | (user-assigned) | `EXP-00001`-style, module-specific |
+| `DEPOSIT` | (user-assigned) | deposit number series |
+| `DOWNPAYMENT` | (user-assigned) | downpayment number series |
+| `BANK_TRANSFER` | (user-assigned) | bank transfer number series |
+| `BANK_RECONCILIATION` | (user-assigned) | reconciliation number series |
 | 6 × `DOCUMENT_TEMPLATE_*` | TMPL-INV / TMPL-QTE / TMPL-PO / TMPL-CN / TMPL-DN / TMPL-RCT | template-numbering, cosmetic only |
 
 Three `DocumentModule` values exist in the enum (`CREDIT_NOTE`, `QUOTE`, `PURCHASE_ORDER`) but
@@ -272,10 +328,11 @@ A period's status (`AccountingPeriodStatus`) is one of:
 `PeriodLockGuard` (`service/accounting/PeriodLockGuard.java`) is, by its own design, **the single
 place in the entire codebase** that decides whether a given date can be posted to. Every
 GL-affecting action in this application — manual journal entries, invoice/bill posting, payment and
-supplier-payment posting, prepayment and loan journals, payroll posting, and journal reversal
-itself — calls `PeriodLockGuard.assertPostable(date)` before it's allowed to create an entry. There
-is no second, independent locking mechanism anywhere else; if a date is postable according to this
-guard, every module agrees it's postable.
+supplier-payment posting, prepayment and loan journals, payroll posting, expense/deposit/downpayment/
+bank-transfer/bank-reconciliation postings, and journal reversal itself — calls
+`PeriodLockGuard.assertPostable(date)` before it's allowed to create an entry. There is no second,
+independent locking mechanism anywhere else; if a date is postable according to this guard, every
+module agrees it's postable.
 
 The logic is simple and has one deliberately permissive edge case worth knowing about: if the date
 being checked doesn't fall inside *any* defined `AccountingPeriod` at all (for example, nobody's
@@ -392,7 +449,8 @@ a trace:
 A template can be `PAUSED` (temporarily, resumable) or `STOPPED` (permanently, though a stopped
 template can still be `ARCHIVED` afterward for tidiness) — and, consistent with the control-account
 rule in §1.3, a recurring template is rejected at creation time if any of its lines target a control
-account, exactly like a manual journal would be.
+account, exactly like a manual journal would be, and likewise rejected if it tries to use a
+module-only `journalType` the way a manual journal would be (§1.2).
 
 ---
 
@@ -541,6 +599,10 @@ like a gap in the current implementation rather than an intentional design choic
 keeping in mind if a reallocation is ever used and the GL and invoice list seem to disagree
 afterward.
 
+**A newer, separate mechanism exists for deposits taken before an invoice is even issued** — see
+Part 9. It coexists with the "Customer Advances" unallocated-amount mechanism described above
+rather than replacing it; see §9.1 for exactly how the two differ and when each applies.
+
 ## 3.6 AR Aging and Customer Statements
 
 **Aging** answers the question "how overdue is what customers owe us, and by how much?" — the
@@ -559,7 +621,7 @@ based on how many days past its due date the as-of date is:
 
 Results are grouped by customer with a grand total row. Worth noting: AR aging, as implemented,
 includes draft invoices with a positive balance in its calculation — it does not filter them out the
-way AP aging filters out draft bills (§4.4). If a draft invoice happens to have a due date that's
+way AP aging filters out draft bills (§4.5). If a draft invoice happens to have a due date that's
 now overdue, it will show up in the aging report even though it was never actually sent to the
 customer.
 
@@ -580,6 +642,11 @@ control account tracking money *you owe* to suppliers for goods and services you
 received but haven't yet paid for. Nearly every mechanism described in Part 3 has a direct AP
 counterpart — suppliers instead of customers, bills instead of invoices, supplier payments instead
 of receipts — with the debit/credit direction flipped, since AP is a liability rather than an asset.
+
+**Not every purchase has to go through a Bill.** If you pay for something immediately, in one step,
+straight from a bank or cash account — with no separate supplier invoice to track and settle later —
+the Expenses module (Part 7) is the more direct path; Bills and Supplier Payments exist specifically
+for the "owed now, paid later" case.
 
 ## 4.2 Suppliers, and the one real asymmetry worth knowing
 
@@ -617,13 +684,15 @@ Dr  Purchase Tax Receivable (code 1770)                             totalTax   [
 
 Every bill, regardless of what it's actually for, lands its entire net expense on one generic
 account unless and until the Accounting Mappings for this key are deliberately reconfigured — there
-is no automatic routing by category or line description the way invoices route by product. Note
+is no automatic routing by category or line description the way invoices route by product. (The
+newer Expenses module, Part 7, does support a distinct GL account per line — if that per-line
+routing matters to you, consider whether a given purchase belongs there instead of on a Bill.) Note
 also that the tax portion here is booked as an **asset** (recoverable input tax), modeling a
 VAT-style system where the tax you pay on purchases can later be reclaimed or offset — not as a
 straight expense.
 
 There is no withholding tax or purchase-tax modeling anywhere on the `Bill` entity itself — purchase
-tax here is the flat line-level `taxRate` already described, and withholding tax (§4.5) only enters
+tax here is the flat line-level `taxRate` already described, and withholding tax (§4.4) only enters
 the picture later, at payment time, driven entirely by the supplier's own configured rate rather than
 anything on the bill.
 
@@ -670,6 +739,10 @@ clearly as what's present: there is **no refund mechanism on the AP side** (the 
 **no cancellation/reversal journal method** in the AP journal service at all — the AR side's
 `postCancellationJournal` (which simply calls the generic reversal mechanism) has no AP counterpart.
 
+**A newer, separate mechanism exists for deposits paid to a supplier before a bill is even issued** —
+see Part 9, which also explains how it differs from the "Supplier Advances" unallocated-amount
+mechanism described above.
+
 ## 4.5 AP Aging and Supplier Statements
 
 Identical mechanics to §3.6 — same five buckets, same bucketing logic — just keyed on bills and
@@ -714,10 +787,9 @@ stops a business from understating this month's true cost just because cash happ
 bank account eleven months ago.
 
 **This module is deliberately scoped to the paid-out side only** — money your organization pays out
-in advance. The mirror-image concept on the sales side (a customer paying you in advance, which
-becomes "unearned revenue" until you deliver) is handled separately by the existing AR payment-
-advances mechanism already described in §3.5 (the "Customer Advances" liability), not by this
-module.
+in advance. The mirror-image concept on the sales side (a customer paying you in advance) is handled
+by the "Customer Advances" mechanism (§3.5) for an unallocated ordinary payment, or by the Down
+Payments module (Part 9) for a deliberate, standalone pre-invoice deposit — not by this module.
 
 ## 5.2 How a Prepayment moves through its life
 
@@ -801,14 +873,22 @@ directly: there are two completely different "loan" concepts in this codebase, w
 status enums that happen to share the same short name.** The general-purpose Loans module described
 in this Part (`entity/loan/Loan.java`, with its enum at `enums/loan/LoanStatus.java`) is a full
 amortization-schedule-driven instrument that can represent a loan to or from *anyone* — an employee,
-a customer, a supplier, a bank, a shareholder. A completely separate, much simpler feature exists
-specifically inside Payroll (`entity/payroll/EmployeeLoan.java`, with its own unrelated enum at the
-top-level `enums/LoanStatus.java`, just `ACTIVE`/`CLOSED`/`CANCELLED`) purely to let a payroll run
-deduct a fixed installment from an employee's pay each period, with no schedule, no interest
-compounding, and a much shorter lifecycle. The two are documented separately — this Part covers the
-general Loans module; the payroll-specific one is covered in Part 7's payroll loans/advances section
-— and the rest of this Part should be understood as describing only the general module unless
-stated otherwise.
+a customer, a supplier, a bank, a shareholder, a director, or another financial institution. A
+completely separate, much simpler feature exists specifically inside Payroll
+(`entity/payroll/EmployeeLoan.java`, with its own unrelated enum at the top-level
+`enums/LoanStatus.java`, just `ACTIVE`/`CLOSED`/`CANCELLED`) purely to let a payroll run deduct a
+fixed installment from an employee's pay each period, with no schedule, no interest compounding, and
+a much shorter lifecycle. The two are documented separately — this Part covers the general Loans
+module; the payroll-specific one is covered in Part 12's payroll loans/advances section (§12.7) —
+and the rest of this Part should be understood as describing only the general module unless stated
+otherwise.
+
+**This module was substantially rebuilt after the first version of this manual was written** — its
+interest-method enum was renamed and restructured, its status lifecycle changed shape, interest
+accrual gained a proper dedicated ledger, custom installment schedules became genuinely supported,
+and it gained its own dedicated audit log and its own aging-style dashboard and statement reports. If
+you have seen an earlier description of this module (including an earlier draft of this manual),
+treat everything below as the current, correct behavior.
 
 ## 6.2 Direction: the one field everything else branches on
 
@@ -818,104 +898,131 @@ account gets debited at disbursement, which account absorbs interest, which dire
 cash flows — branches on this single field, because the whole thing is mechanically the mirror image
 of itself depending on which side of the transaction your organization is on.
 
-## 6.3 Setting up the loan: repayment method and the amortization schedule
+## 6.3 Setting up the loan: interest method and the amortization schedule
 
 A loan declares a principal amount, an annual interest rate (which can be zero — many employee or
 shareholder loans genuinely carry no interest), a payment frequency (`WEEKLY` through `ANNUALLY`), a
-number of installments, and a **repayment method** — this is where the real complexity lives, since
-it determines the shape of the entire schedule. Five methods exist (`LoanRepaymentMethod`):
+number of installments, an optional number of **grace-period installments** at the start of the
+schedule (during which only interest is due, no principal), and an **interest method**
+(`LoanInterestMethod`) — this is where the real complexity lives, since it determines the shape of
+the entire schedule. Four methods exist:
 
-- **`EQUAL_INSTALLMENT`** — the familiar "fixed monthly payment" structure most people recognize from
+- **`SIMPLE`** — flat interest every period, calculated once against the *original* principal (not
+  the shrinking balance), paired with equal principal reduction each period. Because the interest
+  never declines even as the balance does, this is the most straightforward — and, for the borrower,
+  the most expensive relative to the other methods — way to charge interest on a loan.
+- **`FIXED_INSTALLMENT`** — the familiar "fixed monthly payment" structure most people recognize from
   a mortgage or car loan. Every installment is the *same total amount*, but the mix between
   principal and interest shifts over time: early installments are mostly interest (since the
   outstanding balance, and therefore the interest charged on it, is still large), and later
   installments are mostly principal. The system computes this with the standard annuity formula —
   `payment = P × r ÷ (1 − (1+r)⁻ⁿ)` — where `r` is the periodic interest rate (the annual rate
   divided by however many periods fall in a year for the chosen frequency) and `n` is the number of
-  installments. Each period's interest is simply the opening balance times that periodic rate; the
-  principal portion is whatever's left of the fixed payment after interest. The very last
-  installment is forced to absorb the outstanding balance exactly, so rounding across the whole
-  schedule never leaves a few cents unaccounted for at the end.
-- **`EQUAL_PRINCIPAL`** — a true declining-balance schedule. Instead of a fixed total payment, the
-  *principal* portion is fixed every period (simply the total principal divided evenly across
-  installments), while the *interest* portion genuinely declines each period because it's always
-  calculated on the shrinking opening balance. This produces a schedule where the total payment
-  amount gets smaller over time, front-loaded with the highest payments.
-- **`INTEREST_ONLY`** and **`BALLOON_PAYMENT`** — treated identically in this implementation (there
-  is no separate balloon-specific formula coded): every installment except the very last pays
-  interest only, with zero principal reduction; the entire principal balance comes due in one lump
-  sum on the final installment. Since the balance never shrinks until that final payment, the
-  interest charge stays constant every period until then.
-- **`CUSTOM_SCHEDULE`** — generated identically to `EQUAL_INSTALLMENT` today. This is an honest
-  placeholder: true custom-schedule support (letting someone manually edit individual installment
-  amounts) isn't built yet, so choosing this option currently produces the same standard annuity
-  schedule as the ordinary equal-installment method, not a blank schedule waiting to be filled in by
-  hand.
+  amortizing installments (i.e. excluding any grace-period installments). Each period's interest is
+  the opening balance times that periodic rate; the principal portion is whatever's left of the fixed
+  payment after interest.
+- **`REDUCING_BALANCE`** — a true declining-balance schedule. Instead of a fixed total payment, the
+  *principal* portion is fixed every period (the total principal divided evenly across the
+  amortizing installments), while the *interest* portion genuinely declines each period because it's
+  always calculated on the shrinking opening balance. This produces a schedule where the total
+  payment amount gets smaller over time, front-loaded with the highest payments.
+- **`CUSTOM_SCHEDULE`** — the user enters each installment's own due date and principal amount by
+  hand (and, optionally, its own interest and fee amounts too). This is now genuinely supported, not
+  a placeholder: the system validates that every due date falls after the loan's start date, that no
+  two installments share the same date, and — critically — that the principal amounts entered across
+  every installment add up to exactly the loan's financed principal, rejecting the whole schedule by
+  name if they don't. Where an installment's interest isn't explicitly given, it's computed on the
+  reducing balance using actual day-count simple interest; where a fee isn't given, it defaults to
+  the loan's flat per-installment fee. A custom schedule also behaves differently when someone later
+  pays down extra principal early: rather than re-amortizing every remaining installment the way the
+  two formula-driven methods do, the extra principal is removed from the *last* installments first —
+  since a custom schedule's dates and amounts represent deliberate human intent, not a formula the
+  system is free to recompute.
 
-Worth noting as a known gap: `Loan` carries an `interestMethod` field (`SIMPLE` or `AMORTIZED`), but
-it is not actually read anywhere by the schedule-generation logic — every method above computes
-interest the same declining-balance-on-opening-balance way regardless of what this field is set to.
-It's present on the record but currently has no effect.
+For every method except `CUSTOM_SCHEDULE`, whichever installment is numerically last in the
+schedule is forced to absorb the outstanding balance exactly, so rounding across the whole schedule
+never leaves a few cents unaccounted for at the end. During any grace-period installment, principal
+due is forced to zero regardless of method — interest-only, no principal reduction — which is how
+this module now represents what used to be called an "interest-only" or "balloon" loan: set the
+grace period to cover every installment but the last, and the entire principal balance comes due in
+one lump sum on that final installment, on top of whichever interest method you've chosen.
 
-## 6.4 The lifecycle: draft, approve, disburse
+## 6.4 The lifecycle: draft, approve, disburse, and what can go wrong afterward
+
+A loan's status (`LoanStatus`) moves through a specific, limited set of values: `DRAFT`, `APPROVED`,
+`ACTIVE`, `PARTIALLY_PAID`, `FULLY_PAID`, `DEFAULTED`, `CLOSED`, `CANCELLED`, `REVERSED`.
 
 A loan starts `DRAFT`, moves to `APPROVED` (a pure status change, no journal — this is the point
 where someone has signed off that the loan should actually happen), and then to `ACTIVE` on
 **disbursement**, which is the first moment real money moves and the first journal posts.
 
+Upfront fees are settled one of two ways, declared on the loan as `LoanFeeTreatment`:
+**`EXPENSED_IMMEDIATELY`** (netted straight off the cash that changes hands at disbursement, while
+the liability/receivable is still booked at the full gross principal) or **`CAPITALIZED`** (added to
+the balance being tracked going forward and repaid through the schedule, with the cash received
+equal to the full principal rather than net of the fee). Either way — and this is a genuine
+improvement over an earlier version of this module — **the fee is always recognized in the P&L
+immediately at disbursement**, whether borrowed or lent; "capitalized" only changes how the cash is
+netted and how much balance is carried forward, not whether the fee hits an income or expense
+account right away.
+
 **Disbursing a BORROWED loan** (your organization receiving money):
 
 ```
-Dr  Bank Account                                                      net cash received
-Dr  Loan Fees Expense (code 5090)                                     fees  [only if fees are
-                                                                              treated as "expensed
-                                                                              immediately"]
-    Cr  Loans Payable (code 2160, always booked at the full principal) principal
+Dr  Bank Account                                                       net cash received
+Dr  Loan Fees Expense (code 5090)                                      fees   [if any]
+    Cr  Loans Payable (code 2160, booked at principal, or principal+fees
+        if the fee treatment is CAPITALIZED)
 ```
 
-If the loan's fee treatment is `EXPENSED_IMMEDIATELY`, the cash actually received is net of fees
-(you borrowed the full principal but the lender deducted their fee up front), while the liability is
-still booked at the full gross principal — so the fee is recognized as a cost on day one, separate
-from the debt itself. The other two fee treatments (`CAPITALIZED`, `AMORTIZED`) instead roll the fee
-straight into the outstanding balance being tracked going forward, without a separate fee-expense
-line at disbursement.
-
-**Disbursing a LENT loan** (your organization paying money out) is the exact mirror, with no fee
-handling on this side at all:
+**Disbursing a LENT loan** (your organization paying money out) is the mirror image, with its fee
+leg landing on income rather than expense — a genuine improvement over an earlier version of this
+module, which had no dedicated account for fee income earned on money lent out:
 
 ```
-Dr  Loans Receivable (code 1780)                                      principal
-    Cr  Bank Account                                                   principal
+Dr  Loans Receivable (code 1780, booked at principal, or principal+fees
+    if the fee treatment is CAPITALIZED)
+    Cr  Bank Account                                                    net cash disbursed
+    Cr  Loan Fee Income (code 4042)                                     fees   [if any]
 ```
 
 ## 6.5 Repayment: splitting principal, interest, and fees
 
 Recording a repayment requires the caller to explicitly state how much of the payment is principal,
 how much is interest, and how much is fees — the system validates the total is positive and that the
-principal portion doesn't exceed what's still outstanding, but it does not automatically compute the
-split against the amortization schedule for you; the split is a trusted input to the repayment
-action, and the system then applies that stated split against the schedule's oldest unpaid
+principal portion doesn't exceed what's still outstanding, and classifies the payment after the fact
+as `SCHEDULED`, `EARLY`, `PARTIAL`, or `OVERPAYMENT` (`LoanPaymentType`) purely as a reporting label,
+by comparing what was paid against what the schedule actually had due on that date — this
+classification has no effect on the journal posted; it only changes how the payment is described in
+reports and statements. The stated split is then applied against the schedule's oldest unpaid
 installments (a line is marked fully `PAID` once both its principal and interest portions are
 covered, or `PARTIALLY_PAID` otherwise).
+
+**If any of this repayment's interest is settling interest that was already formally accrued**
+(§6.6) rather than interest that simply came due on schedule, the system now correctly tracks that
+split and reduces the loan's outstanding-accrued-interest balance by exactly that amount — fixing
+what used to be a real tracking gap in an earlier version of this module, where accrued interest
+only ever went up and ordinary repayments never brought it back down.
 
 **Repaying a BORROWED loan:**
 
 ```
-Dr  Loans Payable (code 2160)                                          principal portion   [if any]
-Dr  Interest Expense (code 5080)                                       interest portion    [if any]
-Dr  Loan Fees Expense (code 5090)                                      fees portion        [if any]
+Dr  Loans Payable (code 2160)                                          principal portion     [if any]
+Dr  Interest Expense (code 5080)                                       interest not yet accrued [if any]
+Dr  Interest Payable (code 2170)                                       previously-accrued interest now settled [if any]
+Dr  Loan Fees Expense (code 5090)                                      fees portion          [if any]
     Cr  Bank Account                                                    total
 ```
 
-**Repaying a LENT loan** — and here's a detail worth knowing precisely, since it's a genuine
-simplification rather than a full-featured implementation: interest and fees collected on money
-you've lent out are **combined into a single credit to Interest Income**, because this module has no
-separate "lending-side fee income" account:
+**Repaying a LENT loan** — and here, unlike in an earlier version of this module, fee income now has
+its own dedicated account, separate from interest income:
 
 ```
-Dr  Bank Account                                                       total
-    Cr  Loans Receivable (code 1780)                                    principal portion   [if any]
-    Cr  Interest Income (code 4040)                                     interest + fees combined [if any]
+Dr  Bank Account                                                        total
+    Cr  Loans Receivable (code 1780)                                    principal portion     [if any]
+    Cr  Interest Income (code 4040)                                     interest not yet accrued [if any]
+    Cr  Interest Receivable (code 1790)                                 previously-accrued interest now settled [if any]
+    Cr  Loan Fee Income (code 4042)                                     fees portion          [if any]
 ```
 
 **Settling a loan in full** is simply a convenience wrapper around ordinary repayment — it
@@ -923,65 +1030,549 @@ automatically fills in the outstanding principal and outstanding interest as the
 and runs the exact same repayment logic described above. There's no separate "settlement journal
 type" — it produces precisely the same kind of entry a manually-entered final repayment would.
 
+## 6.6 Accruing interest: now a real, auditable ledger of its own
+
 **Accruing interest** (a standalone action, available but not automatically scheduled — nothing in
 this codebase runs it on a timer) lets you recognize interest as owed even before any cash actually
-changes hands, which is the correct accrual-basis treatment:
+changes hands, which is the correct accrual-basis treatment. Unlike an earlier version of this
+module, where "outstanding interest" was just a running number on the loan with no record of how it
+got there, every accrual is now its own permanent, individually-dated ledger row (whether it was
+later reversed, and which journal it posted), so the full history of how a loan's accrued-interest
+balance built up over time is always reconstructable.
 
 ```
 BORROWED:  Dr Interest Expense (5080)       / Cr Interest Payable (2170)
 LENT:      Dr Interest Receivable (1790)    / Cr Interest Income (4040)
 ```
 
-One genuine tracking gap worth flagging plainly: the `outstandingInterest` figure tracked on a loan
-is **increased** by accruing interest, but it is **never decreased** when an ordinary repayment's
-interest portion is recorded — nothing in the repayment logic reduces it. If you rely on
-`outstandingInterest` as an authoritative running figure for "interest owed right now," be aware it
-currently only ever goes up.
+As described in §6.5, this balance is correctly drawn back down the moment a repayment actually
+settles previously-accrued interest — it is no longer a figure that only ever increases.
 
-## 6.6 Write-off: why it's restricted to one direction only
+## 6.7 Defaulting, closing, and write-off: what happens when a loan goes bad
 
-A loan can be written off — its remaining outstanding principal expensed outright, closing the loan
-— but **only if your organization is the lender** (`direction = LENT`). Attempting to write off a
-`BORROWED` loan is rejected outright. The reasoning, stated directly in the code's own documentation,
-is that forgiving a debt *you* owe to someone else is a fundamentally different, much more formal
-event — a debt restructuring with its own gain-on-extinguishment accounting — that this module isn't
-built to handle; writing off a receivable you'll never collect, by contrast, is a routine
-bad-debt event.
+A loan that's `ACTIVE` or `PARTIALLY_PAID` can be flagged **`DEFAULTED`** — a pure status change with
+a required reason, marking that the counterparty has stopped servicing it. Defaulting a loan does
+not itself stop anything or post any journal; a defaulted loan can still take payments exactly like
+an active one, exactly as the status's own purpose implies — "defaulted" is a flag for attention and
+reporting, not an automatic write-off.
+
+**Closing** a loan (`close`) behaves differently depending on how the loan got there:
+
+- A loan that's reached `FULLY_PAID` simply closes — nothing left to do, no journal needed.
+- A `BORROWED` loan that still has a balance **cannot** be closed at all through this action; the
+  system refuses outright and tells you exactly how much is still owed. A debt your organization
+  itself owes cannot simply be written off as a matter of bookkeeping convenience — forgiving it
+  would be a formal debt-restructuring event with its own distinct accounting, which this module
+  isn't built to represent.
+- A `LENT` loan that's `ACTIVE`, `PARTIALLY_PAID`, or `DEFAULTED` and still has a balance can only be
+  closed by explicitly asking for a **write-off**, with a required reason. Before that's accepted,
+  the system also insists any outstanding overpayment balance on the loan be reversed and corrected
+  first — you can't write off a loan while it's simultaneously sitting on money it was overpaid.
+
+**The write-off journal** — and this, too, is a genuine improvement over an earlier version of this
+module, which had no dedicated write-off account and instead co-mingled write-offs with ordinary
+loan fees — now writes off *both* the unpaid principal and any unpaid accrued interest, to a
+dedicated expense account of its own:
 
 ```
-Dr  Loan Fees Expense (code 5090)                                      remaining outstanding principal
-    Cr  Loans Receivable (code 1780)                                    remaining outstanding principal
+Dr  Loan Write-off Expense (code 5085)        remaining principal + remaining accrued interest
+    Cr  Loans Receivable (code 1780)            remaining principal          [if any]
+    Cr  Interest Receivable (code 1790)         remaining accrued interest   [if any]
 ```
 
-Worth flagging directly: the write-off expense lands on the same account as ordinary loan
-origination fees (5090) — there is no dedicated "Bad Debt Expense" or "Loan Loss Expense" account in
-this module. If your reporting needs to distinguish genuine fee income/expense from written-off
-uncollectible loans, this account will currently contain both, co-mingled.
+A loan can also simply be **cancelled** (only while still `DRAFT` or `APPROVED`, before any money has
+actually moved) with no journal needed, since nothing was ever posted. And a disbursed loan can be
+**reversed** outright — undoing the disbursement and every repayment and accrual ever posted against
+it, each via the ordinary journal-reversal mechanism (§1.2) — for the rare case where a loan was
+disbursed in error and needs to be unwound in its entirety rather than corrected transaction by
+transaction.
 
-A loan can also simply be **cancelled** (only while still `DRAFT` or `APPROVED`, before any money
-has actually moved) with no journal needed, since nothing was ever posted.
+## 6.8 A dedicated audit trail, and loan-specific reports
 
-## 6.7 Loans accounting-mapping reference
+Every meaningful thing that happens to a loan — created, updated, deleted, approved, disbursed, a
+payment recorded or reversed, an installment missed, interest accrued, defaulted, written off,
+closed, cancelled, reversed — is written to its own dedicated, append-only loan audit log, entirely
+separate from both the generic created-by/updated-at fields every entity carries and the
+system-wide Settings Audit Log (§16.2). This mirrors the dedicated audit log Payroll already keeps
+for its own run lifecycle (§12.8) — a pattern this system now uses in more than one place for a
+module whose lifecycle is important enough to deserve its own narrative trail, distinct from the
+general-purpose one.
+
+Two reports exist specifically for this module, deliberately modeled on patterns already established
+elsewhere in this manual:
+
+- A **loan dashboard**, by currency, in the same spirit as AR/AP aging (§3.6/§4.5): how much is
+  currently borrowed and lent in total and outstanding, how much interest is currently due but
+  unpaid on each side, and which installments are overdue versus due in the next 30 days.
+- A **loan statement**, per loan, in the same running-balance shape as a customer or supplier
+  statement (§3.6/§4.5): disbursement, each charge, each payment (and any reversal of one), and any
+  write-off, each shown against a running balance down to a closing figure.
+
+## 6.9 Loans accounting-mapping reference
 
 | MappingKey | Default account | Role |
 |---|---|---|
-| `LOAN_RECEIVABLE` | 1780 | Debited disbursing a LENT loan; credited on its repayment |
+| `LOAN_RECEIVABLE` | 1780 | Debited disbursing a LENT loan; credited on its repayment or write-off |
 | `LOAN_PAYABLE` | 2160 | Credited disbursing a BORROWED loan; debited on its repayment |
-| `LOAN_INTEREST_INCOME` | 4040 | Credited for interest (and, on LENT repayments, fees) earned |
-| `LOAN_INTEREST_EXPENSE` | 5080 | Debited for interest owed on a BORROWED loan |
-| `LOAN_INTEREST_RECEIVABLE` | 1790 | Debited for interest accrued but uncollected on a LENT loan |
-| `LOAN_INTEREST_PAYABLE` | 2170 | Credited for interest accrued but unpaid on a BORROWED loan |
-| `LOAN_FEE_EXPENSE` | 5090 | Debited for fees (and for LENT write-offs) |
+| `LOAN_INTEREST_INCOME` | 4040 | Credited for interest earned (not yet accrued) on a LENT loan |
+| `LOAN_INTEREST_EXPENSE` | 5080 | Debited for interest owed (not yet accrued) on a BORROWED loan |
+| `LOAN_INTEREST_RECEIVABLE` | 1790 | Debited on accrual, credited when settled or written off — LENT |
+| `LOAN_INTEREST_PAYABLE` | 2170 | Credited on accrual, debited when settled — BORROWED |
+| `LOAN_FEE_EXPENSE` | 5090 | Debited for fees on a BORROWED loan |
+| `LOAN_FEE_INCOME` | 4042 | Credited for fees earned on a LENT loan |
+| `LOAN_WRITE_OFF_EXPENSE` | 5085 | Debited for the unpaid balance of a defaulted LENT loan being written off |
 | `LOAN_BANK_ACCOUNT` | 1010 | Used for disbursement/repayment cash movement by default |
 
-As with Prepayments, every record can override the bank account and the principal/interest accounts
+As before, every record can override the bank account and the principal/interest accounts
 individually — the mapping only supplies the fallback.
 
 ---
 
-# Part 7 — Payroll
+# Part 7 — Expenses: Paying for Something Already, in One Step
 
-## 7.1 Why payroll is its own accounting discipline
+## 7.1 The concept, and how this differs from a Bill
+
+An expense, in the everyday sense, is money your organization spends. The Accounts Payable cycle
+(Part 4) models the common business case of that spending: a supplier bills you, you owe it for a
+while, and you pay it later, possibly in several installments. But a great deal of real spending
+doesn't work that way at all — a card swipe for office supplies, cash handed over for a taxi, a
+one-off purchase where there was never a separate "bill" to track because the money left the bank
+account the moment the purchase happened. Forcing every one of those through the full Bill → approve
+→ Supplier Payment cycle would be needless overhead for a transaction that is, from the moment it
+happens, already fully paid.
+
+The Expenses module exists for exactly this case: **an expense paid straight from one of the
+organization's own bank or cash accounts, with no bill and no separate payment step.** Posting one
+creates exactly one balanced journal, in one action, and that's the whole lifecycle.
+
+## 7.2 How an Expense is built, and what makes it different from a Bill line by line
+
+An `Expense` (`entity/expense/Expense.java`) has a payment date, a payment method, the specific
+`BankAccount` the money actually came out of (required — there's no mapping-key fallback here; you
+must say which account paid it), an optional supplier (a pure cash/miscellaneous expense can have no
+supplier at all, unlike a Bill, which always requires one), and one or more `ExpenseLine` rows.
+
+**Here is the one structural difference from a Bill worth remembering: each `ExpenseLine` carries
+its own specific GL expense account.** Where a Bill's entire net amount lands on one generic default
+expense account regardless of what each line was actually for (§4.3), an Expense can split a single
+transaction across several different expense accounts in one entry — a single card statement line
+that was really "60% office supplies, 40% software," say, can be recorded as two lines on one
+Expense, each debited to its own account. Each line also carries a free-text expense category (drawn
+from a configurable list — Office Supplies, Travel, Utilities, Marketing, Salaries, and so on) purely
+for reporting purposes; the category tag and the GL account are two separate things, and the category
+has no effect on where the line posts.
+
+An expense's lifecycle has only three states (`ExpenseStatus`): `DRAFT`, `POSTED`, `REVERSED`. There
+is no approval workflow, no "submitted for review" step — a draft can be edited or deleted freely,
+and posting it is a single action available to anyone with the right permission.
+
+## 7.3 The journal: one line per expense category, one line for the cash
+
+```
+Dr  Expense account of each ExpenseLine                             each line's own amount
+    Cr  the chosen payment (bank/cash) account's own GL code         total of all lines
+```
+
+Notice this posts **without going through any `MappingKey` at all** — unlike nearly every other
+module in this manual. Both sides are resolved directly from records the user themselves picked: the
+expense account is whichever `AccountEntity` was chosen on the line, and the credit side is whichever
+specific `BankAccount` was chosen on the expense. This is a deliberate structural difference from
+Deposits (Part 8), which does fall back to configurable mapping keys when no specific account is
+chosen — Expenses never falls back to anything, because every expense line and every expense's
+payment account are both required fields with no default to fall back to.
+
+Before posting, the system re-validates that every chosen expense-line account genuinely resolves to
+an `EXPENSE`-type account, is active, and is **not** a control account — so an expense can never be
+used as a backdoor way to post to an account the rest of this manual says should only ever be
+touched by its own automated engine. It also locks the chosen payment account's row and checks it
+actually has enough available balance before posting (unless overdrafting is explicitly allowed),
+exactly the same serialized-balance-check pattern Bank Transfers use (Part 10).
+
+**Reversing a posted expense** works exactly like every other reversal in this manual (§1.2): a new,
+equal-and-opposite journal is posted, the original is marked `REVERSED` and left untouched forever. A
+`DRAFT` expense, having never posted anything, is simply deleted outright rather than reversed —
+reversal is only ever available for something that actually posted a journal in the first place.
+
+---
+
+# Part 8 — Deposits: Money Held, Not Yet Earned or Spent
+
+## 8.1 The concept, and why direction matters so much here
+
+A deposit — a security deposit on a lease, a utility deposit, a refundable deposit for returnable
+equipment — is money that changes hands without anyone actually earning or spending it yet. If a
+tenant hands a landlord a security deposit, the landlord hasn't earned a dollar of income; they're
+simply holding money that, in the ordinary course of events, they expect to hand straight back. The
+accounting-correct treatment reflects exactly that: **receiving or paying a deposit never touches
+income or expense.** It only becomes income or expense later, and only in the one specific
+circumstance where the deposit is **forfeited** — the tenant doesn't get it back, say, because of
+damage — at which point, and only at that point, the organization genuinely keeps (or loses) money it
+didn't previously have (or still have a claim to), and that is when, and only when, a P&L account is
+touched.
+
+This module is explicitly **bidirectional**, and which direction a given deposit runs changes
+everything about how it's booked:
+
+- **`DEPOSIT_PAID`** — your organization hands money to someone else and expects it back (a security
+  deposit paid to a landlord, a utility deposit paid to a provider). Held as an **asset** until it
+  comes back, is applied against a bill, or is forfeited.
+- **`DEPOSIT_RECEIVED`** — your organization holds money that belongs, in principle, to someone else
+  (a security deposit received from a tenant, an equipment deposit received from a customer). Held
+  as a **liability** until it's refunded, applied against an invoice, or forfeited.
+
+A `DepositType` (a configurable, named kind of deposit — "Security Deposit," "Tenant Deposit,"
+"Supplier Advance Deposit," and so on) is **fixed to one direction** and can optionally carry its own
+specific holding account and forfeiture account, overriding the direction's own mapped default for
+every deposit created under that type — the same override-then-fallback pattern used throughout this
+manual, just one level deeper than usual (a request-level override beats the type's own override,
+which beats the mapped default).
+
+## 8.2 The five things that can happen to a deposit's balance
+
+Every deposit moves through a status (`DepositStatus`: `DRAFT`, `ACTIVE`, `PARTIALLY_APPLIED`,
+`FULLY_APPLIED`, `REFUNDED`, `FORFEITED`, `CANCELLED`, `REVERSED`) derived automatically from how much
+of its balance remains, has been applied, been refunded, or been forfeited — never set by hand.
+There are exactly four ways a deposit's balance can leave it (`DepositAllocationType`):
+
+**Activation** — the moment the deposit is actually posted, for the full amount:
+
+```
+DEPOSIT_PAID:      Dr  Deposit asset (default code 1745, or the type's/record's own override)   amount
+                       Cr  Bank Account
+DEPOSIT_RECEIVED:  Dr  Bank Account
+                       Cr  Deposit liability (default code 2085, or override)                    amount
+```
+
+**Application** — using the deposit against an actual invoice or bill, the moment the lease ends or
+the order is fulfilled and there's something concrete to apply it to:
+
+```
+DEPOSIT_RECEIVED (applied to an invoice):   Dr  Deposit liability   / Cr  Accounts Receivable (6220)
+DEPOSIT_PAID (applied to a bill):           Dr  Accounts Payable (6210)  / Cr  Deposit asset
+```
+
+**Refund** — the money is physically returned through a bank account, with the deposit's balance
+simply reversing out the way it came in:
+
+```
+DEPOSIT_PAID:      Dr  Bank Account        / Cr  Deposit asset
+DEPOSIT_RECEIVED:  Dr  Deposit liability    / Cr  Bank Account
+```
+
+A non-refundable deposit (`refundable = false`) cannot be refunded at all — the system insists it be
+applied or forfeited instead.
+
+**Forfeiture** — the only one of the four that touches income or expense, and the only one where
+direction genuinely changes which side of the P&L is hit, not just which account:
+
+```
+DEPOSIT_PAID (the organization loses money it paid out):      Dr  Deposit Forfeit Expense (5095)  / Cr  Deposit asset
+DEPOSIT_RECEIVED (the organization keeps money it was holding): Dr  Deposit liability  / Cr  Deposit Forfeit Income (4060)
+```
+
+A forfeiture always requires a reason to be recorded — this is money genuinely changing hands for
+good, not a routine entry.
+
+There is also a **transfer** action, letting part of a deposit's balance move into a brand-new,
+already-active deposit (optionally under a different type, counterparty, or account), which can be
+useful when one deposit genuinely needs to be split or repurposed without unwinding and re-entering
+it from scratch.
+
+**None of these four allocation rows is ever edited or deleted.** Correcting one means reversing it —
+which posts its own offsetting journal and flags the row, leaving the full history of what happened
+and what was later undone permanently visible, the same discipline every other reversal in this
+manual follows.
+
+## 8.3 Deposits accounting-mapping reference
+
+| MappingKey | Default account | Role |
+|---|---|---|
+| `DEPOSIT_PAID_ASSET` | 1745 | Debited paying a deposit, absent a type/record override |
+| `DEPOSIT_RECEIVED_LIABILITY` | 2085 | Credited receiving a deposit, absent a type/record override |
+| `DEPOSIT_FORFEIT_EXPENSE` | 5095 | Debited when a deposit the organization paid is forfeited |
+| `DEPOSIT_FORFEIT_INCOME` | 4060 | Credited when a deposit the organization received is forfeited to it |
+| `DEPOSIT_BANK_ACCOUNT` | 1010 | Used for paying, receiving, or refunding a deposit by default |
+
+---
+
+# Part 9 — Down Payments, and the Shared Settlement Ledger
+
+## 9.1 The concept, and how this differs from "Customer Advances"
+
+A down payment — a deposit on a large custom order, an advance paid to secure a supplier's capacity —
+is money that changes hands *before* the invoice or bill it will eventually settle even exists.
+Conceptually, this is close to the "Customer Advances" and "Supplier Advances" mechanism already
+described in Parts 3 and 4: both represent money received or paid that hasn't yet been matched to a
+specific document. **The two are genuinely separate mechanisms in this system, not one superseding
+the other, and knowing which one a given transaction went through matters for finding and
+understanding it later.**
+
+- **Customer/Supplier Advances** (§3.5 / §4.4) is not its own record at all — it is simply whatever
+  portion of an ordinary `Payment` or `SupplierPayment` hasn't yet been allocated to an invoice or
+  bill. It lives on accounts 2080 and 1740.
+- **Down Payments** (`Downpayment`, `entity/downpayment/Downpayment.java`) is its own standalone
+  entity with its own number series, its own status lifecycle, and its own distinct GL accounts
+  (2087 for customer downpayments, 1747 for supplier downpayments) — deliberately separate from 2080
+  and 1740. It's the more formal path for a deliberate, planned advance taken or given specifically
+  in anticipation of a future invoice or bill, as opposed to a payment that simply happened to arrive
+  before it was fully matched up.
+
+Nothing in the code treats one as superseding or migrating into the other — they coexist, and an
+organization may well use both: Customer Advances for the everyday "received more than was
+allocated" case, and Down Payments for a deliberate, tracked advance negotiated up front.
+
+## 9.2 How a Down Payment moves, and the journal at each step
+
+A `Downpayment` carries a type (`CUSTOMER_DOWNPAYMENT` or `SUPPLIER_DOWNPAYMENT`) and moves through a
+status (`DRAFT`, `OPEN`, `PARTIALLY_APPLIED`, `FULLY_APPLIED`, `REFUNDED`, `CLOSED`, `CANCELLED`,
+`REVERSED`) derived, like Deposits, purely from how much of its amount remains available versus
+applied versus refunded.
+
+**Posting** (moving it from `DRAFT` to `OPEN`) books the receipt or payment:
+
+```
+Customer downpayment received:   Dr  Bank Account   / Cr  Customer Downpayments liability (2087)
+Supplier downpayment paid:       Dr  Supplier Downpayments asset (1747)   / Cr  Bank Account
+```
+
+**Applying** it against an actual invoice or bill once one finally exists:
+
+```
+Customer (applied to an invoice):   Dr  Customer Downpayments liability (2087)   / Cr  Accounts Receivable (6220)
+Supplier (applied to a bill):       Dr  Accounts Payable (6210)   / Cr  Supplier Downpayments asset (1747)
+```
+
+**Refunding** unused downpayment balance back to the counterparty reverses the receipt/payment
+direction exactly as a Deposit refund does (§8.2).
+
+Two distinct correction actions exist, and they mean different things: a **refund** returns money
+while the downpayment record stays usable and trackable; a full **reversal** of the downpayment
+itself undoes the original posting entirely, but — deliberately — is only allowed while absolutely
+nothing has yet been applied or refunded against it. If anything has already moved, you reverse that
+specific application or refund individually instead of the downpayment as a whole.
+
+**One gap worth flagging plainly, since it directly concerns the integrity mechanism described in
+§1.3: the two new control accounts this module introduced — 2087 and 1747 — have not been added to
+the control-account protection list.** A manual journal entry can currently still be posted directly
+to either one, which the equivalent accounts for every older module (2080, 1740, and the rest listed
+in §1.3) are specifically protected against.
+
+## 9.3 The shared settlement ledger
+
+Down Payments and Deposits both apply against the exact same kinds of target document — an invoice or
+a bill — and a controller naturally wants one place to see "what, in total, has settled this
+invoice?" without having to separately check the Deposits module and the Down Payments module (and,
+down the line, whatever else might someday settle an invoice, like a credit note). `DocumentSettlement`
+(`entity/settlement/DocumentSettlement.java`) is exactly that one place: a shared, cross-module
+record of "this amount, from this source, settled this document," covering both source types that
+exist today (`SettlementSourceType`: `DEPOSIT`, `DOWNPAYMENT`).
+
+**It is important to understand what this module is, and what it deliberately is not: it posts no
+journal entries of its own.** Every journal described in §8.2 and §9.2 is posted by the Deposits or
+Down Payments service itself — `DocumentSettlement` is purely a read-side tracking record the owning
+module writes to alongside its own posting, not a posting engine in its own right. Querying an
+invoice or bill's settlement summary through this shared ledger returns exactly how much cash
+payment it's received (ordinary allocated `Payment`/`SupplierPayment` amounts, which deliberately
+keep their own separate allocation tables and are not tracked here) alongside how much has come from
+each non-cash source, and a running total due.
+
+---
+
+# Part 10 — Bank Transfers: Moving Money Between Your Own Accounts
+
+## 10.1 The concept
+
+Not every bank-account movement is a transaction with the outside world. Moving money from your
+Checking account to your Savings account doesn't change what your organization owns in total — it's
+still exactly as much cash as before, just sitting in a different place. The accounting-correct
+treatment is simply to debit the account that gained money and credit the account that lost it, for
+the same amount; the only real accounting complexity arises when the two accounts are in different
+currencies, where "the same amount" stops being a single well-defined number.
+
+## 10.2 The journal, and what happens with fees and currency conversion
+
+A `BankTransfer` names a source `BankAccount` and a destination `BankAccount` (which the system
+enforces must actually be different accounts, with different GL codes — a "transfer" into the same
+account would have no accounting effect and is rejected outright), a transfer amount, an optional
+transaction fee, and, for a cross-currency transfer, the exchange rate between the two accounts'
+currencies and each side's own rate back to the organization's base accounting currency.
+
+```
+Dr  Destination bank account's own GL code             base-currency value received
+    Cr  Source bank account's own GL code                base-currency value sent
+Dr  Bank Transfer Charges (default code 5100, or a       fee amount    [only if a fee was charged]
+    specific account chosen on the transfer)
+    Cr  Source bank account's own GL code                 fee amount    [only if a fee was charged]
+Dr  FX Loss (default code 5110)  or                       the difference  [cross-currency only, and
+    Cr  FX Gain (default code 4050)                                       only if there is one]
+```
+
+Both bank legs post directly to whichever GL code each `BankAccount` itself carries — there's no
+mapping key involved for the accounts actually moving the money, only for the fee and for any
+foreign-exchange gain or loss. The exchange-gain-or-loss figure is simply the base-currency value
+received by the destination minus the base-currency value taken from the source (excluding any fee) —
+positive means the organization effectively gained value in its own base currency purely from how the
+rates moved between the two sides of the transfer, and negative means it lost some.
+
+Like Expenses, a transfer locks the source account's row and checks for sufficient available balance
+before posting (unless overdrafting is explicitly allowed), and like every other module in this
+manual, reversing a posted transfer (only from `POSTED`, requiring a reason) posts a brand-new,
+equal-and-opposite journal rather than touching the original — the original stays exactly as posted,
+forever.
+
+## 10.3 Bank Transfers accounting-mapping reference
+
+| MappingKey | Default account | Role |
+|---|---|---|
+| `BANK_TRANSFER_CHARGES` | 5100 | Debited for bank fees on a transfer, absent a specific override |
+| `FX_GAIN` | 4050 | Credited for a foreign-exchange gain realized on a cross-currency transfer |
+| `FX_LOSS` | 5110 | Debited for a foreign-exchange loss realized on a cross-currency transfer |
+
+---
+
+# Part 11 — Bank Reconciliation: Proving the Books Agree With the Bank
+
+## 11.1 The concept: why reconciliation exists at all
+
+Your own books and the bank's own records of your account are two independently-maintained stories
+of the same cash, and they will not always agree on any given day — not because either is wrong, but
+because of timing. You might have written a check that hasn't been cashed yet (it's in your books,
+not yet on the bank's statement); the bank might have charged a fee you didn't know about until the
+statement arrived (it's on the bank's statement, not yet in your books). **Bank reconciliation is the
+disciplined process of comparing the two, explaining every difference, and arriving at a balance both
+sides agree on** — and it's one of the single most important internal controls in all of accounting,
+because an account nobody reconciles is an account where errors, and worse, can hide indefinitely.
+
+This system models the process faithfully: it imports a copy of the bank's own statement, tries to
+automatically match each statement line against the corresponding entry already posted in your own
+GL, lets a human confirm or manually fix whatever the automatic matching couldn't resolve on its own,
+and provides a dedicated mechanism for posting the one kind of entry a reconciliation might reveal
+you're actually missing — a bank fee, interest earned, a direct debit you hadn't recorded yet.
+
+## 11.2 Importing a bank statement
+
+A `BankStatementImportProfile` is a saved, reusable description of one bank's particular CSV export
+format — which column holds the date, which holds the description, whether debits and credits are
+two separate columns or one signed "amount" column, and, if the latter, whether positive numbers in
+that column mean money coming in or money going out (`AmountSignConvention`) — since different banks
+genuinely disagree on this convention. A default, generic profile ships out of the box for the common
+shape (separate Date/Description/Reference/Debit/Credit/Balance columns), and an organization can
+save as many bank-specific profiles as it needs.
+
+Importing a file parses every row, tolerating malformed individual rows without failing the whole
+file, and — critically — **deduplicates** against anything already imported: if the bank supplies its
+own transaction ID, that alone identifies a row uniquely; otherwise the system fingerprints a row
+from its date, signed amount, reference, description, and running balance, so re-importing the same
+statement (or one that overlaps a previous import) doesn't create duplicate statement lines. Imported
+lines never post anything by themselves — they sit alongside the GL, waiting to be matched against
+it.
+
+## 11.3 One reconciliation = one bank account, one statement period
+
+A `BankReconciliation` ties together exactly one `BankAccount` and one statement period (an opening
+balance, a closing balance, a statement date). Only one reconciliation can be open for a given bank
+account at a time, and each new one must start strictly after the previous *completed*
+reconciliation's period ended — reconciliations for one account happen in strict chronological
+sequence, the same discipline an accounting period lock enforces for the calendar as a whole (§2.3),
+scoped here to one bank account's own history rather than the whole ledger.
+
+## 11.4 The matching engine: how statement lines and book lines get paired up
+
+For each unmatched statement line and each unmatched posted GL line on the bank account, the
+matching engine scores how likely a pair is to actually be the same real-world transaction, based on:
+an exact amount match (required before any pair is even considered — amounts must agree to the cent
+and run in the same direction), how close the two dates are, whether either side's reference or
+transaction number appears in the other side's text, whether a shared cheque or reference number
+appears on both, how similar the two descriptions are in plain-language terms, and whether a known
+customer's or supplier's name or payment reference appears in the statement text. A pair scoring high
+enough, and not tied with any other equally-plausible pair, is **auto-confirmed** outright; a pair
+scoring more modestly is **proposed** for a human to confirm or reject; anything scoring too low is
+never suggested at all. These thresholds are themselves configurable per matching rule, and an
+organization can define several rules — generally ordered, applied to specific bank accounts or to
+every account — rather than being stuck with one fixed sensitivity for every situation.
+
+Where the automatic engine can't confidently resolve something, a human can match manually — one
+statement line to one book line, one to many, or many to one (never many-to-many in a single match),
+with the matched amount always being whichever side's total is smaller, so a partial match correctly
+leaves the leftover on the larger side still open for a later match or for an adjustment. Several
+manual matches can also be submitted together in one bulk action.
+
+## 11.5 Adjustments: the only part of this module that posts a journal
+
+Everything described so far — importing, matching, confirming — only ever *compares* data; none of it
+touches the General Ledger. **Adjustments are the one exception**, and they exist for exactly the
+case reconciliation is meant to surface: something real happened to the bank account that simply
+isn't in your books yet.
+
+Six fixed adjustment types exist, each with its own built-in cash direction and its own default
+offsetting account:
+
+| Type | Money in or out? | Default offset account |
+|---|---|---|
+| Bank charges | Out | Bank Charges Expense (5100) |
+| Bank interest | In | Bank Interest Income (4040) |
+| Direct debit | Out | Bank Reconciliation Suspense (1799) |
+| Direct credit | In | Bank Reconciliation Suspense (1799) |
+| Unknown bank debit | Out | Bank Reconciliation Suspense (1799) |
+| Unknown bank credit | In | Bank Reconciliation Suspense (1799) |
+
+```
+Money in  (interest, direct credit, unknown credit):  Dr  Bank Account      / Cr  offset account
+Money out (bank charge, direct debit, unknown debit): Dr  offset account     / Cr  Bank Account
+```
+
+The "Suspense" account exists specifically for the direct-debit, direct-credit, and unknown-item
+types — a temporary holding account for something the bank statement proved happened but that hasn't
+yet been properly classified to its real expense or income account; a controller would typically
+investigate and reclassify a suspense balance out to its correct account in due course, rather than
+leaving it there indefinitely. If an adjustment is tied to a specific statement line, posting it
+immediately and automatically clears that line against the new journal entry too — the adjustment
+both fills the gap in the books and resolves the reconciling item in one action. Reversing a posted
+adjustment, as with everything else in this manual, posts a fresh equal-and-opposite journal rather
+than touching the original.
+
+## 11.6 Completing and reopening a reconciliation
+
+Completing a reconciliation requires every proposed match to have first been confirmed or rejected —
+nothing is allowed to complete with an unresolved question mark still sitting on it — and freezes the
+reconciliation's figures (the book balance, outstanding deposits and withdrawals, charges, interest,
+and the adjustments posted within it) as a permanent record rather than something that keeps
+recalculating after the fact. If the difference between the books and the statement falls outside an
+acceptable tolerance, completing still requires an explicit reason and a specific permission to
+override it — a reconciliation is not supposed to "complete" with an unexplained gap by default.
+
+Only the single most recently completed reconciliation for a given bank account can ever be reopened,
+and only if nothing else is currently open for that account — consistent with the strict chronological
+sequencing described in §11.3. Reopening does not touch any posted adjustment journal; it only
+reinstates the ability to keep matching and adjusting that period's own lines.
+
+Every lifecycle action in this module — created, statement imported, auto-matched, matched,
+confirmed, rejected, unmatched, adjustment posted or reversed, reviewed, completed, reopened,
+cancelled, deleted — is written to its own dedicated, append-only audit log, the same pattern already
+described for Loans (§6.8) and Payroll (§12.8): a module whose integrity matters enough to deserve
+its own narrative trail, distinct from the general Settings Audit Log (§16.2).
+
+## 11.7 Bank Reconciliation accounting-mapping reference
+
+| MappingKey | Default account | Role |
+|---|---|---|
+| `BANK_CHARGES_EXPENSE` | 5100 | Debited for bank charges brought in via a reconciliation adjustment |
+| `BANK_INTEREST_INCOME` | 4040 | Credited for bank interest brought in via a reconciliation adjustment |
+| `BANK_RECONCILIATION_SUSPENSE` | 1799 | Holds direct debits/credits and unknown bank items pending reclassification |
+
+Two of these defaults are worth flagging explicitly rather than letting a reader assume a
+coincidence is a bug: `BANK_CHARGES_EXPENSE` (5100) shares its default code with Bank Transfers' own
+`BANK_TRANSFER_CHARGES` (§10.3), and `BANK_INTEREST_INCOME` (4040) shares its default code with the
+Loans module's `LOAN_INTEREST_INCOME` (§6.9) — in both cases these are separately-configurable
+mapping keys that simply happen to ship pointed at the same account by default. An organization that
+wants bank-fee or bank-interest activity kept visibly separate from transfer fees or loan interest in
+its reports should retarget one of each pair under Settings.
+
+---
+
+# Part 12 — Payroll
+
+## 12.1 Why payroll is its own accounting discipline
 
 Payroll is, mechanically, just another set of journal entries — but it's unusually dense with moving
 parts, because a single pay run has to simultaneously: expense the gross cost of employing people;
@@ -992,7 +1583,7 @@ any one of these wrong either understates the true cost of a workforce or missta
 owed to a third party — which is why payroll accounting is usually treated as a specialism in its
 own right rather than "just another expense."
 
-## 7.2 Master data: the shape of an organization
+## 12.2 Master data: the shape of an organization
 
 Before any pay can be calculated, four simple structures establish how employees are grouped:
 **Department** (with a cost-center code for departmental cost reporting), **Position** (belonging to
@@ -1009,7 +1600,7 @@ run** — inactive, suspended, and terminated employees are all excluded identic
 special distinction in payroll logic between "suspended" and "terminated" beyond the status label
 itself.
 
-## 7.3 Compensation: why it's effective-dated history, not a single field
+## 12.3 Compensation: why it's effective-dated history, not a single field
 
 An employee's pay is not simply a number sitting on the `Employee` record. It's resolved through a
 separate `EmployeeSalaryStructure` record — a join between the employee and a reusable
@@ -1028,7 +1619,7 @@ raises have happened since. Every payroll record permanently stores exactly whic
 assignment it used, so even if rates change again later, you can always trace back precisely what
 was paid and why.
 
-## 7.4 Pay Components: the building blocks of a payslip
+## 12.4 Pay Components: the building blocks of a payslip
 
 A `PayComponent` is the atomic unit every earning, deduction, or contribution is built from — a
 named line like "Housing Allowance" or "Union Dues" — and it's classified along three independent
@@ -1057,7 +1648,7 @@ mapping table (though the three "built-in," non-component lines every run always
 Salary, Income Tax, and loan/advance repayments — do still fall back to `MappingKey` resolution,
 since they have no `PayComponent` of their own to carry account codes).
 
-## 7.5 Statutory contributions and income tax: configurable, not hard-coded
+## 12.5 Statutory contributions and income tax: configurable, not hard-coded
 
 This system deliberately contains **no hard-coded country-specific payroll scheme** — no built-in
 CPF, no built-in Social Security formula, nothing tied to a specific jurisdiction's rules. Instead it
@@ -1093,7 +1684,7 @@ posts to the fixed `PAYROLL_EMPLOYEE_TAX_PAYABLE` mapping key regardless of what
 tax configuration record itself. This looks like an unused field rather than a deliberate design
 choice.
 
-## 7.6 The calculation engine: exactly what it does, and what it deliberately doesn't
+## 12.6 The calculation engine: exactly what it does, and what it deliberately doesn't
 
 For each active employee in a run, the calculation proceeds in a fixed sequence: resolve the
 effective compensation assignment; take Basic Salary as the starting earning; resolve every other
@@ -1103,7 +1694,7 @@ acknowledged simplification rather than a true circular gross-up); layer in any 
 variable inputs for the period (overtime hours, a one-time bonus — each marked "applied" the moment
 it's used, so the same overtime can never accidentally be paid twice across two different runs);
 resolve statutory contributions and income tax as described above; resolve any loan or salary-advance
-installment due (§7.7); and finally total everything into gross pay, total deductions, and net pay.
+installment due (§12.7); and finally total everything into gross pay, total deductions, and net pay.
 
 **If the resulting net pay would be negative — deductions exceeding what the employee earned that
 period — the system does not attempt to carry a negative balance forward or bill the employee for
@@ -1120,7 +1711,7 @@ actually employed for. If your organization needs proration, it has to be handle
 by adjusting the compensation assignment's effective date carefully, or by a manual adjustment
 outside the calculation engine — rather than something the engine computes for you.
 
-## 7.7 Loans and advances inside payroll: the simple cousin of the Loans module
+## 12.7 Loans and advances inside payroll: the simple cousin of the Loans module
 
 As flagged in §6.1, `EmployeeLoan` and `SalaryAdvance` are deliberately much simpler instruments than
 the general Loans module — a flat principal, a single fixed installment or deduction amount, no
@@ -1152,11 +1743,10 @@ already captured via an ordinary bill), and then paid (`Dr Reimbursement Payable
 this ever touches a `PayrollRun` or appears on a payslip — despite a `payrollRun` field existing on
 the claim entity, nothing in the codebase ever actually links a claim to a run.
 
-## 7.8 The Payroll Run lifecycle
+## 12.8 The Payroll Run lifecycle
 
-A `PayrollRun` belongs to exactly one `PayrollCalendarPeriod` (whose start/end/pay/accounting dates
-are entered by hand — there's no automatic period-generation engine that derives cutoff dates from a
-group's frequency) and moves through a deliberately strict, auditable sequence:
+A `PayrollRun` belongs to exactly one `PayrollCalendarPeriod` and moves through a deliberately
+strict, auditable sequence:
 
 ```
 DRAFT → (calculate) → CALCULATED → (submit for review) → UNDER_REVIEW
@@ -1165,19 +1755,30 @@ DRAFT → (calculate) → CALCULATED → (submit for review) → UNDER_REVIEW
 (DRAFT / CALCULATED / UNDER_REVIEW) → (cancel) → CANCELLED
 ```
 
+A `PayrollCalendarPeriod`'s own start/end/pay/accounting dates are still entered by hand for each
+period rather than auto-generated from a group's frequency, but the periods themselves now carry
+real guardrails that an earlier version of this module lacked: creating or editing one validates that
+its date range doesn't overlap any other period already defined for the same payroll group, and a
+period can only be edited or soft-deleted while it's still `OPEN` **and** has no payroll run (other
+than a cancelled one) already recorded against it — once a real run exists for a period, that
+period's own dates are locked in place by that fact alone, separately from whatever the run itself
+later does. (A status-transition mechanism exists on the period itself for marking it `PROCESSING` or
+`CLOSED`, but — as before — nothing in the payroll run lifecycle actually calls it; a period's own
+status field doesn't move on its own just because a run against it did.)
+
 **A genuine segregation-of-duties control is enforced in code, not just left to policy:** the person
 who approves a run cannot be the same person who prepared it or the same person who submitted it for
 review. This is checked at the moment of approval and will outright reject the action if the
 approver is the same user. Every single transition — created, calculated, submitted, approved,
 posted, paid, reversed, cancelled — writes its own entry to a dedicated payroll audit log, separate
-from the general settings audit trail described in Part 9.
+from the general Settings Audit Log described in Part 16.
 
 Calculating a run that's already been calculated once (allowed from `DRAFT` or `CALCULATED`, not
 beyond) is a genuine full recalculation — every existing record for the run is deleted, every
 variable input that had been marked "applied" to this run is released back to available, and every
 active employee is calculated completely fresh from scratch. It is not an incremental patch.
 
-## 7.9 Posting payroll to the General Ledger
+## 12.9 Posting payroll to the General Ledger
 
 **Posting a run produces exactly one balanced journal for the entire run — never one journal per
 employee.** `PayrollJournalService` walks every component of every employee's record and
@@ -1210,7 +1811,7 @@ bank* (payment) are genuinely two different accounting events that shouldn't be 
 entry. The payment journal's own documentation is explicit that it must never re-debit a salary
 expense account, since doing so would double the recorded cost of payroll.
 
-## 7.10 Payslips, reports, and reversal
+## 12.10 Payslips, reports, and reversal
 
 A **payslip** is never recomputed on demand — it's exactly the stored record the calculation engine
 produced at the time, served read-only, so a payslip always shows precisely what was calculated and
@@ -1235,7 +1836,7 @@ advance's balance stays reduced even though the GL no longer reflects the payrol
 funded the reduction. Correcting that mismatch today requires a manual adjustment to the loan or
 advance record — this is an acknowledged gap, not a subtlety to be reasoned around.
 
-## 7.11 Payroll Chart of Accounts reference
+## 12.11 Payroll Chart of Accounts reference
 
 | Code | Account | Role |
 |---|---|---|
@@ -1257,16 +1858,17 @@ engine itself is tracking.
 
 ---
 
-# Part 8 — Settings: The Configuration Layer Everything Else Depends On
+# Part 13 — Settings: The Configuration Layer Everything Else Depends On
 
-## 8.1 Accounting Mappings: the single lookup table everything resolves through
+## 13.1 Accounting Mappings: the single lookup table everything resolves through
 
 Every automated posting engine described in this manual — invoices, payments, bills, supplier
-payments, prepayments, loans, payroll, year-end closing — resolves *which specific GL account* to
-post to through exactly one mechanism: a `MappingKey` enum value, looked up through
-`AccountingMappingService.resolve(key)`. This is deliberately a thin, simple lookup table
-(`AccountingMapping`, one row per key, just the key and the account code it currently points to) —
-not a rules engine, not a decision tree, just "this key currently means this account."
+payments, prepayments, loans, payroll, expenses, deposits, down payments, bank transfers, bank
+reconciliation, year-end closing — resolves *which specific GL account* to post to through exactly
+one mechanism: a `MappingKey` enum value, looked up through `AccountingMappingService.resolve(key)`.
+This is deliberately a thin, simple lookup table (`AccountingMapping`, one row per key, just the key
+and the account code it currently points to) — not a rules engine, not a decision tree, just "this
+key currently means this account."
 
 **It is self-healing.** The very first time any key is ever looked up — even if an administrator has
 never visited the Accounting Mappings settings screen at all — the system seeds a row for it using a
@@ -1280,10 +1882,10 @@ throws a clear, specific error naming the mapping and the missing code, directin
 it under Settings.
 
 Every change to a mapping (and only changes that actually alter the stored value — a no-op update
-doesn't generate a log entry) is recorded to the Settings Audit Log (§9.2), including who changed
+doesn't generate a log entry) is recorded to the Settings Audit Log (§16.2), including who changed
 it, from what, to what, and why.
 
-## 8.2 Organization profile
+## 13.2 Organization profile
 
 A single, deliberately singleton record (this is a single-tenant application — there's only ever one
 organization) holding legal name, trading name, registration and tax identifiers, business
@@ -1294,26 +1896,27 @@ never read by any GL-posting calculation. Only three of its fields (legal name, 
 number) are actually written to the Settings Audit Log when changed; address and contact-detail
 changes are not logged.
 
-## 8.3 Bank Accounts
+## 13.3 Bank Accounts
 
 A `BankAccount` record ties a human-facing name to a specific Chart of Accounts code
 (`glAccountCode`) — a simple validated string match, not a formal foreign key — plus a currency, a
-default flag, and a "reconciliation enabled" flag.
+default flag, and a "reconciliation enabled" flag. **The reconciliation flag is no longer a dead
+field** — it is now the switch that determines whether a bank account can be targeted at all by the
+Bank Reconciliation module (Part 11): a bank account must have it enabled before a statement import
+or a reconciliation can be created against it.
 
-Two honest gaps worth stating plainly rather than letting the field names imply more than the system
-delivers: **`isDefault` is stored and returned by the API, but nothing anywhere in the posting logic
-actually consults it** to pick a fallback bank account — every posting engine either uses a specific
-bank account explicitly chosen on the transaction itself, or falls back directly to a `MappingKey`,
-never to "whichever bank account is flagged default." And **`enableReconciliation` is a stored flag
-with no feature behind it at all** — there is no bank reconciliation functionality anywhere in this
-backend today; the flag exists on the record but nothing reads it or acts on it.
+One honest gap still worth stating plainly: **`isDefault` is stored and returned by the API, but
+nothing anywhere in the posting logic actually consults it** to pick a fallback bank account — every
+posting engine either uses a specific bank account explicitly chosen on the transaction itself, or
+falls back directly to a `MappingKey`, never to "whichever bank account is flagged default."
 
 What *does* actually work: whenever a transaction (a payment, a supplier payment, a prepayment, a
-loan) has a specific `BankAccount` chosen on it, that record's GL account always wins over whatever
-the general mapping key would have resolved to — the mapping key is purely the fallback used when no
-specific bank account was chosen for that particular transaction.
+loan, an expense, a deposit, a down payment, one side of a bank transfer) has a specific
+`BankAccount` chosen on it, that record's GL account always wins over whatever the general mapping
+key would have resolved to — the mapping key is purely the fallback used when no specific bank
+account was chosen for that particular transaction.
 
-## 8.4 Numbering & Sequences
+## 13.4 Numbering & Sequences
 
 Covered in full in §1.4 — this is the settings surface that lets an administrator customize prefix,
 padding, separator, and year/month reset behavior per document type. One asymmetry worth noting: unlike
@@ -1321,7 +1924,7 @@ Accounting Mapping, Organization, and Bank Account changes, **changes to numberi
 not written to the Settings Audit Log** — there's no record of who changed a numbering format or
 when.
 
-## 8.5 Setup Completeness: a readiness checklist, not a gate
+## 13.5 Setup Completeness: a readiness checklist, not a gate
 
 A ten-item checklist (organization profile populated, a current financial year exists, that year has
 at least one open period, the chart of accounts has at least one account, a default base currency is
@@ -1332,18 +1935,19 @@ surfaced on a "Setup Completeness" view, with a straightforward complete/total c
 "ready to operate" flag.
 
 **It is important to understand that this checklist is purely informational.** No posting path in
-this system — not invoices, not bills, not prepayments, not loans — checks this flag or calls this
-service before deciding whether to let a transaction through. An organization flagged "not ready to
-operate" can still fully use every feature described in this manual; the checklist exists to help an
-administrator notice what they haven't set up yet, not to prevent anything. Notably, Prepayments and
-Loans mapping groups have no equivalent "all configured" check item at all — only Payroll gets that
+this system — not invoices, not bills, not prepayments, not loans, not any of the five newer modules
+in Parts 7–11 — checks this flag or calls this service before deciding whether to let a transaction
+through. An organization flagged "not ready to operate" can still fully use every feature described
+in this manual; the checklist exists to help an administrator notice what they haven't set up yet,
+not to prevent anything. Notably, Prepayments and Loans mapping groups have no equivalent "all
+configured" check item at all, and neither do any of the five newer modules — only Payroll gets that
 deeper validation today.
 
 ---
 
-# Part 9 — Financial Statements and Reports
+# Part 14 — Financial Statements and Reports
 
-## 9.1 Balance Sheet
+## 14.1 Balance Sheet
 
 A Balance Sheet is a snapshot — "as of this date, what do we own, what do we owe, and what's left
 over for the owners?" This system's `BalanceSheetServiceImpl` computes it by summing **every posted
@@ -1366,7 +1970,7 @@ balance. If it doesn't, something in the ledger is genuinely wrong, since the sy
 balanced journals at the point of posting (§1.2); a non-zero balance check here would point to a data
 integrity problem, not a normal reporting nuance.
 
-## 9.2 Trial Balance
+## 14.2 Trial Balance
 
 Where the Balance Sheet only shows three of the five account types, the Trial Balance is the
 complete picture — every Asset, Liability, Equity, Income, and Expense account, same cumulative
@@ -1378,7 +1982,7 @@ a real trial balance would present an account that's gone unexpectedly negative.
 balance check is simply total debits minus total credits across every row, which — again — should
 always land on exactly zero.
 
-## 9.3 Dashboard
+## 14.3 Dashboard
 
 The operational dashboard pulls together, as of any date (defaulting to today): a cash balance
 (summed across whichever accounts are configured as "cash accounts" for this purpose); the current
@@ -1394,9 +1998,70 @@ has an opening balance recorded yet.
 
 ---
 
-# Part 10 — Governance and Audit
+# Part 15 — Business Intelligence and Analytics
 
-## 10.1 Who did what, and when: automatic auditing on every record
+## 15.1 What this module is, and — just as importantly — what it is not
+
+Everything described in this Part is a **reporting layer only**. It reads the exact same posted
+journal lines and the same Chart of Accounts every other report in this manual reads; it writes
+nothing to the General Ledger, maintains no subledger of its own, and has no posting engine anywhere
+inside it. Its one persisted table is purely a UI-configuration record (which alerts are enabled, and
+at what threshold), not financial data. Think of this Part as a more analytically-minded cousin of
+the Dashboard (§14.3) — same underlying data, built for a different kind of question.
+
+## 15.2 Reclassifying accounts for analysis
+
+Reports elsewhere in this manual group accounts by the five base account types (§1.3). For analysis,
+this module regroups every account into one of fourteen more business-meaningful categories — cash
+and bank, receivables, other current assets, non-current assets; payables, loan liabilities, other
+current liabilities, non-current liabilities; equity; operating revenue, other income; cost of sales,
+operating expense, other expense — derived from each account's chart-of-accounts grouping, its role
+as a resolved control account (an AR/AP control account, a loan payable account, and so on), and a
+handful of category-name heuristics (a category literally named "Other income" or "Other expense," a
+category suggesting a long-term/non-current asset or liability). This reclassification exists purely
+to make BI figures read naturally to a business audience — it never changes how an account posts or
+how any other report in this manual treats it.
+
+## 15.3 The Executive Dashboard and Revenue Analytics
+
+The **Executive Dashboard** presents thirteen headline metrics — Revenue, Gross Profit, Gross Profit
+Margin, Operating Expenses, Net Profit, Net Profit Margin, Cash & Bank Balance, Accounts Receivable,
+Accounts Payable, Working Capital, Outstanding Loans, Current Assets, Current Liabilities — each
+compared against a prior period with a direction and a plain-language explanation, alongside five
+trend lines (Revenue, Expenses, Gross Profit, Net Profit, Cash & Bank) plotted over a chosen
+granularity.
+
+**Revenue Analytics** breaks revenue down by whichever dimension is meaningful and actually
+available in the data today — by account, by category, by customer, by product, by whether the
+underlying item is a product or a service, by invoice status, by invoice currency — while being
+explicit, dimension by dimension, about which breakdowns the data doesn't yet support (branch,
+department, and salesperson are all recognized as potentially useful breakdowns that nothing in the
+system currently records, and the report says so plainly rather than silently omitting them).
+
+## 15.4 Drill-down: from a headline figure to the individual journal line
+
+Every KPI, trend point, and breakdown in this module carries enough information to be **drilled
+into** — from the summary figure, down to the specific accounts that make it up, and from any one of
+those accounts, down to the individual posted journal lines behind it, each showing its journal
+number, date, status, and source module. This is the module's own answer to "where did this number
+actually come from" — a controller questioning a BI figure can always trace it back to the real,
+underlying ledger entries, the same entries every other report in this manual is built from.
+
+## 15.5 Alerts
+
+Seven specific conditions can be configured to flag attention: a significant revenue decline or
+expense increase against a comparison period, a low cash position (less than a configurable number
+of months of average expenses covered by cash on hand), a high proportion of receivables overdue, a
+heavy burden of bills due soon relative to cash on hand, a significant decline in profit margin, and
+a budget-variance alert that is always reported as unavailable today, since the system has no budget
+data source to compare against. Each is independently enabled or disabled, with its own threshold and
+comparison window, editable from Settings.
+
+---
+
+# Part 16 — Governance and Audit
+
+## 16.1 Who did what, and when: automatic auditing on every record
 
 Every business entity in this system — invoices, payments, bills, loans, prepayments, journal
 entries, and more — automatically tracks who created it and when, through Spring's standard JPA
@@ -1408,7 +2073,7 @@ Every record also carries an optimistic-locking version number (preventing two p
 silently overwriting each other's concurrent edits) and supports soft deletion — a "deleted" record
 is flagged and hidden, never actually erased from the database.
 
-## 10.2 The Settings Audit Log: a narrower, deliberately scoped trail
+## 16.2 The Settings Audit Log: a narrower, deliberately scoped trail
 
 It's worth being precise about something that could otherwise cause confusion: the application's
 general "Audit Trail" settings screen and the backend's `SettingsAuditLog` are **the exact same
@@ -1419,15 +2084,26 @@ explicit that "cosmetic settings aren't logged here since they carry no financia
 records what changed, from what value to what value, who changed it, when, and (optionally) why.
 
 This means a great many things described elsewhere in this manual — a prepayment being activated, a
-loan being disbursed, a payroll run being approved, a numbering format being changed — leave **no**
-trace in this particular log. Their own trail exists instead through the posted journal entries they
-generate (which, recall, are never edited or deleted, only reversed) and through the ordinary
-created-by/updated-by/updated-at fields on the records themselves — just not through this
-specifically-scoped settings log. Payroll additionally maintains its own entirely separate audit log
-dedicated to payroll-run lifecycle events (§7.8) — a third, distinct trail from the two already
-described.
+loan being disbursed, a payroll run being approved, a numbering format being changed, an expense
+being posted, a bank reconciliation being completed — leave **no** trace in this particular log.
+Their own trail exists instead through the posted journal entries they generate (which, recall, are
+never edited or deleted, only reversed) and through the ordinary created-by/updated-by/updated-at
+fields on the records themselves — just not through this specifically-scoped settings log.
 
-## 10.3 Control accounts and the period lock, revisited as governance tools
+## 16.3 Module-specific audit logs: a pattern now used in three places
+
+Three modules in this system have grown their own dedicated, append-only audit log, entirely
+separate from both the generic per-record auditing (§16.1) and the Settings Audit Log (§16.2):
+**Payroll** (every run-lifecycle transition, §12.8), **Loans** (every loan-lifecycle action, §6.8),
+and **Bank Reconciliation** (every reconciliation and matching action, §11.6). Each exists for the
+same reason: these are modules whose lifecycle is intricate and consequential enough — a multi-step
+approval chain, a loan's full history of disbursement and repayment, a bank account's reconciled
+history — that a narrative, purpose-built trail scoped to that one module is more useful than relying
+on the generic mechanisms alone. If you're looking for "what happened to this loan" or "what happened
+to this payroll run" or "what happened during this reconciliation," look at that module's own log
+first, not the Settings Audit Log, which was never meant to cover any of them.
+
+## 16.4 Control accounts and the period lock, revisited as governance tools
 
 Two mechanisms already described in detail (§1.3 and §2.3) are worth naming explicitly as the
 system's primary *governance* controls, because that's really what they are: the control-account
@@ -1435,11 +2111,13 @@ restriction stops anyone from manually overriding what an automated subledger sa
 period lock stops anyone from altering a period's figures after that period's books have been
 reviewed and closed out. Together, they are this system's answer to "how do we know the numbers we
 reported last month can't quietly change this month" — which is, at bottom, the entire reason
-accounting periods and control accounts exist as concepts in the first place.
+accounting periods and control accounts exist as concepts in the first place. As noted in §1.3, this
+protection has not yet been extended to cover the newest modules' own subledger-mirroring accounts —
+worth remembering as those modules see heavier use.
 
 ---
 
-# Part 11 — Known Limitations and Simplifications, Consolidated
+# Part 17 — Known Limitations and Simplifications, Consolidated
 
 Everything below has already been flagged in context, in the section describing the relevant
 module. This section exists purely as a single, scannable list for anyone who wants the "what to be
@@ -1454,7 +2132,8 @@ careful about" picture without reading the whole manual end to end.
   expense anywhere in this system.
 - **Bills have no per-line expense-account routing.** Every bill's entire net expense lands on one
   generic default expense account, unlike invoices, which do split revenue by each line's product's
-  configured income account.
+  configured income account — and unlike the newer Expenses module (Part 7), which does support a
+  distinct GL account per line.
 - **Reallocating a payment to a different invoice doesn't post an adjusting GL entry**, unlike
   allocating or removing an allocation, which both do.
 - **Supplier payments have no refund mechanism and no cancellation/reversal journal method**, unlike
@@ -1467,13 +2146,6 @@ careful about" picture without reading the whole manual end to end.
 - **Prepayments have no reversal action once any period has been recognized** — only a write-off of
   the entire remaining balance. A `REVERSED` status value exists on the entity but is never actually
   set by any code.
-- **The Loans module's write-off posts to the same account as ordinary loan fees** (5090) — there is
-  no dedicated bad-debt or loan-loss expense account distinguishing the two.
-- **A loan's `outstandingInterest` figure only ever increases** (via accrual) and is never reduced
-  when an ordinary repayment's interest portion is recorded.
-- **Two different, unrelated "loan status" enums exist** with the same short name —
-  `enums/loan/LoanStatus.java` for the general Loans module, and the simpler `enums/LoanStatus.java`
-  used only by Payroll's `EmployeeLoan`. Don't conflate them when reading the code.
 - **The payroll calculation engine performs no proration of any kind** — not for mid-period hires,
   terminations, or unpaid leave. Every active employee is paid a full period's compensation
   regardless of how much of the period they actually worked.
@@ -1483,15 +2155,31 @@ careful about" picture without reading the whole manual end to end.
   correction to the loan or advance record.
 - **`TaxConfiguration.taxPayableAccountCode` is stored but never actually read** by the payroll
   posting engine, which always uses the fixed `PAYROLL_EMPLOYEE_TAX_PAYABLE` mapping key regardless.
-- **`BankAccount.isDefault` and `BankAccount.enableReconciliation` are both stored flags with no
-  behavior behind them** — no posting logic picks a "default" bank account automatically, and no
-  bank reconciliation feature exists anywhere in the system.
+- **`BankAccount.isDefault` is a stored flag with no behavior behind it** — no posting logic picks a
+  "default" bank account automatically; a specific account must always be chosen on the transaction
+  or resolved through a mapping key.
 - **Numbering configuration changes are not recorded to the Settings Audit Log**, unlike Accounting
   Mapping, Organization, and Bank Account changes.
 - **The Setup Completeness checklist is purely informational and blocks nothing** — an organization
   can transact fully regardless of its completeness score, and the checklist has no dedicated
-  "all configured" check for the Prepayments or Loans mapping groups specifically (only Payroll gets
-  that deeper check).
+  "all configured" check for the Prepayments, Loans, or any of the five newer modules' mapping
+  groups specifically (only Payroll gets that deeper check).
+- **Two different, unrelated "loan status" enums exist** with the same short name —
+  `enums/loan/LoanStatus.java` for the general Loans module, and the simpler `enums/LoanStatus.java`
+  used only by Payroll's `EmployeeLoan`. Don't conflate them when reading the code.
+- **The Down Payments module's two new control accounts (2087, 1747) have not been added to the
+  control-account protection list described in §1.3** — a manual journal entry can currently still be
+  posted directly to either one, unlike the equivalent accounts in every other module.
+- **`BANK_CHARGES_EXPENSE` (Bank Reconciliation) defaults to the same account code as
+  `BANK_TRANSFER_CHARGES` (Bank Transfers), and `BANK_INTEREST_INCOME` (Bank Reconciliation) defaults
+  to the same code as `LOAN_INTEREST_INCOME` (Loans).** Each pair is separately configurable; they
+  simply ship pointed at the same account by default, which an organization wanting the activity kept
+  visibly separate should retarget under Settings.
+- **The Business Intelligence module's budget-variance alert is always reported as unavailable** —
+  the system has no budget data source anywhere to compare actuals against.
+- **A `PayrollCalendarPeriod`'s own `PROCESSING`/`CLOSED` status-transition methods exist but are
+  never called by anything in the payroll run lifecycle** — a period's own status field does not
+  move automatically just because a run against it was calculated, posted, or paid.
 
 ---
 
@@ -1516,12 +2204,15 @@ careful about" picture without reading the whole manual end to end.
 | 1720 | Accumulated Amortization | Asset |
 | 1730 | Other Fixed Assets | Asset |
 | 1740 | Supplier Advances ★ | Asset |
+| 1745 | Deposits Paid | Asset |
+| 1747 | Supplier Downpayments | Asset |
 | 1750 | Employee Loans Receivable ★ | Asset |
 | 1760 | Salary Advances Receivable ★ | Asset |
 | 1770 | Purchase Tax Receivable ★ | Asset |
 | 1780 | Loans Receivable ★ | Asset |
 | 1790 | Interest Receivable ★ | Asset |
 | 1795 | Prepaid Expenses ★ | Asset |
+| 1799 | Bank Reconciliation Suspense | Asset |
 | 2000 | Long Term Liability | Liability |
 | 2010 | Current Liability | Liability |
 | 2020 | Other Creditors | Liability |
@@ -1531,6 +2222,8 @@ careful about" picture without reading the whole manual end to end.
 | 2060 | Rents Held in Trust | Liability |
 | 2070 | Merchant Account Fees Payable | Liability |
 | 2080 | Customer Deposits ★ | Liability |
+| 2085 | Deposits Received | Liability |
+| 2087 | Customer Downpayments | Liability |
 | 2090 | Sales Tax Payable ★ | Liability |
 | 2100 | Salary Payable ★ | Liability |
 | 2110 | Employee Income Tax Payable ★ | Liability |
@@ -1549,6 +2242,9 @@ careful about" picture without reading the whole manual end to end.
 | 4020 | Sales | Income |
 | 4030 | Sales Revenue | Income |
 | 4040 | Interest Income | Income |
+| 4042 | Loan Fee Income | Income |
+| 4050 | FX Gain | Income |
+| 4060 | Forfeited Deposits Income | Income |
 | 5000 | Operating Expenses | Expense |
 | 5010 | Payroll Expense | Expense |
 | 5020 | Other Expense | Expense |
@@ -1558,7 +2254,11 @@ careful about" picture without reading the whole manual end to end.
 | 5060 | Employee Benefits Expense | Expense |
 | 5070 | Employee Reimbursement Expense | Expense |
 | 5080 | Interest Expense | Expense |
+| 5085 | Loan Write-off Expense | Expense |
 | 5090 | Loan Fees Expense | Expense |
+| 5095 | Forfeited Deposits Expense | Expense |
+| 5100 | Bank Charges Expense | Expense |
+| 5110 | FX Loss | Expense |
 | 6000 | Cost of Goods Sold | COGS |
 | 6010 | Job Materials | COGS |
 | 6020 | Equipment Rental | COGS |
@@ -1571,7 +2271,10 @@ careful about" picture without reading the whole manual end to end.
 | 6210 | Accounts Payable ★ | Liability |
 | 6220 | Accounts Receivable ★ | Asset |
 
-★ = flagged as a control account; cannot be posted to from a manual journal entry.
+★ = flagged as a control account; cannot be posted to from a manual journal entry. Note that the
+Down Payments (1747, 2087), Deposits (1745, 2085, 4060, 5095), Bank Transfer (5100, 4050, 5110), and
+Bank Reconciliation (1799) accounts are **not** on this protected list, per the gap noted in §1.3 and
+Part 17.
 
 ---
 
@@ -1586,6 +2289,7 @@ careful about" picture without reading the whole manual end to end.
 | Sales | `INVOICE_ACCOUNTS_RECEIVABLE` | 6220 |
 | Sales | `INVOICE_REVENUE` | 4020 |
 | Sales | `INVOICE_SALES_TAX_PAYABLE` | 2090 |
+| Sales | `CUSTOMER_DOWNPAYMENT_LIABILITY` | 2087 |
 | Purchases | `BILL_ACCOUNTS_PAYABLE` | 6210 |
 | Purchases | `BILL_DEFAULT_EXPENSE` | 5000 |
 | Purchases | `BILL_PURCHASE_TAX_RECEIVABLE` | 1770 |
@@ -1593,6 +2297,7 @@ careful about" picture without reading the whole manual end to end.
 | Purchases | `SUPPLIER_PAYMENT_CASH_ACCOUNT` | 1000 |
 | Purchases | `SUPPLIER_PAYMENT_ADVANCES` | 1740 |
 | Purchases | `TAX_WITHHOLDING_PAYABLE` | 2150 |
+| Purchases | `SUPPLIER_DOWNPAYMENT_ASSET` | 1747 |
 | Payroll | `PAYROLL_SALARY_PAYABLE` | 2100 |
 | Payroll | `PAYROLL_DEFAULT_SALARY_EXPENSE` | 5040 |
 | Payroll | `PAYROLL_EMPLOYEE_TAX_PAYABLE` | 2110 |
@@ -1612,7 +2317,25 @@ careful about" picture without reading the whole manual end to end.
 | Loans | `LOAN_INTEREST_RECEIVABLE` | 1790 |
 | Loans | `LOAN_INTEREST_PAYABLE` | 2170 |
 | Loans | `LOAN_FEE_EXPENSE` | 5090 |
+| Loans | `LOAN_FEE_INCOME` | 4042 |
+| Loans | `LOAN_WRITE_OFF_EXPENSE` | 5085 |
 | Loans | `LOAN_BANK_ACCOUNT` | 1010 |
+| Banking | `BANK_TRANSFER_CHARGES` | 5100 |
+| Banking | `FX_GAIN` | 4050 |
+| Banking | `FX_LOSS` | 5110 |
+| Banking | `BANK_CHARGES_EXPENSE` | 5100 |
+| Banking | `BANK_INTEREST_INCOME` | 4040 |
+| Banking | `BANK_RECONCILIATION_SUSPENSE` | 1799 |
+| Deposits | `DEPOSIT_PAID_ASSET` | 1745 |
+| Deposits | `DEPOSIT_RECEIVED_LIABILITY` | 2085 |
+| Deposits | `DEPOSIT_FORFEIT_INCOME` | 4060 |
+| Deposits | `DEPOSIT_FORFEIT_EXPENSE` | 5095 |
+| Deposits | `DEPOSIT_BANK_ACCOUNT` | 1010 |
+
+Expenses posts with no `MappingKey` at all — both sides of its journal resolve directly from
+user-chosen records (the line's own account, the expense's own payment account), never from a
+configurable mapping. Document Settlement has no `MappingKey` of its own because it posts no
+journal at all (§9.3).
 
 ---
 
@@ -1629,6 +2352,11 @@ careful about" picture without reading the whole manual end to end.
 | Customer Payment / Receipt | RCP | `RCP-00001` |
 | Prepayment | PPY | `PPY-00001` |
 | Loan | LN | `LN-00001` |
+| Expense | (admin-configured) | no built-in default prefix shipped |
+| Deposit | (admin-configured) | no built-in default prefix shipped |
+| Down Payment | (admin-configured) | no built-in default prefix shipped |
+| Bank Transfer | (admin-configured) | no built-in default prefix shipped |
+| Bank Reconciliation | (admin-configured) | no built-in default prefix shipped |
 | Document Template (Invoice/Quote/PO/Credit Note/Delivery Note/Receipt) | TMPL-INV / TMPL-QTE / TMPL-PO / TMPL-CN / TMPL-DN / TMPL-RCT | cosmetic numbering only |
 
 ---

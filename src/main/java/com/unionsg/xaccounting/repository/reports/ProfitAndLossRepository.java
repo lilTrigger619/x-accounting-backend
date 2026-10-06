@@ -46,7 +46,7 @@ public interface ProfitAndLossRepository extends JpaRepository<JournalLine, Long
 
         WHERE
 
-            je.status = JournalStatus.POSTED
+            je.status IN (JournalStatus.POSTED, JournalStatus.REVERSED)
 
             AND je.journalDate BETWEEN :fromDate AND :toDate
 

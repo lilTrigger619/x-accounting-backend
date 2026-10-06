@@ -37,7 +37,7 @@ public interface LedgerAsOfBalanceRepository extends JpaRepository<JournalLine, 
             JOIN acc.coaClearTo clearTo
             JOIN clearTo.chartOfAccount coa
         WHERE
-            je.status = JournalStatus.POSTED
+            je.status IN (JournalStatus.POSTED, JournalStatus.REVERSED)
             AND je.journalDate <= :asOfDate
             AND coa.accountType IN :accountTypes
         GROUP BY

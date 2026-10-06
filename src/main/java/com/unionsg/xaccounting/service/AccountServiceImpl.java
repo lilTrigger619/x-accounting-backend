@@ -83,7 +83,7 @@ public class AccountServiceImpl implements AccountService {
                         ? entity.getCoaClearTo().getChartOfAccount().getAccountType().name()
                         : null)
                 .subType(entity.getCoaClearTo() != null
-                        ? entity.getCoaClearTo().getId().toString()
+                        ? entity.getCoaClearTo().getDescription()
                         : null)
 
                 .status(entity.getIsActive() != null && entity.getIsActive() ? AccountStatus.ACTIVE : AccountStatus.INACTIVE)

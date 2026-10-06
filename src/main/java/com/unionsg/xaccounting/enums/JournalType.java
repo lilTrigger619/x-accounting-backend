@@ -13,7 +13,8 @@ public enum JournalType {
     DOWNPAYMENT,
     LOAN,
     BANK_TRANSFER,
-    DEPOSIT;
+    DEPOSIT,
+    EXPENSE;
 
     /**
      * Whether a person may pick this type for a journal entered by hand. Every other type is

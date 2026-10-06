@@ -6,6 +6,7 @@ import com.unionsg.xaccounting.enums.*;
 import com.unionsg.xaccounting.enums.downpayment.DownpaymentStatus;
 import com.unionsg.xaccounting.enums.downpayment.DownpaymentType;
 import com.unionsg.xaccounting.enums.banking.BankTransferStatus;
+import com.unionsg.xaccounting.enums.expense.ExpenseStatus;
 import com.unionsg.xaccounting.enums.deposit.*;
 import com.unionsg.xaccounting.enums.bankrec.AmountSignConvention;
 import com.unionsg.xaccounting.enums.bankrec.BookTransactionStatus;
@@ -81,6 +82,7 @@ public class LookupService {
         register("pay-frequencies", "Pay Frequencies", PayFrequency.class);
         register("payment-methods", "Payment Methods", PaymentMethod.class);
         register("payroll-period-statuses", "Payroll Period Statuses", PayrollPeriodStatus.class);
+        register("expense-statuses", "Expense Statuses", ExpenseStatus.class);
         register("payment-statuses", "Payment Statuses", PaymentStatus.class);
         register("payment-term-types", "Payment Terms", PaymentTermType.class);
         register("prepayment-counterparty-types", "Prepayment Counterparty Types", PrepaymentCounterpartyType.class);

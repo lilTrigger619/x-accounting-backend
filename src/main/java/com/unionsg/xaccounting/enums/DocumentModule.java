@@ -23,5 +23,6 @@ public enum DocumentModule {
     LOAN,
     BANK_TRANSFER,
     DEPOSIT,
-    BANK_RECONCILIATION
+    BANK_RECONCILIATION,
+    EXPENSE
 }

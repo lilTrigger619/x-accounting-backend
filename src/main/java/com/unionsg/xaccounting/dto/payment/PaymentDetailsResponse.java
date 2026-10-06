@@ -1,7 +1,6 @@
 package com.unionsg.xaccounting.dto.payment;
 
 import com.unionsg.xaccounting.dto.CreatedByDTO;
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentMethod;
 import com.unionsg.xaccounting.enums.PaymentStatus;
 import lombok.Getter;
@@ -40,7 +39,7 @@ public class PaymentDetailsResponse {
 
     private String bankAccountName;
 
-    private Currency currency;
+    private String currency;
 
     private BigDecimal exchangeRate;
 

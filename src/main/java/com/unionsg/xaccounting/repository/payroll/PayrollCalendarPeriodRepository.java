@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface PayrollCalendarPeriodRepository extends JpaRepository<PayrollCalendarPeriod, Long> {
-    List<PayrollCalendarPeriod> findByPayrollGroupIdOrderByPeriodStartDesc(Long payrollGroupId);
+    List<PayrollCalendarPeriod> findByPayrollGroupIdAndDeletedFalseOrderByPeriodStartDesc(Long payrollGroupId);
 }

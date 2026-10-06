@@ -22,6 +22,7 @@ import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.security.util.SecurityUtils;
 import com.unionsg.xaccounting.service.FileService.FileService;
 import com.unionsg.xaccounting.enums.DocumentModule;
+import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,7 @@ public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeSalaryStructureRepository employeeSalaryStructureRepository;
+    private final ConfigValueValidator configValues;
     private final DepartmentService departmentService;
     private final PositionService positionService;
     private final WorkLocationService workLocationService;
@@ -73,9 +75,9 @@ public class EmployeeService {
         if (request.getWorkLocationId() != null) {
             employee.setWorkLocation(workLocationService.getEntity(request.getWorkLocationId()));
         }
-        if (request.getEmploymentType() != null) {
-            employee.setEmploymentType(request.getEmploymentType());
-        }
+        employee.setEmploymentType(request.getEmploymentType() != null
+                ? configValues.validate("employment-types", request.getEmploymentType(), null, "Employment type")
+                : configValues.defaultValue("employment-types"));
         employee.setEmploymentStatus(EmploymentStatus.ACTIVE);
         employee.setDateOfEmployment(request.getDateOfEmployment());
         employee.setPayrollGroup(payrollGroupService.getEntity(request.getPayrollGroupId()));
@@ -133,7 +135,8 @@ public class EmployeeService {
             employee.setWorkLocation(workLocationService.getEntity(request.getWorkLocationId()));
         }
         if (request.getEmploymentType() != null) {
-            employee.setEmploymentType(request.getEmploymentType());
+            employee.setEmploymentType(configValues.validate(
+                    "employment-types", request.getEmploymentType(), employee.getEmploymentType(), "Employment type"));
         }
         if (request.getPayrollGroupId() != null) {
             employee.setPayrollGroup(payrollGroupService.getEntity(request.getPayrollGroupId()));

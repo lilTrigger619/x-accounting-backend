@@ -21,6 +21,8 @@ import com.unionsg.xaccounting.repository.reports.ReportTemplateSectionAccountRe
 import com.unionsg.xaccounting.repository.reports.ReportTemplateSectionRepository;
 import com.unionsg.xaccounting.service.reports.exception.ConcurrentTemplateModificationException;
 import com.unionsg.xaccounting.service.reports.exception.InvalidTemplateStateException;
+import com.unionsg.xaccounting.service.reports.exception.TemplateCodeAlreadyExistsException;
+import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import com.unionsg.xaccounting.dto.reports.ReportTemplateValidationResponse;
 import com.unionsg.xaccounting.service.reports.exception.PublishValidationException;
 
@@ -51,6 +53,7 @@ public class ReportTemplateLifecycleServiceImpl implements ReportTemplateLifecyc
 
     private final FinancialReportEngine financialReportEngine;
     private final FormulaValidator formulaValidator;
+    private final ConfigValueValidator configValues;
 
     // NOTE: validation is orchestrated by ValidationCoordinator (shared by /validate and /publish)
 
@@ -294,24 +297,32 @@ public class ReportTemplateLifecycleServiceImpl implements ReportTemplateLifecyc
 
     @Override
     @Transactional
-    public com.unionsg.xaccounting.dto.reports.ReportTemplateDto clone(Long templateId, String updatedBy) {
+    public com.unionsg.xaccounting.dto.reports.ReportTemplateDto clone(Long templateId,
+            com.unionsg.xaccounting.dto.reports.ReportTemplateCloneRequestDto request, String updatedBy) {
         ReportTemplate source = templateRepository.findById(templateId)
                 .orElseThrow(() -> new InvalidTemplateStateException("Template not found for id=" + templateId));
 
-        String sourceTemplateCode = source.getTemplateCode();
-
-        String newTemplateCode = generateNextCopyTemplateCode(sourceTemplateCode);
+        String requestedCode = request == null ? null : blankToNull(request.templateCode());
+        if (requestedCode != null && templateRepository.existsByTemplateCode(requestedCode)) {
+            throw new TemplateCodeAlreadyExistsException("templateCode already exists: " + requestedCode);
+        }
+        String newTemplateCode = requestedCode != null ? requestedCode : generateNextCopyTemplateCode(source.getTemplateCode());
+        String name = request == null ? null : blankToNull(request.templateName());
+        String description = request == null ? null : blankToNull(request.description());
+        String category = request == null ? null
+                : configValues.validate("report-categories", request.category(), source.getCategory(), "Category");
         int nextVersion = 1;
 
         // Create brand-new draft (do not copy audit fields)
         ReportTemplate draft = ReportTemplate.builder()
                 .templateCode(newTemplateCode)
-                .templateName(source.getTemplateName())
-                .description(source.getDescription())
-                .category(source.getCategory())
+                .templateName(name != null ? name : source.getTemplateName())
+                .description(description != null ? description : source.getDescription())
+                .category(category != null ? category : source.getCategory())
                 .status(ReportTemplateStatus.DRAFT)
                 .version(nextVersion)
-                .isSystemTemplate(source.isSystemTemplate())
+                // A copy belongs to whoever made it, even when the source was seeded.
+                .isSystemTemplate(false)
                 .updatedBy(updatedBy)
                 .createdBy(null)
                 .createdDate(null)
@@ -368,12 +379,16 @@ public class ReportTemplateLifecycleServiceImpl implements ReportTemplateLifecyc
         auditService.record(savedDraft.getId(), com.unionsg.xaccounting.enums.ReportTemplateHistoryAction.CLONE,
                 Map.of(
                         "sourceTemplateId", templateId,
-                        "sourceTemplateCode", sourceTemplateCode,
+                        "sourceTemplateCode", source.getTemplateCode(),
                         "newTemplateCode", newTemplateCode
                 ));
 
         return toDto(savedDraft);
 
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private String generateNextCopyTemplateCode(String sourceTemplateCode) {

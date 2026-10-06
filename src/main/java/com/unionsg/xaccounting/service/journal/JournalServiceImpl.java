@@ -4,6 +4,8 @@ import com.unionsg.xaccounting.MapperLayer.JournalMapper;
 import com.unionsg.xaccounting.dto.journal.CreateJournalLineRequest;
 import com.unionsg.xaccounting.dto.journal.CreateJournalRequest;
 import com.unionsg.xaccounting.dto.journal.JournalResponse;
+import com.unionsg.xaccounting.dto.journal.JournalReversalResponse;
+import com.unionsg.xaccounting.dto.journal.ReverseJournalRequest;
 import com.unionsg.xaccounting.dto.journal.UpdateJournalRequest;
 import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.entity.Journals.JournalEntry;
@@ -17,6 +19,8 @@ import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
 import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.service.accounting.PeriodLockGuard;
+import com.unionsg.xaccounting.service.config.ConfigValueValidator;
+import com.unionsg.xaccounting.MapperLayer.CreatedByMapper;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
@@ -41,6 +45,7 @@ public class JournalServiceImpl implements JournalService {
     private final JournalNumberGenerator numberGenerator;
     private final DocumentNumberService generalSequenceGeneratorService;
     private final PeriodLockGuard periodLockGuard;
+    private final ConfigValueValidator configValues;
 
     public JournalServiceImpl(
             JournalEntryRepository journalRepository,
@@ -49,7 +54,8 @@ public class JournalServiceImpl implements JournalService {
             JournalPostingService postingService,
             JournalNumberGenerator numberGenerator,
             DocumentNumberService generalSequenceGeneratorService,
-            PeriodLockGuard periodLockGuard
+            PeriodLockGuard periodLockGuard,
+            ConfigValueValidator configValues
     ) {
         this.journalRepository = journalRepository;
         this.accountRepository = accountRepository;
@@ -58,6 +64,7 @@ public class JournalServiceImpl implements JournalService {
         this.numberGenerator = numberGenerator;
         this.generalSequenceGeneratorService = generalSequenceGeneratorService;
         this.periodLockGuard = periodLockGuard;
+        this.configValues = configValues;
     }
 
     @Override
@@ -88,6 +95,8 @@ public class JournalServiceImpl implements JournalService {
 
     @Override
     public JournalResponse createManualJournal(CreateJournalRequest request) {
+        assertManualType(request.getJournalType());
+        request.setCurrencyCode(configValues.require("currencies", request.getCurrencyCode(), null, "Currency"));
         assertNoControlAccountLines(request.getLines());
         return create(request);
     }
@@ -103,6 +112,14 @@ public class JournalServiceImpl implements JournalService {
 
         assertNoControlAccountLines(request.getLines());
 
+        if (request.getJournalType() != null && request.getJournalType() != journal.getJournalType()) {
+            assertManualType(request.getJournalType());
+            journal.setJournalType(request.getJournalType());
+        }
+        if (request.getCurrencyCode() != null) {
+            journal.setCurrencyCode(configValues.require(
+                    "currencies", request.getCurrencyCode(), journal.getCurrencyCode(), "Currency"));
+        }
         journal.setJournalDate(request.getJournalDate());
         journal.setReference(request.getReference());
         journal.setDescription(request.getDescription());
@@ -120,7 +137,16 @@ public class JournalServiceImpl implements JournalService {
 
     @Override
     public JournalResponse getById(Long id) {
-        return journalMapper.toResponse(getEntity(id));
+        JournalResponse response = journalMapper.toResponse(getEntity(id));
+        journalRepository.findFirstByReversalOfJournalId(id).ifPresent(r -> response.setReversal(
+                JournalReversalResponse.builder()
+                        .journalId(r.getId())
+                        .journalNumber(r.getJournalNumber())
+                        .reverseDate(r.getJournalDate())
+                        .reason(r.getDescription())
+                        .reversedBy(r.getCreatedBy() != null ? CreatedByMapper.toDto(r.getCreatedBy()).getFullName() : null)
+                        .build()));
+        return response;
     }
 
     @Override
@@ -209,6 +235,11 @@ public class JournalServiceImpl implements JournalService {
 
     @Override
     public JournalResponse reverse(Long id, String reason) {
+        return reverse(id, ReverseJournalRequest.builder().reason(reason).build());
+    }
+
+    @Override
+    public JournalResponse reverse(Long id, ReverseJournalRequest request) {
 
         JournalEntry original = getEntity(id);
 
@@ -218,20 +249,32 @@ public class JournalServiceImpl implements JournalService {
             );
         }
 
-        periodLockGuard.assertPostable(LocalDate.now());
+        LocalDate reverseDate = request.getReverseDate() != null ? request.getReverseDate() : LocalDate.now();
+        if (original.getJournalDate() != null && reverseDate.isBefore(original.getJournalDate())) {
+            throw new BadRequestException(
+                    "The reversal date can't be before the journal's own date (" + original.getJournalDate() + ")");
+        }
+
+        periodLockGuard.assertPostable(reverseDate);
 
         JournalEntry reversal = new JournalEntry();
 
-        reversal.setJournalNumber(numberGenerator.generate());
-        reversal.setJournalDate(LocalDate.now());
-        reversal.setPostingDate(LocalDate.now());
+        // Same numbering as create(); the legacy JournalNumberGenerator needs a "JOURNAL" row in
+        // document_sequences that nothing seeds, so every reversal failed with "Journal sequence
+        // not configured".
+        reversal.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
+        reversal.setCurrencyCode(original.getCurrencyCode());
+        reversal.setJournalDate(reverseDate);
+        reversal.setPostingDate(reverseDate);
         reversal.setPostedAt(LocalDateTime.now());
 
         reversal.setStatus(JournalStatus.POSTED);
 
-        reversal.setReference("REV-" + original.getJournalNumber());
+        reversal.setReference(request.getReference() != null && !request.getReference().isBlank()
+                ? request.getReference().trim()
+                : "REV-" + original.getJournalNumber());
 
-        reversal.setDescription(reason);
+        reversal.setDescription(request.getReason());
 
         reversal.setReversalOfJournalId(original.getId());
 
@@ -272,6 +315,14 @@ public class JournalServiceImpl implements JournalService {
     // ======================================================
     // Helpers
     // ======================================================
+
+    /** Only some journal types may be entered by hand; the rest are posted by their own module. */
+    private static void assertManualType(JournalType type) {
+        if (type != null && !type.isManualEntry()) {
+            throw new BadRequestException(
+                    "Journals of type " + type + " are posted by their own module and can't be entered by hand");
+        }
+    }
 
     private JournalEntry getEntity(Long id) {
         return journalRepository.findById(id)

@@ -62,6 +62,10 @@ public class RecurringJournalService {
         if (request.getEndDate() != null && !request.getEndDate().isAfter(request.getStartDate())) {
             throw new BadRequestException("End date must be after start date");
         }
+        if (request.getJournalType() != null && !request.getJournalType().isManualEntry()) {
+            throw new BadRequestException("Journals of type " + request.getJournalType()
+                    + " are posted by their own module and can't be scheduled as recurring journals");
+        }
 
         BigDecimal totalDebit = BigDecimal.ZERO;
         BigDecimal totalCredit = BigDecimal.ZERO;

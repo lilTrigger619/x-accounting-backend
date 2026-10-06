@@ -55,7 +55,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public CreatePaymentResponse createPayment(CreatePaymentRequest request) {
         paymentValidator.validatePositiveAmount(request.getAmountReceived(), "amountReceived");
-        paymentValidator.validateCurrency(request.getCurrency());
+        request.setCurrency(paymentValidator.validateCurrency(request.getCurrency(), null));
         paymentValidator.validateExchangeRate(request.getExchangeRate());
 
         Customer customer = paymentValidator.validateCustomerExists(request.getCustomerId());
@@ -91,7 +91,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public CreatePaymentResponse saveDraft(CreateDraftPaymentRequest request) {
         paymentValidator.validatePositiveAmount(request.getAmountReceived(), "amountReceived");
-        paymentValidator.validateCurrency(request.getCurrency());
+        request.setCurrency(paymentValidator.validateCurrency(request.getCurrency(), null));
         paymentValidator.validateExchangeRate(request.getExchangeRate());
 
         Customer customer = paymentValidator.validateCustomerExists(request.getCustomerId());
@@ -119,7 +119,7 @@ public class PaymentServiceImpl implements PaymentService {
         paymentValidator.validateDraftPayment(payment);
 
         paymentValidator.validatePositiveAmount(request.getAmountReceived(), "amountReceived");
-        paymentValidator.validateCurrency(request.getCurrency());
+        request.setCurrency(paymentValidator.validateCurrency(request.getCurrency(), payment.getCurrency()));
         paymentValidator.validateExchangeRate(request.getExchangeRate());
 
         Customer customer = paymentValidator.validateCustomerExists(request.getCustomerId());

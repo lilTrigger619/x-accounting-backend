@@ -51,6 +51,11 @@ public class InvoiceResponse {
 
     private BigDecimal totalDue;
 
+    private BigDecimal amountPaid;
+
+    /** What is still owed: the total less payments allocated to this invoice. */
+    private BigDecimal balance;
+
     private InvoiceBillingInfoResponse billingInfo;
 
     private List<InvoiceItemResponse> items;

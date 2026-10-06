@@ -37,8 +37,8 @@ public class Customer {
     private CustomerType customerType;
 
 
-    @Enumerated(EnumType.STRING)
-    private Title title;
+    /** Code of a "titles" config item. */
+    private String title;
 
 
    @Column(name = "first_name")

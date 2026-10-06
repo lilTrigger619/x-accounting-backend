@@ -297,7 +297,7 @@ public class APJournalService {
                 .reference(payment.getPaymentNumber() + referenceSuffix)
                 .description(description)
                 .journalType(JournalType.PURCHASE)
-                .currencyCode(payment.getCurrency() != null ? payment.getCurrency().name() : "USD")
+                .currencyCode(payment.getCurrency() != null ? payment.getCurrency() : "USD")
                 .lines(lines)
                 .build();
 

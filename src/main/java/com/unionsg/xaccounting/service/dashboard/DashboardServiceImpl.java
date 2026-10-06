@@ -7,33 +7,29 @@ import com.unionsg.xaccounting.dto.dashboard.RecentTransactionDto;
 import com.unionsg.xaccounting.dto.journal.JournalResponse;
 import com.unionsg.xaccounting.dto.reports.ProfitLossReportInternalDTO;
 import com.unionsg.xaccounting.entity.accounting.FinancialYear;
-import com.unionsg.xaccounting.enums.AccountType;
 import com.unionsg.xaccounting.enums.AccountingPeriodStatus;
 import com.unionsg.xaccounting.enums.JournalStatus;
-import com.unionsg.xaccounting.enums.settings.MappingKey;
-import com.unionsg.xaccounting.projection.ProfitLossAccountProjection;
 import com.unionsg.xaccounting.repository.accounting.AccountingPeriodRepository;
 import com.unionsg.xaccounting.repository.accounting.FinancialYearRepository;
 import com.unionsg.xaccounting.repository.journal.JournalEntryRepository;
-import com.unionsg.xaccounting.repository.reports.LedgerAsOfBalanceRepository;
 import com.unionsg.xaccounting.service.journal.JournalService;
 import com.unionsg.xaccounting.service.reports.CurrentFiscalPeriodResolver;
 import com.unionsg.xaccounting.service.reports.ProfitAndLossService;
-import com.unionsg.xaccounting.service.settings.AccountingMappingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.unionsg.xaccounting.service.analytics.AccountClass;
+import com.unionsg.xaccounting.service.analytics.LedgerData;
+import com.unionsg.xaccounting.service.analytics.LedgerDataService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -45,51 +41,26 @@ public class DashboardServiceImpl implements DashboardService {
     private static final int TREND_MONTHS = 12;
     private static final int RECENT_TRANSACTION_LIMIT = 8;
 
-    private final LedgerAsOfBalanceRepository ledgerAsOfBalanceRepository;
     private final ProfitAndLossService profitAndLossService;
     private final CurrentFiscalPeriodResolver currentFiscalPeriodResolver;
     private final FinancialYearRepository financialYearRepository;
     private final AccountingPeriodRepository accountingPeriodRepository;
     private final JournalEntryRepository journalEntryRepository;
     private final JournalService journalService;
-    private final AccountingMappingService accountingMappingService;
 
-    @Value("${dashboard.cash-account-codes}")
-    private String cashAccountCodesCsv;
+    private final LedgerDataService ledgerDataService;
 
     @Override
     public DashboardResponseDTO getSummary(LocalDate asOfDate) {
 
         LocalDate today = asOfDate != null ? asOfDate : LocalDate.now();
 
-        List<ProfitLossAccountProjection> balanceSheetAccounts = ledgerAsOfBalanceRepository.findAsOfBalances(
-                today, List.of(AccountType.ASSET, AccountType.LIABILITY)
-        );
-
-        Set<String> cashCodes = Set.of(cashAccountCodesCsv.split("\\s*,\\s*"));
-        String accountsReceivableAccountCode = accountingMappingService.resolve(MappingKey.PAYMENT_ACCOUNTS_RECEIVABLE);
-        String accountsPayableAccountCode = accountingMappingService.resolve(MappingKey.BILL_ACCOUNTS_PAYABLE);
-
-        BigDecimal cashBalance = BigDecimal.ZERO;
-        BigDecimal accountsReceivable = BigDecimal.ZERO;
-        BigDecimal accountsPayable = BigDecimal.ZERO;
-
-        for (ProfitLossAccountProjection row : balanceSheetAccounts) {
-            BigDecimal debit = row.getTotalDebit() == null ? BigDecimal.ZERO : row.getTotalDebit();
-            BigDecimal credit = row.getTotalCredit() == null ? BigDecimal.ZERO : row.getTotalCredit();
-            BigDecimal netDebitBalance = debit.subtract(credit);
-
-            if (cashCodes.contains(row.getAccountCode())) {
-                cashBalance = cashBalance.add(netDebitBalance);
-            }
-            if (row.getAccountCode().equals(accountsReceivableAccountCode)) {
-                accountsReceivable = accountsReceivable.add(netDebitBalance);
-            }
-            if (row.getAccountCode().equals(accountsPayableAccountCode)) {
-                // Accounts Payable is a LIABILITY (credit-normal); present as a positive amount owed.
-                accountsPayable = accountsPayable.add(netDebitBalance.negate());
-            }
-        }
+        // Same account classes as the BI executive dashboard, so the header, this dashboard and
+        // BI never disagree on what counts as cash, receivables or payables.
+        LedgerData ledger = ledgerDataService.load(today, today);
+        BigDecimal cashBalance = ledger.balanceAt(List.of(AccountClass.CASH_BANK), today);
+        BigDecimal accountsReceivable = ledger.balanceAt(List.of(AccountClass.RECEIVABLE), today);
+        BigDecimal accountsPayable = ledger.balanceAt(List.of(AccountClass.PAYABLE), today);
 
         LocalDate ytdStart = currentFiscalPeriodResolver.resolveYearStart(today);
         ProfitLossReportInternalDTO ytd = profitAndLossService.generateReport(ytdStart, today);

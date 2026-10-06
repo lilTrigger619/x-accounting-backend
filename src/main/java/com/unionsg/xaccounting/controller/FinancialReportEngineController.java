@@ -37,8 +37,19 @@ public class FinancialReportEngineController {
                 ));
 
         return ResponseEntity.ok(engine.generateFromTemplate(template, from, to));
+    }
 
-
+    // POST /api/v1/reports/templates/{templateId}/engine?from=yyyy-MM-dd&to=yyyy-MM-dd
+    // Runs one template version whatever its status, so the designer can preview a draft with real figures.
+    @PostMapping("/templates/{templateId}/engine")
+    public ResponseEntity<FinancialReportTreeResponseDto> preview(
+            @PathVariable Long templateId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        var template = reportTemplateRepository.findById(templateId)
+                .orElseThrow(() -> new IllegalArgumentException("Report template not found: " + templateId));
+        return ResponseEntity.ok(engine.generateFromTemplate(template, from, to));
     }
 
 }

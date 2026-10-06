@@ -239,7 +239,12 @@ public class DocumentNumberService {
             case "DOCUMENT_TEMPLATE_DELIVERY_NOTE" -> "TMPL-DN";
             case "DOCUMENT_TEMPLATE_RECEIPT" -> "TMPL-RCT";
             case "PREPAYMENT" -> "PPY";
+            case "DOWNPAYMENT" -> "DP";
             case "LOAN" -> "LN";
+            case "BANK_TRANSFER" -> "BTR";
+            case "DEPOSIT" -> "DEP";
+            case "BANK_RECONCILIATION" -> "BREC";
+            case "EXPENSE" -> "EXP";
             default -> moduleName.substring(0, Math.min(moduleName.length(), 3));
         };
     }
@@ -274,7 +279,12 @@ public class DocumentNumberService {
                 DocumentModule.DOCUMENT_TEMPLATE_DELIVERY_NOTE,
                 DocumentModule.DOCUMENT_TEMPLATE_RECEIPT,
                 DocumentModule.PREPAYMENT,
-                DocumentModule.LOAN
+                DocumentModule.DOWNPAYMENT,
+                DocumentModule.LOAN,
+                DocumentModule.BANK_TRANSFER,
+                DocumentModule.DEPOSIT,
+                DocumentModule.BANK_RECONCILIATION,
+                DocumentModule.EXPENSE
         ).stream().map(this::getConfig).toList();
     }
 

@@ -7,7 +7,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice
+/**
+ * Error responses for the report endpoints only. Scoped so its catch-all handler doesn't
+ * pre-empt GlobalExceptionHandler (and its readable messages) for every other controller.
+ */
+@RestControllerAdvice(assignableTypes = {ReportsController.class, FinancialReportEngineController.class})
 public class ReportDateValidationControllerAdvice {
 
 

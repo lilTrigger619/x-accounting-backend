@@ -12,8 +12,6 @@ import com.unionsg.xaccounting.enums.loan.LoanDirection;
 import com.unionsg.xaccounting.enums.loan.LoanFeeTreatment;
 import com.unionsg.xaccounting.enums.loan.LoanFrequency;
 import com.unionsg.xaccounting.enums.loan.LoanInterestMethod;
-import com.unionsg.xaccounting.enums.loan.LoanInterestType;
-import com.unionsg.xaccounting.enums.loan.LoanRepaymentMethod;
 import com.unionsg.xaccounting.enums.loan.LoanStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -36,11 +34,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Loan master record (Loans spec §13): covers both a loan the organization borrows
- * (direction {@code BORROWED} - from a bank, financial institution, shareholder, director or
- * other lender) and a loan the organization lends out (direction {@code LENT} - to an employee,
- * customer, supplier or other party). Which side of the balance sheet a disbursement/repayment
- * hits is entirely driven by {@code direction} (§15/§16).
+ * The Loan master record: covers both a loan the organization borrows (direction
+ * {@code BORROWED_LOAN} - from a bank, financial institution, shareholder, director or other
+ * lender) and a loan the organization lends out (direction {@code LENT_LOAN} - to an employee,
+ * customer, supplier or other party). Which side of the balance sheet a disbursement or payment
+ * hits is driven entirely by {@code direction}.
+ *
+ * <p>Columns added after the first release are nullable in the database (ddl-auto adds them to
+ * tables that already hold rows) and default in Java; manual migration 009 backfills them.</p>
  */
 @Entity
 @Table(name = "loans")
@@ -81,19 +82,16 @@ public class Loan extends BaseEntity {
     @Column(name = "principal_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal principalAmount;
 
+    /** A code from the "currencies" configuration. */
     @Column(length = 10)
-    private String currency = "USD";
+    private String currency;
 
     @Column(name = "interest_rate", nullable = false, precision = 9, scale = 4)
     private BigDecimal interestRate = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "interest_type", nullable = false, length = 20)
-    private LoanInterestType interestType = LoanInterestType.NONE;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "interest_method", nullable = false, length = 20)
-    private LoanInterestMethod interestMethod = LoanInterestMethod.SIMPLE;
+    @Column(name = "interest_method", nullable = false, length = 30)
+    private LoanInterestMethod interestMethod = LoanInterestMethod.FIXED_INSTALLMENT;
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
@@ -108,9 +106,9 @@ public class Loan extends BaseEntity {
     @Column(name = "number_of_installments", nullable = false)
     private Integer numberOfInstallments;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "repayment_method", nullable = false, length = 20)
-    private LoanRepaymentMethod repaymentMethod;
+    /** Leading installments that carry interest (and fees) only; principal is repaid over the rest. */
+    @Column(name = "grace_period_installments")
+    private Integer gracePeriodInstallments = 0;
 
     @Column(name = "outstanding_principal", nullable = false, precision = 19, scale = 2)
     private BigDecimal outstandingPrincipal = BigDecimal.ZERO;
@@ -118,6 +116,11 @@ public class Loan extends BaseEntity {
     @Column(name = "outstanding_interest", nullable = false, precision = 19, scale = 2)
     private BigDecimal outstandingInterest = BigDecimal.ZERO;
 
+    /** Interest accrued to the GL ahead of payment and not yet settled by a payment. */
+    @Column(name = "accrued_interest_total", precision = 19, scale = 2)
+    private BigDecimal accruedInterestTotal = BigDecimal.ZERO;
+
+    /** Upfront fees charged when the loan is disbursed. */
     @Column(name = "total_fees", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalFees = BigDecimal.ZERO;
 
@@ -125,9 +128,38 @@ public class Loan extends BaseEntity {
     @Column(name = "fee_treatment", length = 30)
     private LoanFeeTreatment feeTreatment;
 
+    /** A fee charged with every installment (e.g. a monthly service fee). */
+    @Column(name = "installment_fee", precision = 19, scale = 2)
+    private BigDecimal installmentFee = BigDecimal.ZERO;
+
+    /** When true, a payment above the outstanding balance is accepted and held as an overpayment. */
+    @Column(name = "allow_overpayment")
+    private Boolean allowOverpayment = false;
+
+    /** Paid in excess of the whole outstanding balance. Sits in the principal account. */
+    @Column(name = "overpayment_balance", precision = 19, scale = 2)
+    private BigDecimal overpaymentBalance = BigDecimal.ZERO;
+
+    @Column(name = "written_off_amount", precision = 19, scale = 2)
+    private BigDecimal writtenOffAmount = BigDecimal.ZERO;
+
+    @Column(name = "collateral_description", columnDefinition = "TEXT")
+    private String collateralDescription;
+
+    @Column(name = "collateral_value", precision = 19, scale = 2)
+    private BigDecimal collateralValue;
+
+    /** The lender's or borrower's own reference, an agreement number, etc. */
+    @Column(name = "external_reference", length = 100)
+    private String externalReference;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private LoanStatus status = LoanStatus.DRAFT;
+
+    /** Set when a DEFAULTED loan was closed with its remaining balance written off. */
+    @Column(name = "status_reason", length = 500)
+    private String statusReason;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bank_account_id")
@@ -146,9 +178,14 @@ public class Loan extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    /** The disbursement journal. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "journal_id")
     private JournalEntry journal;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "write_off_journal_id")
+    private JournalEntry writeOffJournal;
 
     @OneToMany(mappedBy = "loan", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("installmentNumber ASC")
@@ -161,4 +198,32 @@ public class Loan extends BaseEntity {
     private LocalDateTime closedAt;
 
     private LocalDateTime cancelledAt;
+
+    private LocalDateTime defaultedAt;
+
+    private LocalDateTime reversedAt;
+
+    public BigDecimal getInstallmentFee() {
+        return installmentFee != null ? installmentFee : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getAccruedInterestTotal() {
+        return accruedInterestTotal != null ? accruedInterestTotal : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getOverpaymentBalance() {
+        return overpaymentBalance != null ? overpaymentBalance : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getWrittenOffAmount() {
+        return writtenOffAmount != null ? writtenOffAmount : BigDecimal.ZERO;
+    }
+
+    public int getGracePeriodInstallments() {
+        return gracePeriodInstallments != null ? gracePeriodInstallments : 0;
+    }
+
+    public boolean isOverpaymentAllowed() {
+        return Boolean.TRUE.equals(allowOverpayment);
+    }
 }

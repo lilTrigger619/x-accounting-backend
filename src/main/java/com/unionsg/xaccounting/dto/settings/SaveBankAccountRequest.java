@@ -12,4 +12,5 @@ public class SaveBankAccountRequest {
     private String branch;
     private Boolean isDefault;
     private Boolean enableReconciliation;
+    private Boolean allowOverdraft;
 }

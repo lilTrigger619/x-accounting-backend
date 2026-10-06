@@ -4,6 +4,8 @@ import com.unionsg.xaccounting.enums.loan.LoanDirection;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 public class LoanTypeResponse {
@@ -12,4 +14,6 @@ public class LoanTypeResponse {
     private String description;
     private LoanDirection defaultDirection;
     private Boolean active;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

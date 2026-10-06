@@ -48,14 +48,15 @@ public class JournalPostedBalanceRepositoryImpl implements JournalPostedBalanceR
               JOIN jl.account acc
               JOIN acc.coaClearTo clearTo
               JOIN clearTo.chartOfAccount coa
-            WHERE je.status = :status
+            WHERE je.status IN :statuses
               AND je.journalDate BETWEEN :from AND :to
               AND acc.id IN :accountIds
             GROUP BY jl.account.id
         """;
 
         TypedQuery<Object[]> q = em.createQuery(jpql, Object[].class);
-        q.setParameter("status", JournalStatus.POSTED);
+        // A reversed journal and its posted reversal cancel out; counting only POSTED would leave the reversal alone.
+        q.setParameter("statuses", List.of(JournalStatus.POSTED, JournalStatus.REVERSED));
         q.setParameter("from", from);
         q.setParameter("to", to);
         q.setParameter("accountIds", accountIds);

@@ -50,4 +50,12 @@ public class BankAccount extends BaseEntity {
 
     @Column(name = "enable_reconciliation")
     private Boolean enableReconciliation = true;
+
+    /**
+     * When false (the default), a bank transfer cannot be posted from this account if it would
+     * take the account's GL balance below zero. Nullable so rows created before the column
+     * existed load; null is treated as false.
+     */
+    @Column(name = "allow_overdraft")
+    private Boolean allowOverdraft = false;
 }

@@ -8,7 +8,6 @@ import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
 import com.unionsg.xaccounting.entity.invoice.InvoiceItem;
 import com.unionsg.xaccounting.enums.AddressType;
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.CustomerStatus;
 import com.unionsg.xaccounting.enums.CustomerType;
 import com.unionsg.xaccounting.enums.DiscountType;
@@ -129,7 +128,7 @@ public class InvoiceSampleDataProvider implements DocumentPreviewSampleDataProvi
         PaymentTerms paymentTerms = new PaymentTerms();
         paymentTerms.setPaymentTermType(PaymentTermType.NET30);
         paymentTerms.setCreditLimit(BigDecimal.valueOf(50000.00));
-        paymentTerms.setCurrency(Currency.GHC);
+        paymentTerms.setCurrency("GHS");
         return paymentTerms;
     }
 

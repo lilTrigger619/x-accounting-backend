@@ -12,6 +12,7 @@ import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 import com.unionsg.xaccounting.entity.invoice.Invoice;
 import com.unionsg.xaccounting.entity.product.Product;
+import com.unionsg.xaccounting.enums.DiscountType;
 import com.unionsg.xaccounting.enums.DocumentModule;
 import com.unionsg.xaccounting.enums.EntityType;
 import com.unionsg.xaccounting.enums.InvoiceStatus;
@@ -33,7 +34,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -59,10 +63,9 @@ public class InvoiceService {
             CreateInvoiceRequest request
     ) {
 
-        Customer customer =
-                customerRepository.findById(request.getCustomerId())
-                        .orElseThrow(() ->
-                                new RuntimeException("Customer not found"));
+        validate(request.getIssueDate(), request.getDueDate(), request.getDiscountType(),
+                request.getDiscountValue(), request.getItems());
+        Customer customer = resolveCustomer(request.getCustomerId());
 
         PaymentTerms paymentTerms = null;
 
@@ -143,10 +146,9 @@ public class InvoiceService {
             throw new BusinessException("Only draft invoices can be modified.");
         }
 
-        Customer customer =
-                customerRepository.findById(request.getCustomerId())
-                        .orElseThrow(() ->
-                                new RuntimeException("Customer not found"));
+        validate(request.getIssueDate(), request.getDueDate(), request.getDiscountType(),
+                request.getDiscountValue(), request.getItems());
+        Customer customer = resolveCustomer(request.getCustomerId());
 
         PaymentTerms paymentTerms = null;
 
@@ -350,4 +352,26 @@ public class InvoiceService {
         return response;
     }
 
+
+    private Customer resolveCustomer(Long customerId) {
+        if (customerId == null) throw new BusinessException("Choose a customer for this invoice");
+        return customerRepository.findById(customerId)
+                .orElseThrow(() -> new BusinessException("Customer not found"));
+    }
+
+    private void validate(LocalDate issueDate, LocalDate dueDate, DiscountType discountType,
+                          BigDecimal discountValue, List<InvoiceItemRequest> items) {
+        if (issueDate == null) throw new BusinessException("Issue date is required");
+        if (dueDate == null) throw new BusinessException("Due date is required");
+        if (dueDate.isBefore(issueDate)) throw new BusinessException("Due date can't be before the issue date");
+        if (items == null || items.isEmpty()) throw new BusinessException("Add at least one line item");
+        if (discountType != null && discountType != DiscountType.NONE) {
+            if (discountValue == null || discountValue.signum() < 0) {
+                throw new BusinessException("Enter a discount value of zero or more");
+            }
+            if (discountType == DiscountType.PERCENTAGE && discountValue.compareTo(BigDecimal.valueOf(100)) > 0) {
+                throw new BusinessException("A percentage discount can't be more than 100%");
+            }
+        }
+    }
 }

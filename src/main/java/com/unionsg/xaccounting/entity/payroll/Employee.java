@@ -2,7 +2,6 @@ package com.unionsg.xaccounting.entity.payroll;
 
 import com.unionsg.xaccounting.entity.BaseEntity;
 import com.unionsg.xaccounting.enums.EmploymentStatus;
-import com.unionsg.xaccounting.enums.EmploymentType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -49,8 +48,8 @@ public class Employee extends BaseEntity {
     @JoinColumn(name = "work_location_id")
     private WorkLocation workLocation;
 
-    @Enumerated(EnumType.STRING)
-    private EmploymentType employmentType = EmploymentType.FULL_TIME;
+    /** Code of an "employment-types" config item. */
+    private String employmentType;
 
     @Enumerated(EnumType.STRING)
     private EmploymentStatus employmentStatus = EmploymentStatus.ACTIVE;

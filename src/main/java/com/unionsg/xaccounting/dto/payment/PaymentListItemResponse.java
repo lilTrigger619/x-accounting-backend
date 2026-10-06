@@ -26,6 +26,8 @@ public class PaymentListItemResponse {
 
     private String bankAccountName;
 
+    private String currency;
+
     private BigDecimal amountReceived;
 
     private BigDecimal allocatedAmount;

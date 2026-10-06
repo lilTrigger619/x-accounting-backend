@@ -10,9 +10,7 @@ import com.unionsg.xaccounting.entity.customer.PaymentTerms;
 import com.unionsg.xaccounting.entity.customer.TaxInfo;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.enums.AddressType;
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentTermType;
-import com.unionsg.xaccounting.enums.Title;
 import com.unionsg.xaccounting.enums.CustomerType;
 import com.unionsg.xaccounting.enums.CustomerStatus;
 
@@ -46,12 +44,12 @@ public class CustomerMapper {
          PaymentTerms paymentTerms = PaymentTerms.builder()
                  .paymentTermType(PaymentTermType.valueOf(dto.getPaymentTerms().getPaymentTermType()))
                  .creditLimit(dto.getPaymentTerms().getCreditLimit())
-                 .currency(Currency.valueOf(dto.getPaymentTerms().getCurrency()))
+                 .currency(dto.getPaymentTerms().getCurrency())
                  .build();
 
          return Customer.builder()
                  .customerType(CustomerType.valueOf(dto.getCustomerType()))
-                 .title(dto.getTitle() != null ? Title.valueOf(dto.getTitle()) : null)
+                 .title(dto.getTitle())
                  .firstName(dto.getFirstName())
                  .lastName(dto.getLastName())
                  .companyName(dto.getCompanyName())
@@ -107,7 +105,7 @@ public class CustomerMapper {
         return PaymentTermsDTO.builder()
                 .paymentTermType(paymentTerms.getPaymentTermType() != null ? paymentTerms.getPaymentTermType().name() : null)
                 .creditLimit(paymentTerms.getCreditLimit())
-                .currency(paymentTerms.getCurrency() != null ? paymentTerms.getCurrency().name() : null)
+                .currency(paymentTerms.getCurrency())
                 .build();
     }
 

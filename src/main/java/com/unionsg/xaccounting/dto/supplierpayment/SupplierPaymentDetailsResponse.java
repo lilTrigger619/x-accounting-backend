@@ -1,6 +1,5 @@
 package com.unionsg.xaccounting.dto.supplierpayment;
 
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentMethod;
 import com.unionsg.xaccounting.enums.SupplierPaymentStatus;
 import lombok.Getter;
@@ -36,7 +35,7 @@ public class SupplierPaymentDetailsResponse {
 
     private String bankAccountName;
 
-    private Currency currency;
+    private String currency;
 
     private BigDecimal exchangeRate;
 

@@ -33,7 +33,6 @@ import com.unionsg.xaccounting.dto.supplierpayment.AllocateSupplierPaymentReques
 import com.unionsg.xaccounting.dto.supplierpayment.CreateSupplierPaymentRequest;
 import com.unionsg.xaccounting.dto.supplierpayment.CreateSupplierPaymentResponse;
 import com.unionsg.xaccounting.dto.supplierpayment.SupplierPaymentAllocationRequest;
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.DiscountType;
 import com.unionsg.xaccounting.enums.JournalType;
 import com.unionsg.xaccounting.enums.PaymentMethod;
@@ -203,7 +202,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                 .city("Austin")
                 .state("TX")
                 .zipCode("73301")
-                .country("USA")
+                .country("US")
                 .build();
         request.setBillingAddress(address);
         request.setShippingAddress(address);
@@ -251,7 +250,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                 .city("Dallas")
                 .state("TX")
                 .zipCode("75201")
-                .country("USA")
+                .country("US")
                 .build();
         request.setAddress(address);
 
@@ -390,7 +389,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         request.setCustomerId(customerId);
         request.setPaymentDate(paymentDate);
         request.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
-        request.setCurrency(Currency.USD);
+        request.setCurrency("USD");
         request.setExchangeRate(BigDecimal.ONE);
         request.setAmountReceived(amount);
 
@@ -456,7 +455,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         request.setSupplierId(supplierId);
         request.setPaymentDate(paymentDate);
         request.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
-        request.setCurrency(Currency.USD);
+        request.setCurrency("USD");
         request.setExchangeRate(BigDecimal.ONE);
         request.setAmountPaid(amount);
 

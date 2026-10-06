@@ -4,4 +4,6 @@ import com.unionsg.xaccounting.entity.prepayment.Prepayment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PrepaymentRepository extends JpaRepository<Prepayment, Long> {
+
+    boolean existsByPrepaymentTypeId(Long prepaymentTypeId);
 }

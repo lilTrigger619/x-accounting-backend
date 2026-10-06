@@ -168,10 +168,16 @@ public class InvoiceMapper {
         response.setNotes(invoice.getNotes());
         response.setTerms(invoice.getTerms());
 
+        response.setDiscountType(invoice.getDiscountType());
+        response.setDiscountValue(invoice.getDiscountValue());
+        response.setDiscountAmount(invoice.getDiscountAmount());
+
         response.setSubtotal(invoice.getSubtotal());
         response.setTotalTax(invoice.getTotalTax());
         response.setTotalAmount(invoice.getTotalAmount());
         response.setTotalDue(invoice.getTotalDue());
+        response.setAmountPaid(invoice.getAmountPaid());
+        response.setBalance(invoice.getBalance());
 
         response.setItems(
                 invoice.getItems()

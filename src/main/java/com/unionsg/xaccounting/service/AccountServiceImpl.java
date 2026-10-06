@@ -4,7 +4,9 @@ import com.unionsg.xaccounting.dto.AccountListResponse;
 import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.enums.AccountStatus;
 import com.unionsg.xaccounting.enums.AccountType;
+import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.repository.AccountRepository;
+import com.unionsg.xaccounting.repository.journal.JournalLineRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,13 +19,21 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
 
+    /** A reversed journal and its posted reversal cancel out, so both count toward balances. */
+    private static final Set<JournalStatus> BALANCE_STATUSES = Set.of(JournalStatus.POSTED, JournalStatus.REVERSED);
+
     private final AccountRepository accountRepository;
+    private final JournalLineRepository journalLineRepository;
 
     @Override
     public Page<AccountListResponse> getAccounts(String search,
@@ -58,32 +68,52 @@ public class AccountServiceImpl implements AccountService {
         };
 
         Page<AccountEntity> page = accountRepository.findAll(spec, pageable);
-
-
-
-
-        List<AccountListResponse> mapped = page.getContent().stream()
-                .map(this::toListResponse)
-                .toList();
-
-        return new PageImpl<>(mapped, pageable, page.getTotalElements());
-
+        return new PageImpl<>(toListResponses(page.getContent()), pageable, page.getTotalElements());
     }
 
-    private AccountListResponse toListResponse(AccountEntity entity) {
-        // Project currently doesn't expose transactional balance in AccountEntity,
-        // so we default to 0 for now.
-        BigDecimal balance = BigDecimal.ZERO;
+    @Override
+    public List<AccountListResponse> getAccountsByNumbers(Collection<String> accountNumbers) {
+        if (accountNumbers == null || accountNumbers.isEmpty()) {
+            return List.of();
+        }
+        Specification<AccountEntity> spec = (root, query, cb) -> cb.and(
+                cb.equal(root.get("deleted"), false),
+                root.get("accountId").in(accountNumbers)
+        );
+        return toListResponses(accountRepository.findAll(spec));
+    }
+
+    private List<AccountListResponse> toListResponses(List<AccountEntity> accounts) {
+        List<String> codes = accounts.stream().map(AccountEntity::getAccountId).toList();
+        Map<String, BigDecimal> movements = codes.isEmpty()
+                ? Map.of()
+                : journalLineRepository.sumNetMovementByAccountCodes(codes, BALANCE_STATUSES).stream()
+                        .collect(Collectors.toMap(
+                                JournalLineRepository.AccountMovement::getAccountCode,
+                                JournalLineRepository.AccountMovement::getNetMovement));
+        return accounts.stream()
+                .map(a -> toListResponse(a, movements.getOrDefault(a.getAccountId(), BigDecimal.ZERO)))
+                .toList();
+    }
+
+    /**
+     * The balance is shown on the account's normal side: debit-minus-credit for assets and
+     * expenses, credit-minus-debit for liabilities, equity and income.
+     */
+    private AccountListResponse toListResponse(AccountEntity entity, BigDecimal netMovement) {
+        AccountType type = entity.getCoaClearTo() != null && entity.getCoaClearTo().getChartOfAccount() != null
+                ? entity.getCoaClearTo().getChartOfAccount().getAccountType()
+                : null;
+        boolean creditNormal = type == AccountType.LIABILITY || type == AccountType.EQUITY || type == AccountType.INCOME;
+        BigDecimal balance = creditNormal ? netMovement.negate() : netMovement;
 
         AccountListResponse.AccountListResponseBuilder builder = AccountListResponse.builder()
                 .id(entity.getId())
                 .accountNumber(entity.getAccountId())
                 .accountName(entity.getAccountName())
-                .accountType(entity.getCoaClearTo() != null && entity.getCoaClearTo().getChartOfAccount() != null
-                        ? entity.getCoaClearTo().getChartOfAccount().getAccountType().name()
-                        : null)
+                .accountType(type != null ? type.name() : null)
                 .subType(entity.getCoaClearTo() != null
-                        ? entity.getCoaClearTo().getId().toString()
+                        ? entity.getCoaClearTo().getDescription()
                         : null)
 
                 .status(entity.getIsActive() != null && entity.getIsActive() ? AccountStatus.ACTIVE : AccountStatus.INACTIVE)

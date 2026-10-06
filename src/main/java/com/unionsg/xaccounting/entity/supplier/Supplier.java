@@ -60,9 +60,9 @@ public class Supplier {
     @Column(nullable = false)
     private CustomerStatus status;
 
-    @Enumerated(EnumType.STRING)
+    /** Code of a "supplier-categories" config item. */
     @Column(nullable = false)
-    private SupplierCategory category;
+    private String category;
 
     //--------------------
     // contact info

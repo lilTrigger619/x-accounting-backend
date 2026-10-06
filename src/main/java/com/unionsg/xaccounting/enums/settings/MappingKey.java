@@ -16,6 +16,8 @@ public enum MappingKey {
             "Accounts Receivable control account credited when a customer payment is applied"),
     PAYMENT_CUSTOMER_ADVANCES(MappingGroup.SALES, "2080",
             "Liability account credited for unapplied customer payments (advances/overpayments)"),
+    CUSTOMER_DOWNPAYMENT_LIABILITY(MappingGroup.SALES, "2087",
+            "Liability account credited when a customer downpayment is received, and debited as it is applied to invoices or refunded"),
 
     INVOICE_ACCOUNTS_RECEIVABLE(MappingGroup.SALES, "6220",
             "Accounts Receivable control account debited when an invoice is posted"),
@@ -36,6 +38,8 @@ public enum MappingKey {
             "Cash account credited when a supplier payment is made in cash"),
     SUPPLIER_PAYMENT_ADVANCES(MappingGroup.PURCHASES, "1740",
             "Asset account debited for unapplied supplier payments (advances)"),
+    SUPPLIER_DOWNPAYMENT_ASSET(MappingGroup.PURCHASES, "1747",
+            "Asset account debited when a downpayment is paid to a supplier, and credited as it is applied to bills or refunded"),
     TAX_WITHHOLDING_PAYABLE(MappingGroup.PURCHASES, "2150",
             "Liability account credited for tax withheld from a supplier payment, payable to the tax authority"),
 
@@ -81,7 +85,36 @@ public enum MappingKey {
     LOAN_FEE_EXPENSE(MappingGroup.LOANS, "5090",
             "Expense account debited for origination/processing/arrangement/penalty fees on a borrowed loan"),
     LOAN_BANK_ACCOUNT(MappingGroup.LOANS, "1010",
-            "Bank account used for loan disbursement/repayment when no specific bank account is chosen");
+            "Bank account used for loan disbursement/repayment when no specific bank account is chosen"),
+    LOAN_FEE_INCOME(MappingGroup.LOANS, "4042",
+            "Revenue account credited for fees charged on a loan the organization lent out"),
+    LOAN_WRITE_OFF_EXPENSE(MappingGroup.LOANS, "5085",
+            "Expense account debited when the unpaid balance of a defaulted lent loan is written off"),
+
+    BANK_TRANSFER_CHARGES(MappingGroup.BANKING, "5100",
+            "Expense account debited for bank charges/fees on a bank transfer, when the transfer has no fee account override"),
+    FX_GAIN(MappingGroup.BANKING, "4050",
+            "Revenue account credited for a foreign exchange gain realised on a cross-currency bank transfer"),
+    FX_LOSS(MappingGroup.BANKING, "5110",
+            "Expense account debited for a foreign exchange loss realised on a cross-currency bank transfer"),
+
+    DEPOSIT_PAID_ASSET(MappingGroup.DEPOSITS, "1745",
+            "Asset account debited when the organization pays a deposit, when neither the deposit nor its type names an account"),
+    DEPOSIT_RECEIVED_LIABILITY(MappingGroup.DEPOSITS, "2085",
+            "Liability account credited when a deposit is received from a customer or third party, when neither the deposit nor its type names an account"),
+    DEPOSIT_FORFEIT_INCOME(MappingGroup.DEPOSITS, "4060",
+            "Income account credited when a deposit the organization received is forfeited to it"),
+    DEPOSIT_FORFEIT_EXPENSE(MappingGroup.DEPOSITS, "5095",
+            "Expense account debited when a deposit the organization paid is forfeited"),
+    DEPOSIT_BANK_ACCOUNT(MappingGroup.DEPOSITS, "1010",
+            "Bank account used to pay, receive or refund a deposit when no specific bank account is chosen"),
+
+    BANK_CHARGES_EXPENSE(MappingGroup.BANKING, "5100",
+            "Expense account debited for bank charges brought in through a bank reconciliation adjustment"),
+    BANK_INTEREST_INCOME(MappingGroup.BANKING, "4040",
+            "Revenue account credited for bank interest brought in through a bank reconciliation adjustment"),
+    BANK_RECONCILIATION_SUSPENSE(MappingGroup.BANKING, "1799",
+            "Suspense account for direct debits/credits and unknown bank items posted during a bank reconciliation");
 
     private final MappingGroup group;
     private final String defaultAccountCode;

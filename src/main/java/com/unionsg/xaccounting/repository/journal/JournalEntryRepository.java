@@ -14,6 +14,8 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
 
     boolean existsByJournalNumber(String journalNumber);
 
+    Optional<JournalEntry> findFirstByReversalOfJournalId(Long reversalOfJournalId);
+
     long countByJournalDateBetween(LocalDate start, LocalDate end);
 
     long countByStatus(JournalStatus status);

@@ -1,7 +1,7 @@
 package com.unionsg.xaccounting.dto.payment;
 
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentMethod;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -28,8 +28,8 @@ public class CreateDraftPaymentRequest {
 
     private Long bankAccountId;
 
-    @NotNull(message = "Currency is required")
-    private Currency currency;
+    @NotBlank(message = "Currency is required")
+    private String currency;
 
     @PositiveOrZero(message = "Exchange rate must be zero or positive")
     private BigDecimal exchangeRate;

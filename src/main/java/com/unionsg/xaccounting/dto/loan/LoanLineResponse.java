@@ -16,9 +16,16 @@ public class LoanLineResponse {
     private BigDecimal openingPrincipal;
     private BigDecimal principalDue;
     private BigDecimal interestDue;
+    private BigDecimal feesDue;
     private BigDecimal totalInstallment;
     private BigDecimal closingPrincipal;
     private BigDecimal principalPaid;
     private BigDecimal interestPaid;
+    private BigDecimal feesPaid;
+    private BigDecimal amountOutstanding;
+    /** Stored status, or OVERDUE when unpaid past its due date. */
     private LoanInstallmentStatus status;
+    private boolean missed;
+    private String missedNote;
+    private long daysOverdue;
 }

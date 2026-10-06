@@ -282,7 +282,7 @@ public class PaymentJournalServiceImpl implements PaymentJournalService {
                 .reference(payment.getReceiptNumber() + referenceSuffix)
                 .description(description)
                 .journalType(JournalType.GENERAL)
-                .currencyCode(payment.getCurrency() != null ? payment.getCurrency().name() : "GHS")
+                .currencyCode(payment.getCurrency() != null ? payment.getCurrency() : "GHS")
                 .lines(lines)
                 .build();
 

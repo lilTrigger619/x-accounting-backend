@@ -4,7 +4,6 @@ import com.unionsg.xaccounting.entity.BaseEntity;
 import com.unionsg.xaccounting.entity.Journals.JournalEntry;
 import com.unionsg.xaccounting.entity.customer.Customer;
 import com.unionsg.xaccounting.entity.settings.BankAccount;
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.enums.PaymentMethod;
 import com.unionsg.xaccounting.enums.PaymentStatus;
 import jakarta.persistence.*;
@@ -57,9 +56,9 @@ public class PaymentEntity extends BaseEntity {
     @JoinColumn(name = "settlement_bank_account_id")
     private BankAccount bankAccount;
 
-    @Enumerated(EnumType.STRING)
+    /** Code of a "currencies" config item. */
     @Column(name = "currency", nullable = false, length = 10)
-    private Currency currency;
+    private String currency;
 
     @Column(name = "exchange_rate", precision = 19, scale = 6)
     @Builder.Default

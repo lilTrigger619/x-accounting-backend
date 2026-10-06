@@ -9,6 +9,7 @@ import com.unionsg.xaccounting.exception.ResourceNotFoundException;
 import com.unionsg.xaccounting.repository.CustomerRepository;
 import com.unionsg.xaccounting.response.PaginationResponse;
 import com.unionsg.xaccounting.service.customer.CustomerService;
+import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.internal.build.AllowSysOut;
 import org.springframework.data.domain.Page;
@@ -17,7 +18,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.unionsg.xaccounting.enums.Currency;
 import com.unionsg.xaccounting.dto.customer.AddressDTO;
 
 import com.unionsg.xaccounting.entity.customer.PaymentTerms;
@@ -36,6 +36,7 @@ import java.util.Optional;
 public class CustomerServiceImpl implements CustomerService{
     private final CustomerRepository customerRepository;
     private final CustomerActivityLogService customerActivityLogService;
+    private final ConfigValueValidator configValues;
 
     @Override
     public CustomerResponseDTO createCustomer(CreateCustomerRequestDTO request) {
@@ -45,6 +46,13 @@ public class CustomerServiceImpl implements CustomerService{
         }
 
         Customer customer = CustomerMapper.toEntity(request);
+        customer.setTitle(configValues.validate("titles", customer.getTitle(), null, "Title"));
+        customer.getPaymentTerms().setCurrency(
+                configValues.require("currencies", customer.getPaymentTerms().getCurrency(), null, "Currency"));
+        customer.getBillingAddress().setCountry(
+                configValues.validate("countries", customer.getBillingAddress().getCountry(), null, "Billing country"));
+        customer.getShippingAddress().setCountry(
+                configValues.validate("countries", customer.getShippingAddress().getCountry(), null, "Shipping country"));
         customer.setCustomerCode(generateCustomerCode());
 
         Customer saved = customerRepository.save(customer);
@@ -113,7 +121,7 @@ public class CustomerServiceImpl implements CustomerService{
 
         PaymentTerms paymentTerm = customer.getPaymentTerms();
         return PaymentTermsDTO.builder()
-                .currency( paymentTerm.getCurrency().name())
+                .currency(paymentTerm.getCurrency())
                 .creditLimit(paymentTerm.getCreditLimit())
                 .paymentTermType(paymentTerm.getPaymentTermType().name())
                 .build();

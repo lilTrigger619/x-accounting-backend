@@ -68,13 +68,14 @@ public class InvoiceCalculationService {
     private void calculateDiscount(Invoice invoice) {
 
         BigDecimal discountAmount = BigDecimal.ZERO;
+        BigDecimal discountValue = invoice.getDiscountValue() != null ? invoice.getDiscountValue() : BigDecimal.ZERO;
 
         if (invoice.getDiscountType() == DiscountType.PERCENTAGE) {
 
             discountAmount =
                     invoice.getSubtotal()
                             .multiply(
-                                    invoice.getDiscountValue()
+                                    discountValue
                                             .divide(
                                                     BigDecimal.valueOf(100),
                                                     4,
@@ -84,7 +85,7 @@ public class InvoiceCalculationService {
         }
 
         if (invoice.getDiscountType() == DiscountType.FIXED) {
-            discountAmount = invoice.getDiscountValue();
+            discountAmount = discountValue;
         }
 
         invoice.setDiscountAmount(scale(discountAmount));

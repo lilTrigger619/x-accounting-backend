@@ -15,7 +15,8 @@ public interface ReportTemplateLifecycleService {
 
     void archive(Long templateId, String updatedBy);
 
-    com.unionsg.xaccounting.dto.reports.ReportTemplateDto clone(Long templateId, String updatedBy);
+    com.unionsg.xaccounting.dto.reports.ReportTemplateDto clone(Long templateId,
+            com.unionsg.xaccounting.dto.reports.ReportTemplateCloneRequestDto request, String updatedBy);
 }
 
 

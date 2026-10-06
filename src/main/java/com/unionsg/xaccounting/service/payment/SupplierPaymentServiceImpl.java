@@ -50,7 +50,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
     @Transactional
     public CreateSupplierPaymentResponse createPayment(CreateSupplierPaymentRequest request) {
         validator.validatePositiveAmount(request.getAmountPaid(), "amountPaid");
-        validator.validateCurrency(request.getCurrency());
+        request.setCurrency(validator.validateCurrency(request.getCurrency(), null));
         validator.validateExchangeRate(request.getExchangeRate());
 
         Supplier supplier = validator.validateSupplierExists(request.getSupplierId());
@@ -79,7 +79,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
     @Transactional
     public CreateSupplierPaymentResponse saveDraft(CreateSupplierPaymentRequest request) {
         validator.validatePositiveAmount(request.getAmountPaid(), "amountPaid");
-        validator.validateCurrency(request.getCurrency());
+        request.setCurrency(validator.validateCurrency(request.getCurrency(), null));
         validator.validateExchangeRate(request.getExchangeRate());
 
         Supplier supplier = validator.validateSupplierExists(request.getSupplierId());
@@ -108,7 +108,7 @@ public class SupplierPaymentServiceImpl implements SupplierPaymentService {
         validator.validateDraftPayment(payment);
 
         validator.validatePositiveAmount(request.getAmountPaid(), "amountPaid");
-        validator.validateCurrency(request.getCurrency());
+        request.setCurrency(validator.validateCurrency(request.getCurrency(), payment.getCurrency()));
         validator.validateExchangeRate(request.getExchangeRate());
 
         Supplier supplier = validator.validateSupplierExists(request.getSupplierId());

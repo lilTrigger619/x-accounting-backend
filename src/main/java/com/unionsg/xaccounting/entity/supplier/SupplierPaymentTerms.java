@@ -1,7 +1,6 @@
 package com.unionsg.xaccounting.entity.supplier;
 
 import com.unionsg.xaccounting.enums.PaymentTermType;
-import com.unionsg.xaccounting.enums.Currency;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,9 +24,9 @@ public class SupplierPaymentTerms {
     @Column(name = "payment_term_type", nullable = false)
     private PaymentTermType paymentTermType;
 
-    @Enumerated(EnumType.STRING)
+    /** Code of a "currencies" config item. */
     @Column(nullable = false)
-    private Currency currency;
+    private String currency;
 
     @Column(nullable = true)
     private String paymentMethod;

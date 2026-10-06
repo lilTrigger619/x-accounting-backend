@@ -10,7 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** Splits a period into day / week / month / quarter / year buckets, clipped to the period. */
+/**
+ * Splits a period into day / week / month / quarter / year buckets, clipped to the period. A clipped
+ * bucket is labelled "(partial)" so a short first or last month is not read as a drop.
+ */
 public final class Buckets {
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
@@ -33,7 +36,8 @@ public final class Buckets {
             LocalDate next = next(cursor, g);
             LocalDate s = cursor.isBefore(from) ? from : cursor;
             LocalDate e = next.minusDays(1).isAfter(to) ? to : next.minusDays(1);
-            out.add(new Bucket(s, e, label(cursor, g)));
+            boolean partial = g != Granularity.DAY && (!s.equals(cursor) || !e.equals(next.minusDays(1)));
+            out.add(new Bucket(s, e, label(cursor, g) + (partial ? " (partial)" : "")));
             cursor = next;
         }
         return out;

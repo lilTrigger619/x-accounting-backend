@@ -35,7 +35,7 @@ class BucketsAndPeriodsTest {
         assertThat(months).hasSize(3);
         assertThat(months.get(0).start()).isEqualTo(LocalDate.of(2026, 1, 15));
         assertThat(months.get(2).end()).isEqualTo(LocalDate.of(2026, 3, 10));
-        assertThat(months.get(1).label()).isEqualTo("Feb 2026");
+        assertThat(months).extracting(Buckets.Bucket::label).containsExactly("Jan 2026 (partial)", "Feb 2026", "Mar 2026 (partial)");
 
         List<Buckets.Bucket> quarters = Buckets.of(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), Granularity.QUARTER);
         assertThat(quarters).extracting(Buckets.Bucket::label).containsExactly("Q1 2026", "Q2 2026", "Q3 2026", "Q4 2026");

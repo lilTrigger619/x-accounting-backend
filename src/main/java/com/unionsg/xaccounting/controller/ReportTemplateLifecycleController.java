@@ -1,12 +1,14 @@
 package com.unionsg.xaccounting.controller;
 
 import com.unionsg.xaccounting.dto.reports.FinancialReportTreeResponseDto;
+import com.unionsg.xaccounting.dto.reports.ReportTemplateCloneRequestDto;
 import com.unionsg.xaccounting.dto.reports.ReportTemplateDto;
 import com.unionsg.xaccounting.dto.reports.ReportTemplatePreviewRequestDto;
 import com.unionsg.xaccounting.dto.reports.ReportTemplateValidationResponse;
 import com.unionsg.xaccounting.security.auth.UserPrincipal;
 import com.unionsg.xaccounting.service.reports.template.lifecycle.ReportTemplateLifecycleService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -77,10 +79,11 @@ public class ReportTemplateLifecycleController {
     @PostMapping("/{id}/clone")
     public ResponseEntity<ReportTemplateDto> clone(
             @PathVariable("id") Long templateId,
+            @Valid @RequestBody(required = false) ReportTemplateCloneRequestDto request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         String updatedBy = userPrincipal.getUsername();
-        return ResponseEntity.ok(lifecycleService.clone(templateId, updatedBy));
+        return ResponseEntity.ok(lifecycleService.clone(templateId, request, updatedBy));
     }
 
 

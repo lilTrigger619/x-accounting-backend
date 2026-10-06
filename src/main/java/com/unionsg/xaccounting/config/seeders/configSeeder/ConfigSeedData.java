@@ -31,7 +31,8 @@ public class ConfigSeedData {
                 countries(),
                 supplierCategories(),
                 employmentTypes(),
-                employeeDocumentTypes()
+                employeeDocumentTypes(),
+                reportCategories()
 
         );
     }
@@ -449,6 +450,28 @@ public class ConfigSeedData {
                 item("Proof of Address", null, null, null, false, 12),
                 item("Next of Kin Form", null, null, null, false, 13),
                 item("Other", null, null, null, false, 14)
+        ));
+
+        linkItems(config);
+        return config;
+    }
+
+    private Config reportCategories() {
+        Config config = Config.builder()
+                .configKey("report-categories")
+                .title("Report Categories")
+                .description("How report templates are grouped in the report library.")
+                .itemLabel("Report Category")
+                .sortOrder(19)
+                .build();
+
+        config.setItems(List.of(
+                item("Financial Reports", "FINANCIAL_REPORTS", null, null, false, 1),
+                item("Profit & Loss", "PROFIT_LOSS", null, null, false, 2),
+                item("Balance Sheet", "BALANCE_SHEET", null, null, false, 3),
+                item("Cash Flow", "CASH_FLOW", null, null, false, 4),
+                item("Trial Balance", "TRIAL_BALANCE", null, null, false, 5),
+                item("Custom", "CUSTOM", null, null, true, 6)
         ));
 
         linkItems(config);

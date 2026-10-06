@@ -5,6 +5,7 @@ import com.unionsg.xaccounting.dto.reports.ReportTemplateResponseDto;
 import com.unionsg.xaccounting.enums.ReportTemplateStatus;
 import com.unionsg.xaccounting.entity.reports.ReportTemplate;
 import com.unionsg.xaccounting.repository.reports.ReportTemplateRepository;
+import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import com.unionsg.xaccounting.service.reports.exception.TemplateCodeAlreadyExistsException;
 import com.unionsg.xaccounting.service.reports.exception.TemplateNotFoundException;
 import com.unionsg.xaccounting.service.reports.exception.TemplatePublishedDeletionException;
@@ -22,6 +23,7 @@ public class ReportTemplateServiceImpl implements ReportTemplateService {
 
     private final ReportTemplateRepository repository;
     private final ReportTemplateMapper mapper;
+    private final ConfigValueValidator configValues;
 
     @Override
     @Transactional
@@ -29,6 +31,7 @@ public class ReportTemplateServiceImpl implements ReportTemplateService {
         if (repository.existsByTemplateCode(request.templateCode())) {
             throw new TemplateCodeAlreadyExistsException("templateCode already exists: " + request.templateCode());
         }
+        configValues.require("report-categories", request.category(), null, "Category");
 
         var principal = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String createdBy = principal instanceof com.unionsg.xaccounting.security.auth.UserPrincipal up ? up.getUsername() : principal.toString();
@@ -73,6 +76,7 @@ public class ReportTemplateServiceImpl implements ReportTemplateService {
         if (!entity.getTemplateCode().equals(request.templateCode()) && repository.existsByTemplateCode(request.templateCode())) {
             throw new TemplateCodeAlreadyExistsException("templateCode already exists: " + request.templateCode());
         }
+        configValues.require("report-categories", request.category(), entity.getCategory(), "Category");
 
         var principal = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String updatedBy = principal instanceof com.unionsg.xaccounting.security.auth.UserPrincipal up ? up.getUsername() : principal.toString();

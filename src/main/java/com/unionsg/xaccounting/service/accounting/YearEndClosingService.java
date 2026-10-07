@@ -231,7 +231,10 @@ public class YearEndClosingService {
         JournalEntry entry = new JournalEntry();
         entry.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
         entry.setJournalDate(fy.getEndDate());
-        entry.setReference("CLOSE-" + fy.getName());
+        // Reference includes the journal number (always unique) rather than just the Financial
+        // Year's name, since a year can be reopened and closed again - closing a second time
+        // would otherwise collide with the first closing journal's reference.
+        entry.setReference("CLOSE-" + fy.getName() + "-" + entry.getJournalNumber());
         entry.setDescription("Year-end closing journal for " + fy.getName());
         entry.setJournalType(JournalType.CLOSING);
         entry.setStatus(JournalStatus.DRAFT);

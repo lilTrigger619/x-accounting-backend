@@ -1415,3 +1415,83 @@ now returns real, moving figures - Operating Expenses, Cash & Bank Balance, and 
 Liabilities all show large period-over-period swings instead of the flat zeros an empty-ledger
 BI screen would otherwise show. Backend `compileJava` is clean (JDK temporarily bumped to 21 for
 the sandbox's compiler, reverted to 20 before committing, same as every prior phase).
+
+> **Update — a full second year of demo data, FY 2025:** `NewModulesDemoSeeder` above gave FY 2026
+> real activity for the five newer modules, but FY 2025 - until now just the original
+> Invoices/Bills/Payments/Customers/Suppliers from `DemoDataSeeder` - had none of it, nor any
+> Payroll run, Prepayment, or Loan at all (confirmed via grep: the general Loans module and
+> Prepayments module had zero rows in *either* year, in a fresh database). Every BI/Analytics
+> year-over-year comparison was therefore comparing a rich year against a thin one. Added
+> `FY2025FullDemoSeeder.java` (`@Order(9)`, idempotent on `LoanRepository.count()` - a clean,
+> unambiguous gate since that module had no rows anywhere) to fix that properly, rather than only
+> mirroring the five newer modules.
+
+FY 2025 was already `CLOSED` and every one of its twelve `AccountingPeriod`s already `LOCKED` by
+the time this seeder runs (`DemoDataSeeder` closes it deliberately, per Part 2 of the accounting
+manual). The seeder therefore opens by calling `YearEndClosingService.reopenFinancialYear` (a
+status-only change) and then separately unlocking every period that closing had locked via
+`AccountingPeriodService.unlock` - reopening the year alone does not reopen its periods, so both
+calls are required before anything new can post into 2025. It then posts its own 2025-01-01
+capital-contribution journal into the same two KES bank accounts `NewModulesDemoSeeder` opened
+(treated as "2025 initial capitalization" alongside that seeder's 2026 top-up - the balance check
+every module uses, `JournalLineRepository.sumNetMovementByAccountCode`, is a running total, not
+date-aware, so insertion order across the two seeders doesn't matter to it, only to the narrative).
+
+Reuses rather than re-creates the org structure `PayrollDemoSeeder` already built (departments,
+positions, the "Monthly Salaried Staff" payroll group, pay components, the "Standard Monthly"
+salary structure, the statutory scheme and tax configuration, and all five employees) - all of it
+was already effective from 2025-01-01 in that seeder's own data (including Ben's 2025-07-01
+raise), since Payroll's original demo run only ended up dated in FY 2026 because FY 2025 was
+already closed by the time `PayrollDemoSeeder` ran in the original seeding order, not because the
+master data wasn't ready for 2025. Drives twelve full monthly runs across all of 2025 (not a
+sampled few) through the same five-step lifecycle as the original demo run -
+`create → calculate → submitForReview → approve → post → pay` - each on its own non-overlapping
+`PayrollCalendarPeriod`, with the pay date kept inside the same month as the period throughout (a
+next-month pay date, the pattern the original FY 2026 run used, would have pushed December's
+payment into FY 2026's January period, which `DemoDataSeeder` locks deliberately).
+
+Adds 2 Prepayments (a 12-month prepaid insurance policy, fully recognized across the year; a
+6-month software subscription, partially recognized - 4 of 6 periods - so an active prepaid-asset
+balance still shows at year end) and 2 Loans through the general Loans module - not to be
+confused with Payroll's own employee-loan/salary-advance subledger, per the naming warning in
+Part 6.1 of the accounting manual - one borrowed (a reducing-balance bank loan, 8 of its 10
+installments paid, left outstanding at year end) and one lent (a simple-interest loan to a
+customer, paid off in full and then explicitly `close()`d before year end, so both an open and a
+fully-closed loan lifecycle are demonstrated). Each loan is driven through
+`create → approve → disburse → recordRepayment` (repeated once per installment, each payment's
+amount and date taken straight from `LoanService.getSchedule()`'s own lines rather than
+recomputed by hand) and, for the lent one, a final `close`. Also seeds the same five newer
+modules `NewModulesDemoSeeder` covers, re-dated across 2025 and reusing different seeded
+customers/suppliers for variety, with one deliberate change from that seeder's pattern: the Bank
+Reconciliation goes against the *reserve* account, not the operating one, because the operating
+account already has a reconciliation `NewModulesDemoSeeder` left `IN_PROGRESS` for March 2026, and
+only one reconciliation can be open per bank account at a time.
+
+Closes by calling `YearEndClosingService.closeFinancialYear` again, which locks every period right
+back and correctly sweeps only the *new* activity's net effect into Retained Earnings - the first
+closing already drove every income/expense account to zero for the year, so a fresh
+`ProfitAndLossService.generateReport` run over the same date range picks up only what has posted
+since, with no double-counting. Doing this surfaced one real, reusable bug in
+`YearEndClosingService.postClosingJournal`, now fixed rather than worked around in the seeder: the
+closing journal's `reference` was hardcoded to `"CLOSE-" + financialYear.getName()`, which
+collides on the database's unique constraint on `journal_entries.reference` the moment a year is
+closed a second time - meaning reopening and re-closing *any* financial year, not just this demo
+one, was completely broken before this fix. The reference now includes the closing journal's own
+(always-unique) journal number alongside the year's name.
+
+Live-verified end-to-end against the same fresh Postgres as the update above, through four full
+`bootRun` cycles - each real failure caught by actually running it, fixed, and re-verified that
+the failing `@Transactional` seeder run had rolled back cleanly before retrying: an invalid
+expense category (`"SHP"` isn't one of the five seeded Expense Categories - `OFF`/`TRV`/`UTL`/
+`MKT`/`SAL` - fixed by using `UTL` for the two freight/courier lines instead), the bank
+reconciliation collision described above (fixed by moving it to the reserve account), and the
+`YearEndClosingService` reference bug described above (fixed at the source). The clean run
+confirmed: all 12 FY 2025 periods re-`LOCKED` and the year back to `CLOSED`; the whole ledger
+still balances (`sum(debit_amount) = sum(credit_amount) = 1,681,842.46` across every posted line in
+the database); the two Loans and two Prepayments show the designed mix of statuses
+(`PARTIALLY_PAID`/`CLOSED`, `FULLY_RECOGNIZED`/`PARTIALLY_RECOGNIZED`) over the API; and
+`GET /api/analytics/executive?from=2026-01-01&to=2026-10-07&compare=PREVIOUS_YEAR` now returns a
+real, non-trivial comparison year - e.g. Operating Expenses of KES 291,181.75 for the equivalent
+2025 period, not the near-zero prior year the same call would have returned before this seeder.
+Backend `compileJava` is clean (JDK temporarily bumped to 21 for the sandbox's compiler, reverted
+to 20 before committing, same as every prior phase).

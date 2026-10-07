@@ -1370,3 +1370,48 @@ loop - pin an item from the catalog page, see it appear at the top of the sideba
 next navigation, click it to navigate to the real route, and unpin it from the sidebar itself via
 its hover-revealed X - and confirmed a second logged-in user never sees the first user's pins.
 Backend `compileJava` and frontend `tsc --noEmit`/`vite build` are both clean.
+
+> **Update — demo data for the five modules added since the last investor-demo pass:** between
+> the Quick Access work above and this update, other work on this branch shipped five whole new
+> modules - Expenses, Deposits, Down Payments, Bank Transfers, and Bank Reconciliation - plus a
+> Business Intelligence reporting layer, none of which had any demo data behind them, so the BI
+> screens had nothing but payroll/invoice/bill activity to show. Added
+> `NewModulesDemoSeeder.java` (`@Order(8)`, idempotent on `ExpenseRepository.count()`, the same
+> pattern every seeder in this package follows) to fix that.
+
+Rather than post everything through the existing USD "Operating Account" (which would have
+needed an exchange rate supplied on every single call, since the organization's actual base
+currency is KES, not USD - confirmed from `ExpenseService.apply()`'s currency-mismatch guard),
+the seeder opens two brand-new bank accounts *in* the base currency (`KES Operating Account`
+against GL `1020`, `KES Reserve Account` against GL `1030` - both pre-existing, unused COA rows)
+and funds them with a 30,000 capital-contribution journal before anything else posts. Every one
+of the five modules' own currency/balance guards (`ExpenseService`, `BankTransferCalculator`,
+`DownpaymentService`) then falls through its same-as-base-currency shortcut with nothing extra to
+supply, and the funding journal means nothing needs `allowOverdraft` quietly switched on just to
+get the demo to post.
+
+Seeds, dated March-August 2026 (inside FY2026, past the two periods `DemoDataSeeder` already
+locks): 6 Expenses (one split across two category lines, a mix of card/cash/mobile-money, two
+tagged to real seeded suppliers); 4 Deposits covering both directions and three of the four ways
+a deposit's balance can leave it (one paid deposit left untouched, one paid deposit refunded in
+full, one received deposit partially forfeited with a reason, one received deposit left
+untouched); 1 customer and 1 supplier Down Payment, both posted and left open; 3 Bank Transfers
+between the two new accounts, one carrying a transfer fee; and 1 Bank Reconciliation left
+`IN_PROGRESS` with a bank-charge and a bank-interest adjustment posted directly (no statement
+import needed, since adjustments post their own journal with or without a matched statement
+line).
+
+Live-verified end-to-end against a fresh Postgres: every posting succeeded on the first clean
+run after fixing one real bug caught by actually running it - the first attempt tried to post an
+expense against a brand-new account with a zero balance and was correctly refused by
+`ExpenseService.assertSufficientBalance`, which is exactly why the funding journal exists now
+rather than silently flipping on overdraft. Confirmed the whole ledger still balances
+(`sum(debit_amount) = sum(credit_amount) = 599,710.85` across every posted line in the database,
+not just this seeder's own), confirmed the new entries land exactly where expected alongside
+pre-existing activity (`5020` "Other Expense" carries the pre-existing 600 write-off from
+`DemoDataSeeder` plus exactly 780.75 of this seeder's own Travel/Utilities lines, to the cent),
+and confirmed the Business Intelligence Executive Dashboard (`GET /api/analytics/executive`)
+now returns real, moving figures - Operating Expenses, Cash & Bank Balance, and Current
+Liabilities all show large period-over-period swings instead of the flat zeros an empty-ledger
+BI screen would otherwise show. Backend `compileJava` is clean (JDK temporarily bumped to 21 for
+the sandbox's compiler, reverted to 20 before committing, same as every prior phase).

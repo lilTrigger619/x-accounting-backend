@@ -114,7 +114,24 @@ public enum MappingKey {
     BANK_INTEREST_INCOME(MappingGroup.BANKING, "4040",
             "Revenue account credited for bank interest brought in through a bank reconciliation adjustment"),
     BANK_RECONCILIATION_SUSPENSE(MappingGroup.BANKING, "1799",
-            "Suspense account for direct debits/credits and unknown bank items posted during a bank reconciliation");
+            "Suspense account for direct debits/credits and unknown bank items posted during a bank reconciliation"),
+
+    FIXED_ASSET_COST(MappingGroup.FIXED_ASSETS, "1730",
+            "Fixed asset cost account debited when an asset is capitalized, when neither the asset nor its category names one"),
+    FIXED_ASSET_ACCUMULATED_DEPRECIATION(MappingGroup.FIXED_ASSETS, "1710",
+            "Contra-asset account credited with each depreciation charge, when neither the asset nor its category names one"),
+    FIXED_ASSET_DEPRECIATION_EXPENSE(MappingGroup.FIXED_ASSETS, "5120",
+            "Expense account debited with each depreciation charge, when neither the asset nor its category names one"),
+    FIXED_ASSET_ACCUMULATED_IMPAIRMENT(MappingGroup.FIXED_ASSETS, "1715",
+            "Contra-asset account credited when an asset is impaired, when neither the asset nor its category names one"),
+    FIXED_ASSET_IMPAIRMENT_LOSS(MappingGroup.FIXED_ASSETS, "5130",
+            "Expense account debited when an asset is impaired, when neither the asset nor its category names one"),
+    FIXED_ASSET_DISPOSAL_GAIN(MappingGroup.FIXED_ASSETS, "4070",
+            "Income account credited when an asset is disposed of for more than its carrying amount"),
+    FIXED_ASSET_DISPOSAL_LOSS(MappingGroup.FIXED_ASSETS, "5125",
+            "Expense account debited when an asset is disposed of or retired for less than its carrying amount"),
+    FIXED_ASSET_BANK_ACCOUNT(MappingGroup.FIXED_ASSETS, "1010",
+            "Bank account used for an asset purchase or disposal proceeds when no specific bank account is chosen");
 
     private final MappingGroup group;
     private final String defaultAccountCode;

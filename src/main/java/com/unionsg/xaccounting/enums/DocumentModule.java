@@ -24,5 +24,7 @@ public enum DocumentModule {
     BANK_TRANSFER,
     DEPOSIT,
     BANK_RECONCILIATION,
-    EXPENSE
+    EXPENSE,
+    FIXED_ASSET,
+    DEPRECIATION_RUN
 }

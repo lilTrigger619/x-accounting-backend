@@ -1,13 +1,9 @@
 package com.unionsg.xaccounting.controller;
 
-import com.unionsg.xaccounting.dto.reports.FinancialReportEngineRequestDto;
-import com.unionsg.xaccounting.dto.reports.FinancialReportSectionsResponseDto;
-import com.unionsg.xaccounting.dto.reports.FinancialReportTreeResponseDto;
-import com.unionsg.xaccounting.service.reports.engine.FinancialReportEngine;
-import com.unionsg.xaccounting.service.reports.engine.FinancialReportSectionsMapper;
+import com.unionsg.xaccounting.dto.reports.cashflow.CashFlowStatementResponse;
+import com.unionsg.xaccounting.service.reports.CashFlowStatementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -23,8 +19,7 @@ import java.time.LocalDate;
 @Tag(name = "Reports")
 public class ReportsController {
 
-    private final FinancialReportEngine engine;
-    private final FinancialReportSectionsMapper mapper;
+    private final CashFlowStatementService cashFlowStatementService;
 
     private final Clock clock = Clock.systemDefaultZone();
 
@@ -36,28 +31,19 @@ public class ReportsController {
 // semantics - correct for Profit & Loss, but wrong for a balance-sheet-family report, which needs
 // every transaction since inception rather than only what falls inside an arbitrary date range.
 
+    /**
+     * Indirect-method cash flow statement. It used to go through the template engine, which has no
+     * CASH_FLOW template and always failed; it now reads the posted ledger directly like the
+     * Balance Sheet and P&L do.
+     */
     @GetMapping("/api/reports/cash-flow")
     @Operation(summary = "Cash Flow")
-    public ResponseEntity<FinancialReportSectionsResponseDto> cashFlow(
+    public ResponseEntity<CashFlowStatementResponse> cashFlow(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
     ) {
-        return handle("CASH_FLOW", "Cash Flow", fromDate, toDate);
-    }
-
-    private ResponseEntity<FinancialReportSectionsResponseDto> handle(
-            String reportCode,
-            String reportName,
-            LocalDate fromDate,
-            LocalDate toDate
-    ) {
         validateDates(fromDate, toDate);
-
-        FinancialReportTreeResponseDto tree = engine.generate(
-                new FinancialReportEngineRequestDto(reportCode, fromDate, toDate)
-        );
-
-        return ResponseEntity.ok(mapper.map(tree, reportName));
+        return ResponseEntity.ok(cashFlowStatementService.generate(fromDate, toDate));
     }
 
     private void validateDates(LocalDate fromDate, LocalDate toDate) {

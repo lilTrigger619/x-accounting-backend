@@ -32,7 +32,10 @@ public record BalanceSheetResponseDTO(
 
         BigDecimal totalLiabilitiesAndEquity,
 
-        BigDecimal balanceCheck
+        BigDecimal balanceCheck,
+
+        /** Property, plant and equipment note; null when no fixed asset account has a balance. */
+        BalanceSheetFixedAssetNoteDto fixedAssetNote
 
 ) {
 }

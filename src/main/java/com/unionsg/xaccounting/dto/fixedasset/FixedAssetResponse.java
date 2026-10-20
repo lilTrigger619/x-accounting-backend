@@ -1,0 +1,74 @@
+package com.unionsg.xaccounting.dto.fixedasset;
+
+import com.unionsg.xaccounting.enums.fixedasset.AssetAcquisitionSource;
+import com.unionsg.xaccounting.enums.fixedasset.AssetDisposalType;
+import com.unionsg.xaccounting.enums.fixedasset.DepreciationConvention;
+import com.unionsg.xaccounting.enums.fixedasset.DepreciationMethod;
+import com.unionsg.xaccounting.enums.fixedasset.FixedAssetStatus;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class FixedAssetResponse {
+    private Long id;
+    private String assetNumber;
+    private String name;
+    private Long categoryId;
+    private String categoryName;
+    private String description;
+    private String serialNumber;
+    private Long locationId;
+    private String locationName;
+    private Long departmentId;
+    private String departmentName;
+    private Long supplierId;
+    private String supplierName;
+    private LocalDate acquisitionDate;
+    private LocalDate availableForUseDate;
+    private LocalDate depreciationStartDate;
+    private LocalDate effectiveDepreciationStart;
+    private BigDecimal acquisitionCost;
+    private BigDecimal residualValue;
+    private Integer usefulLifeMonths;
+    private DepreciationMethod depreciationMethod;
+    private DepreciationConvention depreciationConvention;
+    private BigDecimal annualRate;
+    private BigDecimal effectiveAnnualRate;
+    private AssetAcquisitionSource acquisitionSource;
+    private Long bankAccountId;
+    private String bankAccountName;
+    private AccountRef offsetAccount;
+    private Long sourceJournalId;
+    private String sourceJournalNumber;
+    private BigDecimal openingAccumulatedDepreciation;
+    private LocalDate openingDepreciationDate;
+    private List<AccountRoleResponse> accounts;
+    private FixedAssetStatus status;
+    private BigDecimal costBalance;
+    private BigDecimal accumulatedDepreciation;
+    private BigDecimal accumulatedImpairment;
+    private BigDecimal carryingAmount;
+    private BigDecimal currentPeriodDepreciation;
+    private LocalDate depreciatedThrough;
+    private LocalDate usefulLifeEndDate;
+    private Long acquisitionJournalId;
+    private String acquisitionJournalNumber;
+    private AssetDisposalType disposalType;
+    private LocalDate disposalDate;
+    private BigDecimal disposalProceeds;
+    private BigDecimal disposalGainLoss;
+    private Long disposalJournalId;
+    private String disposalJournalNumber;
+    private String notes;
+    private LocalDateTime activatedAt;
+    private LocalDateTime disposedAt;
+    private LocalDateTime createdAt;
+    private String createdBy;
+    private Boolean editable;
+    private Boolean deletable;
+}

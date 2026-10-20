@@ -41,6 +41,17 @@ public class AccountingMappingService {
                 .orElseGet(() -> ensureDefault(key).getAccountCode());
     }
 
+    /**
+     * The account code mapped to this business event, or its default when none is saved yet. Unlike
+     * {@link #resolve} it never writes, so read-only callers such as reports can use it.
+     */
+    @Transactional(readOnly = true)
+    public String currentCode(MappingKey key) {
+        return repository.findByMappingKey(key)
+                .map(AccountingMapping::getAccountCode)
+                .orElse(key.getDefaultAccountCode());
+    }
+
     @Transactional
     public List<AccountingMappingResponse> list() {
         return Arrays.stream(MappingKey.values())

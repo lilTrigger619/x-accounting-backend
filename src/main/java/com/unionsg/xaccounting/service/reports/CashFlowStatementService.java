@@ -88,7 +88,8 @@ public class CashFlowStatementService {
         Map<Long, BigDecimal> purchases = new HashMap<>();    // cash paid per cash account
         Map<Long, BigDecimal> proceeds = new HashMap<>();     // cash received per cash account
         for (List<JournalAccountRow> rows : journals.values()) {
-            boolean module = MODULE_SOURCES.contains(rows.get(0).getSourceModule());
+            String sourceModule = rows.get(0).getSourceModule();
+            boolean module = sourceModule != null && MODULE_SOURCES.contains(sourceModule);
             BigDecimal cash = BigDecimal.ZERO;
             BigDecimal fixedAssets = BigDecimal.ZERO;
             for (JournalAccountRow r : rows) {
@@ -236,7 +237,7 @@ public class CashFlowStatementService {
     private Set<Long> mappedIds(MappingKey key) {
         Set<Long> ids = new HashSet<>();
         try {
-            accountRepository.findByAccountId(mappingService.resolve(key)).ifPresent(a -> ids.add(a.getId()));
+            accountRepository.findByAccountId(mappingService.currentCode(key)).ifPresent(a -> ids.add(a.getId()));
         } catch (RuntimeException ignored) {
             // Not mapped: nothing to treat specially.
         }

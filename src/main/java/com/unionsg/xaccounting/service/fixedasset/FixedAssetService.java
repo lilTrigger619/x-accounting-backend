@@ -1168,7 +1168,7 @@ public class FixedAssetService {
     }
 
     private String rulesMapped() {
-        return accountingMappingService.resolve(MappingKey.FIXED_ASSET_BANK_ACCOUNT);
+        return accountingMappingService.currentCode(MappingKey.FIXED_ASSET_BANK_ACCOUNT);
     }
 
     private AccountEntity override(Long accountId, Role role) {

@@ -93,7 +93,7 @@ public class FixedAssetAccountRules {
         }
         for (Role role : Role.values()) {
             try {
-                accountRepository.findByAccountId(accountingMappingService.resolve(role.key)).ifPresent(a -> add(out.get(role), a));
+                accountRepository.findByAccountId(accountingMappingService.currentCode(role.key)).ifPresent(a -> add(out.get(role), a));
             } catch (RuntimeException ignored) {
                 // An unmapped role simply contributes no account.
             }
@@ -182,7 +182,7 @@ public class FixedAssetAccountRules {
     }
 
     private AccountEntity mapped(Role role) {
-        String code = accountingMappingService.resolve(role.key);
+        String code = accountingMappingService.currentCode(role.key);
         return accountRepository.findByAccountId(code)
                 .orElseThrow(() -> new BusinessException("Required accounting configuration missing: \""
                         + role.key.getDescription() + "\" is mapped to account code \"" + code

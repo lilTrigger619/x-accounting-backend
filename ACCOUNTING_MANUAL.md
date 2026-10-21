@@ -22,12 +22,12 @@ this codebase specifically does with it — the entity, the enum, the GL account
 implementation if you already know what a control account or an amortization schedule is and just
 need the account codes.
 
-**This is a large, actively-developed system, and this manual covers all seventeen of its parts as
+**This is a large, actively-developed system, and this manual covers all eighteen of its parts as
 of this writing.** Part 1 through Part 6 cover the accounting backbone and the original five
 transaction-posting modules (AR, AP, Prepayments, Loans). Parts 7 through 11 cover five modules that
 were added to the system after the first version of this manual was written — Expenses, Deposits,
 Down Payments, Bank Transfers, and Bank Reconciliation — and Part 15 covers a Business Intelligence
-reporting layer added at the same time. If you read an earlier version of this document, be aware
+reporting layer added at the same time. Part 18 covers the Fixed Assets and Depreciation module. If you read an earlier version of this document, be aware
 that the Loans module (Part 6) was substantially rebuilt alongside these additions — its interest
 methods, status lifecycle, and several of its GL accounts changed — so re-read that Part even if
 you already know the rest.
@@ -2358,6 +2358,128 @@ journal at all (§9.3).
 | Bank Transfer | (admin-configured) | no built-in default prefix shipped |
 | Bank Reconciliation | (admin-configured) | no built-in default prefix shipped |
 | Document Template (Invoice/Quote/PO/Credit Note/Delivery Note/Receipt) | TMPL-INV / TMPL-QTE / TMPL-PO / TMPL-CN / TMPL-DN / TMPL-RCT | cosmetic numbering only |
+
+---
+
+# Part 18 — Fixed Assets and Depreciation
+
+## 18.1 The concept
+
+A fixed asset (a vehicle, a machine, a building) is bought once and used for years, so its cost is
+not an expense on the day it is paid. It is capitalized as an asset and then spread over the years
+of use as **depreciation**: each period a slice of the cost moves from the balance sheet to the
+P&L. The asset's **net carrying amount** (net book value) is cost less accumulated depreciation
+less accumulated impairment. Depreciation never takes it below the **residual value**, the amount
+the asset is expected to be worth at the end of its useful life.
+
+## 18.2 How the module is built
+
+* **Asset categories** (`asset_categories`, Settings > Asset Categories) carry the defaults a new
+  asset starts from (method, convention, useful life, residual %, reducing-balance rate) and the
+  seven GL accounts it posts to.
+* **The register** (`fixed_assets`) holds each asset: code, category, location, department,
+  supplier, acquisition and available-for-use dates, cost, residual value, useful life, method and
+  convention. A **Draft** can be edited freely; once activated only descriptive fields can change,
+  and estimates change through a recorded **change of estimate**.
+* **The asset subledger** (`asset_transactions`) has one row per movement (acquisition,
+  depreciation, impairment, disposal, retirement, reversal), each linked to the journal that posted
+  it. An asset's cost, accumulated depreciation and impairment are always recomputed from these
+  rows, so the register can't drift from what was posted.
+* Every posting goes through `JournalService.create()` + `post()` with `sourceModule`
+  `FIXED_ASSET` (asset events) or `DEPRECIATION_RUN` (period runs), so the period lock, balance
+  check and reversal rules are the same as everywhere else.
+
+GL accounts are resolved per role in this order: the asset's own override, then its category, then
+the `FIXED_ASSET_*` accounting mapping. Each must exist, be active, not be a control account, and
+have a type that fits the role (asset for cost and the contra accounts, expense for depreciation,
+impairment and disposal loss, income for disposal gain). Cost and accumulated depreciation are
+fixed on the asset at activation.
+
+## 18.3 The journal at each step
+
+| Event | Debit | Credit |
+|---|---|---|
+| Activate, paid from a bank | Cost | Bank (`FIXED_ASSET_BANK_ACCOUNT` or the chosen bank account's GL) |
+| Activate, against another account | Cost | That account (e.g. Other Creditors); accumulated depreciation for any amount brought forward |
+| Activate, already in the ledger | (no journal; the cost must already be on the cost account) | |
+| Period depreciation | Depreciation Expense | Accumulated Depreciation |
+| Impairment | Impairment Loss | Accumulated Impairment |
+| Disposal / retirement | Accumulated Depreciation, Accumulated Impairment, proceeds account, Loss on Disposal | Cost, Gain on Disposal |
+
+Disposal first charges depreciation from the last posted day to the disposal date (same
+convention) inside the same journal, then removes the asset. It is refused while depreciation is
+posted for a later date. Reversals post a mirror journal (the original is marked `REVERSED`, never
+edited) and add opposite subledger rows; only an asset's newest movement can be reversed.
+
+## 18.4 The depreciation engine
+
+`DepreciationEngine` is a pure calculator with one `DepreciationMethodCalculator` per method:
+
+* **Straight line**: (carrying amount − residual) × months charged ÷ remaining months of life. Using
+  the remaining amount over the remaining life makes impairments and estimate changes prospective.
+* **Reducing balance**: annual rate × opening carrying amount × months ÷ 12. Without a rate the
+  engine uses 1 − (residual ÷ cost)^(12 ÷ life months), or double-declining when residual is zero.
+* **Not depreciated** (land): never charges.
+
+Conventions: **daily pro-rata** (default), **full month** (whole first month, nothing in the
+disposal month) and **mid-month** (half the first and last months). Two rules apply to every
+method: no charge takes the carrying amount below residual value, and the window that uses up the
+useful life charges whatever is left above residual. Every charge stores a plain-language
+explanation of its working.
+
+## 18.5 Period runs
+
+A **depreciation run** covers one accounting period and moves Calculated → Submitted → Approved →
+Posted (separate `calculate_depreciation`, `approve_depreciation` and `post_depreciation`
+permissions). Each active asset gets a line from the day after its last posted depreciation to
+the period end, so a missed period is caught up rather than skipped. Only one live run can exist
+per period (`depreciation_runs.active_period_id` is unique). Posting recalculates every line and
+refuses if anything changed since calculation; it then posts one journal dated the period end with
+a Dr expense / Cr accumulated depreciation pair per asset. Locked or closed periods can't be
+calculated or posted. A posted run can be reversed as a whole while none of its assets has a later
+posting; that frees the period for a new run.
+
+The run preview warns when journals from outside the module (for example the demo recurring
+journal "Monthly depreciation - fixed assets") also move accumulated depreciation in the period,
+since that would count depreciation twice.
+
+## 18.6 Statements and reports
+
+* **P&L and Trial Balance** read depreciation from the posted journals like any other line, so
+  nothing is added on the report side.
+* **Balance Sheet**: the account lines are unchanged. A property, plant and equipment note under
+  it regroups the same GL balances as cost less accumulated depreciation and impairment, and shows
+  the register's carrying amount and any difference.
+* **Cash Flow Statement** (`GET /api/reports/cash-flow`, indirect method): net profit, then
+  add-backs for the P&L lines the module posted (depreciation, impairment, disposal gain/loss),
+  working capital, investing (only the cash legs of journals that move fixed asset accounts:
+  purchases and disposal proceeds) and financing. Fixed asset movements that were not paid in cash
+  appear as an operating adjustment, so a purchase on credit is never shown as cash. The statement
+  checks that the three sections add up to the change in cash.
+* **Fixed asset reports**: register, net book value, depreciation schedule, depreciation by
+  period, accumulated depreciation roll-forward, acquisitions, disposals and retirements,
+  register-to-GL reconciliation (with the outside journals that explain any difference), and the
+  module's journal history.
+
+## 18.7 Fixed Assets accounting-mapping reference
+
+| MappingKey | Default | Used for |
+|---|---|---|
+| `FIXED_ASSET_COST` | 1730 | Cost |
+| `FIXED_ASSET_ACCUMULATED_DEPRECIATION` | 1710 | Accumulated depreciation |
+| `FIXED_ASSET_DEPRECIATION_EXPENSE` | 5120 | Depreciation expense |
+| `FIXED_ASSET_ACCUMULATED_IMPAIRMENT` | 1715 | Accumulated impairment |
+| `FIXED_ASSET_IMPAIRMENT_LOSS` | 5130 | Impairment loss |
+| `FIXED_ASSET_DISPOSAL_GAIN` | 4070 | Gain on disposal |
+| `FIXED_ASSET_DISPOSAL_LOSS` | 5125 | Loss on disposal |
+| `FIXED_ASSET_BANK_ACCOUNT` | 1010 | Bank used when an acquisition or sale names no bank account |
+
+Run manual migration `015_fixed_assets.sql` once on an existing database so the new journal types,
+attachment type and mapping keys pass their CHECK constraints.
+
+**Limitations:** cost model only (no revaluation), base currency only, no componentization, and
+journal lines carry no department dimension, so the P&L shows depreciation by account while the
+fixed asset reports break it down by category, location and department.
 
 ---
 

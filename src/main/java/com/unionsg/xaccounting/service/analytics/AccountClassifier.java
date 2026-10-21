@@ -50,7 +50,7 @@ public class AccountClassifier {
     private static final Set<String> FIXED_ASSET_CATEGORIES = Set.of(
             "buildings", "land", "machinery & equipment", "furniture & fixtures", "vehicles", "computers",
             "software", "leasehold improvements", "intangible assets", "accumulated depreciation",
-            "accumulated amortization", "other fixed assets", "fixed asset", "fixed assets");
+            "accumulated amortization", "accumulated impairment", "other fixed assets", "fixed asset", "fixed assets");
 
     private final AnalyticsLedgerRepository ledgerRepository;
     private final AccountingMappingRepository mappingRepository;

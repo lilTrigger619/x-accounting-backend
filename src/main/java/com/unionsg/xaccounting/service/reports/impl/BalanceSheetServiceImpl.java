@@ -10,6 +10,7 @@ import com.unionsg.xaccounting.repository.reports.LedgerAsOfBalanceRepository;
 import com.unionsg.xaccounting.service.reports.BalanceSheetService;
 import com.unionsg.xaccounting.service.reports.CurrentFiscalPeriodResolver;
 import com.unionsg.xaccounting.service.reports.ProfitAndLossService;
+import com.unionsg.xaccounting.service.fixedasset.FixedAssetReportService;
 import com.unionsg.xaccounting.utils.CalculateBalance;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class BalanceSheetServiceImpl implements BalanceSheetService {
     private final LedgerAsOfBalanceRepository ledgerAsOfBalanceRepository;
     private final CurrentFiscalPeriodResolver currentFiscalPeriodResolver;
     private final ProfitAndLossService profitAndLossService;
+    private final FixedAssetReportService fixedAssetReportService;
 
     @Override
     public BalanceSheetResponseDTO generateReport(LocalDate asOfDate) {
@@ -92,7 +94,8 @@ public class BalanceSheetServiceImpl implements BalanceSheetService {
                 equity, totalEquity,
                 currentYearEarnings, totalEquityAndCurrentEarnings,
                 totalLiabilitiesAndEquity,
-                balanceCheck
+                balanceCheck,
+                fixedAssetReportService.balanceSheetNote(asOfDate)
         );
     }
 

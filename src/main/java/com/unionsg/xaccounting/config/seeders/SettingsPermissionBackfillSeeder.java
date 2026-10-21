@@ -11,6 +11,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.List;
 
@@ -45,23 +46,30 @@ public class SettingsPermissionBackfillSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        Role superAdmin = roleRepository.findByName(SUPER_ADMIN_ROLE).orElse(null);
-        if (superAdmin == null) {
-            return;
-        }
-
-        boolean changed = false;
-        for (String name : SETTINGS_PERMISSIONS) {
-            Permission permission = permissionRepository.findByName(name).orElse(null);
-            if (permission != null && !superAdmin.getPermissions().contains(permission)) {
-                superAdmin.getPermissions().add(permission);
-                changed = true;
+        try {
+            Role superAdmin = roleRepository.findByName(SUPER_ADMIN_ROLE).orElse(null);
+            if (superAdmin == null) {
+                return;
             }
-        }
 
-        if (changed) {
-            roleRepository.save(superAdmin);
-            log.info("Granted the Settings permission group to the {} role", SUPER_ADMIN_ROLE);
+            boolean changed = false;
+            for (String name : SETTINGS_PERMISSIONS) {
+                Permission permission = permissionRepository.findByName(name).orElse(null);
+                if (permission != null && !superAdmin.getPermissions().contains(permission)) {
+                    superAdmin.getPermissions().add(permission);
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                roleRepository.save(superAdmin);
+                log.info("Granted the Settings permission group to the {} role", SUPER_ADMIN_ROLE);
+            }
+    
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("SettingsPermissionBackfillSeeder failed during startup seeding - skipping so the "
+                    + "application can still start. Any changes from this run were rolled back.", e);
         }
     }
 }

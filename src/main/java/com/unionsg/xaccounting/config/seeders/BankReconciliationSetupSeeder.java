@@ -17,6 +17,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.List;
 
@@ -49,51 +50,58 @@ public class BankReconciliationSetupSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (!permissionRepository.existsByNameAndGuardName(BankReconciliationService.OVERRIDE_PERMISSION, GROUP)
-                && permissionRepository.findByName(BankReconciliationService.OVERRIDE_PERMISSION).isEmpty()) {
-            Permission permission = new Permission();
-            permission.setName(BankReconciliationService.OVERRIDE_PERMISSION);
-            permission.setGuardName(GROUP);
-            permissionRepository.save(permission);
-        }
+        try {
+            if (!permissionRepository.existsByNameAndGuardName(BankReconciliationService.OVERRIDE_PERMISSION, GROUP)
+                    && permissionRepository.findByName(BankReconciliationService.OVERRIDE_PERMISSION).isEmpty()) {
+                Permission permission = new Permission();
+                permission.setName(BankReconciliationService.OVERRIDE_PERMISSION);
+                permission.setGuardName(GROUP);
+                permissionRepository.save(permission);
+            }
 
-        Role superAdmin = roleRepository.findByName(SUPER_ADMIN_ROLE).orElse(null);
-        if (superAdmin != null) {
-            boolean changed = false;
-            for (String name : PERMISSIONS) {
-                Permission permission = permissionRepository.findByName(name).orElse(null);
-                if (permission != null && !superAdmin.getPermissions().contains(permission)) {
-                    superAdmin.getPermissions().add(permission);
-                    changed = true;
+            Role superAdmin = roleRepository.findByName(SUPER_ADMIN_ROLE).orElse(null);
+            if (superAdmin != null) {
+                boolean changed = false;
+                for (String name : PERMISSIONS) {
+                    Permission permission = permissionRepository.findByName(name).orElse(null);
+                    if (permission != null && !superAdmin.getPermissions().contains(permission)) {
+                        superAdmin.getPermissions().add(permission);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    roleRepository.save(superAdmin);
+                    log.info("Granted the Bank Reconciliation permissions to the {} role", SUPER_ADMIN_ROLE);
                 }
             }
-            if (changed) {
-                roleRepository.save(superAdmin);
-                log.info("Granted the Bank Reconciliation permissions to the {} role", SUPER_ADMIN_ROLE);
+
+            if (!ruleRepository.existsByDeletedFalse()) {
+                BankMatchingRule rule = new BankMatchingRule();
+                rule.setName("Standard match");
+                rule.setDescription("Exact amount within 3 days. Matched straight away at 85+, suggested at 60+.");
+                rule.setPriority(100);
+                ruleRepository.save(rule);
             }
-        }
 
-        if (!ruleRepository.existsByDeletedFalse()) {
-            BankMatchingRule rule = new BankMatchingRule();
-            rule.setName("Standard match");
-            rule.setDescription("Exact amount within 3 days. Matched straight away at 85+, suggested at 60+.");
-            rule.setPriority(100);
-            ruleRepository.save(rule);
-        }
-
-        if (!profileRepository.existsByDeletedFalse()) {
-            BankStatementImportProfile profile = new BankStatementImportProfile();
-            profile.setName("Generic CSV (Date, Description, Reference, Debit, Credit, Balance)");
-            profile.setDescription("Header row with separate Debit and Credit columns. Copy and adjust for your bank.");
-            profile.setTransactionDateColumn("Date");
-            profile.setValueDateColumn("Value Date");
-            profile.setDescriptionColumn("Description");
-            profile.setReferenceColumn("Reference");
-            profile.setDebitColumn("Debit");
-            profile.setCreditColumn("Credit");
-            profile.setBalanceColumn("Balance");
-            profile.setAmountSignConvention(AmountSignConvention.POSITIVE_IS_CREDIT);
-            profileRepository.save(profile);
+            if (!profileRepository.existsByDeletedFalse()) {
+                BankStatementImportProfile profile = new BankStatementImportProfile();
+                profile.setName("Generic CSV (Date, Description, Reference, Debit, Credit, Balance)");
+                profile.setDescription("Header row with separate Debit and Credit columns. Copy and adjust for your bank.");
+                profile.setTransactionDateColumn("Date");
+                profile.setValueDateColumn("Value Date");
+                profile.setDescriptionColumn("Description");
+                profile.setReferenceColumn("Reference");
+                profile.setDebitColumn("Debit");
+                profile.setCreditColumn("Credit");
+                profile.setBalanceColumn("Balance");
+                profile.setAmountSignConvention(AmountSignConvention.POSITIVE_IS_CREDIT);
+                profileRepository.save(profile);
+            }
+    
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("BankReconciliationSetupSeeder failed during startup seeding - skipping so the "
+                    + "application can still start. Any changes from this run were rolled back.", e);
         }
     }
 }

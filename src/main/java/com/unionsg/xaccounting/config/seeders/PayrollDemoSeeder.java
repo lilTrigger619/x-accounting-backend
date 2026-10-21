@@ -51,6 +51,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -98,123 +99,130 @@ public class PayrollDemoSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (payrollRunRepository.count() > 0) {
-            log.info("Payroll demo data already present - skipping PayrollDemoSeeder.");
-            return;
+        try {
+            if (payrollRunRepository.count() > 0) {
+                log.info("Payroll demo data already present - skipping PayrollDemoSeeder.");
+                return;
+            }
+            if (financialYearRepository.count() == 0) {
+                log.warn("No Financial Year found yet - skipping PayrollDemoSeeder until DemoDataSeeder has run.");
+                return;
+            }
+
+            LocalDate fyStart = LocalDate.of(2025, 1, 1);
+
+            DepartmentResponse finance = departmentService.create(dept("Finance", "CC-100"));
+            DepartmentResponse engineering = departmentService.create(dept("Engineering", "CC-200"));
+            PositionResponse accountant = positionService.create(position("Senior Accountant", finance.getId()));
+            PositionResponse engineer = positionService.create(position("Software Engineer", engineering.getId()));
+
+            PayrollGroupResponse monthlyGroup = payrollGroupService.create(payrollGroup("Monthly Salaried Staff", PayFrequency.MONTHLY));
+
+            PayComponentResponse housing = payComponentService.create(component(HOUSING_ALLOWANCE, "Housing Allowance",
+                    PayComponentCategory.ALLOWANCE, PayComponentSide.EARNING, PayComponentCalculationMethod.PERCENTAGE_OF_BASIC,
+                    new BigDecimal("15"), true, false, "5040"));
+            PayComponentResponse transport = payComponentService.create(component(TRANSPORT_ALLOWANCE, "Transport Allowance",
+                    PayComponentCategory.ALLOWANCE, PayComponentSide.EARNING, PayComponentCalculationMethod.FIXED_AMOUNT,
+                    new BigDecimal("150"), true, false, "5040"));
+            payComponentService.create(component(OVERTIME_COMPONENT, "Overtime",
+                    PayComponentCategory.OVERTIME, PayComponentSide.EARNING, PayComponentCalculationMethod.HOURS_TIMES_RATE,
+                    null, true, false, "5040"));
+            payComponentService.create(component(BONUS_COMPONENT, "Performance Bonus",
+                    PayComponentCategory.BONUS, PayComponentSide.EARNING, PayComponentCalculationMethod.FIXED_AMOUNT,
+                    null, true, false, "5040"));
+
+            SalaryStructureResponse structure = salaryStructureService.create(
+                    salaryStructure("Standard Monthly", List.of(
+                            lineOf(housing.getId(), new BigDecimal("15")),
+                            lineOf(transport.getId(), new BigDecimal("150"))
+                    )));
+
+            statutorySchemeService.create(statutoryScheme("PENSION", "National Pension Scheme",
+                    new BigDecimal("5"), new BigDecimal("8"), "2120", "5050", "2130", fyStart));
+
+            taxConfigurationService.create(taxConfiguration("Standard Progressive Tax", "Demo Jurisdiction", fyStart, "2110",
+                    List.of(
+                            bracket(1, BigDecimal.ZERO, new BigDecimal("2000"), new BigDecimal("10")),
+                            bracket(2, new BigDecimal("2000"), new BigDecimal("5000"), new BigDecimal("20")),
+                            bracket(3, new BigDecimal("5000"), null, new BigDecimal("30"))
+                    )));
+
+            EmployeeResponse alice = hireEmployee("Alice", "Nkemah", finance.getId(), accountant.getId(),
+                    monthlyGroup.getId(), structure.getId(), new BigDecimal("4500"), fyStart);
+            EmployeeResponse ben = hireEmployee("Ben", "Osei", engineering.getId(), engineer.getId(),
+                    monthlyGroup.getId(), structure.getId(), new BigDecimal("5200"), fyStart);
+            EmployeeResponse chloe = hireEmployee("Chloe", "Mensah", engineering.getId(), engineer.getId(),
+                    monthlyGroup.getId(), structure.getId(), new BigDecimal("4800"), fyStart);
+            EmployeeResponse david = hireEmployee("David", "Owusu", finance.getId(), accountant.getId(),
+                    monthlyGroup.getId(), structure.getId(), new BigDecimal("3900"), fyStart);
+            EmployeeResponse elena = hireEmployee("Elena", "Boateng", engineering.getId(), engineer.getId(),
+                    monthlyGroup.getId(), structure.getId(), new BigDecimal("4200"), fyStart);
+
+            // Give one employee a raise later in the year, so compensation history (§6, §59) has more than one row.
+            employeeService.changeCompensation(ben.getId(), raise(structure.getId(), new BigDecimal("5600"),
+                    LocalDate.of(2025, 7, 1), "Mid-year performance increment"));
+
+            // An active loan and an outstanding advance, to exercise §14/§15 through a real run.
+            // Dated in FY2026 (not FY2025, which DemoDataSeeder has already closed and fully locked)
+            // and after FY2026's first two periods, which DemoDataSeeder locks deliberately (§7.2).
+            CreateEmployeeLoanRequest loanRequest = new CreateEmployeeLoanRequest();
+            loanRequest.setEmployeeId(chloe.getId());
+            loanRequest.setPrincipal(new BigDecimal("1200"));
+            loanRequest.setInterestRatePercent(BigDecimal.ZERO);
+            loanRequest.setStartDate(LocalDate.of(2026, 4, 1));
+            loanRequest.setInstallmentAmount(new BigDecimal("100"));
+            loanRequest.setReason("Emergency medical loan");
+            employeeLoanService.disburse(loanRequest);
+
+            CreateSalaryAdvanceRequest advanceRequest = new CreateSalaryAdvanceRequest();
+            advanceRequest.setEmployeeId(david.getId());
+            advanceRequest.setAmountIssued(new BigDecimal("500"));
+            advanceRequest.setDateIssued(LocalDate.of(2026, 4, 1));
+            advanceRequest.setRecurringDeductionAmount(new BigDecimal("50"));
+            advanceRequest.setReason("Requested salary advance");
+            salaryAdvanceService.issue(advanceRequest);
+
+            // The payroll period this demo run covers: April 2026 - inside FY2026, and past the
+            // first two (locked) periods.
+            CreatePayrollCalendarPeriodRequest periodRequest = new CreatePayrollCalendarPeriodRequest();
+            periodRequest.setPayrollGroupId(monthlyGroup.getId());
+            periodRequest.setPeriodStart(LocalDate.of(2026, 4, 1));
+            periodRequest.setPeriodEnd(LocalDate.of(2026, 4, 30));
+            periodRequest.setPayDate(LocalDate.of(2026, 5, 5));
+            periodRequest.setAccountingDate(LocalDate.of(2026, 4, 30));
+            PayrollCalendarPeriodResponse period = payrollCalendarService.create(periodRequest);
+
+            // An approved overtime input for Alice, so the run exercises a variable payroll input (§12, §18).
+            CreatePayrollInputRequest overtimeInput = new CreatePayrollInputRequest();
+            overtimeInput.setEmployeeId(alice.getId());
+            overtimeInput.setPayrollCalendarPeriodId(period.getId());
+            overtimeInput.setSourceType(PayrollInputSourceType.OVERTIME);
+            overtimeInput.setPayComponentId(payComponentService.getByCode(OVERTIME_COMPONENT).getId());
+            overtimeInput.setDescription("June weekend release support");
+            overtimeInput.setHours(new BigDecimal("6"));
+            overtimeInput.setRate(new BigDecimal("25"));
+            overtimeInput.setMultiplier(new BigDecimal("1.5"));
+            var savedInput = payrollInputService.create(overtimeInput);
+            payrollInputService.approve(savedInput.getId());
+
+            // Drive one full run through the whole lifecycle: calculation, review, approval,
+            // accounting posting, and payment are five separate, auditable events (the module's
+            // central requirement), not one action.
+            var run = payrollRunService.create(runRequest(period.getId()));
+            payrollRunService.calculate(run.getId());
+            payrollRunService.submitForReview(run.getId());
+            payrollRunService.approve(run.getId());
+            payrollRunService.post(run.getId());
+            payrollRunService.pay(run.getId(), period.getPayDate());
+
+            log.info("Payroll demo seeding complete: run {} posted and paid for {} employees, net pay {}.",
+                    run.getRunNumber(), 5, payrollRunService.getById(run.getId()).getTotalNetPay());
+    
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("PayrollDemoSeeder failed during startup seeding - skipping so the "
+                    + "application can still start. Any changes from this run were rolled back.", e);
         }
-        if (financialYearRepository.count() == 0) {
-            log.warn("No Financial Year found yet - skipping PayrollDemoSeeder until DemoDataSeeder has run.");
-            return;
-        }
-
-        LocalDate fyStart = LocalDate.of(2025, 1, 1);
-
-        DepartmentResponse finance = departmentService.create(dept("Finance", "CC-100"));
-        DepartmentResponse engineering = departmentService.create(dept("Engineering", "CC-200"));
-        PositionResponse accountant = positionService.create(position("Senior Accountant", finance.getId()));
-        PositionResponse engineer = positionService.create(position("Software Engineer", engineering.getId()));
-
-        PayrollGroupResponse monthlyGroup = payrollGroupService.create(payrollGroup("Monthly Salaried Staff", PayFrequency.MONTHLY));
-
-        PayComponentResponse housing = payComponentService.create(component(HOUSING_ALLOWANCE, "Housing Allowance",
-                PayComponentCategory.ALLOWANCE, PayComponentSide.EARNING, PayComponentCalculationMethod.PERCENTAGE_OF_BASIC,
-                new BigDecimal("15"), true, false, "5040"));
-        PayComponentResponse transport = payComponentService.create(component(TRANSPORT_ALLOWANCE, "Transport Allowance",
-                PayComponentCategory.ALLOWANCE, PayComponentSide.EARNING, PayComponentCalculationMethod.FIXED_AMOUNT,
-                new BigDecimal("150"), true, false, "5040"));
-        payComponentService.create(component(OVERTIME_COMPONENT, "Overtime",
-                PayComponentCategory.OVERTIME, PayComponentSide.EARNING, PayComponentCalculationMethod.HOURS_TIMES_RATE,
-                null, true, false, "5040"));
-        payComponentService.create(component(BONUS_COMPONENT, "Performance Bonus",
-                PayComponentCategory.BONUS, PayComponentSide.EARNING, PayComponentCalculationMethod.FIXED_AMOUNT,
-                null, true, false, "5040"));
-
-        SalaryStructureResponse structure = salaryStructureService.create(
-                salaryStructure("Standard Monthly", List.of(
-                        lineOf(housing.getId(), new BigDecimal("15")),
-                        lineOf(transport.getId(), new BigDecimal("150"))
-                )));
-
-        statutorySchemeService.create(statutoryScheme("PENSION", "National Pension Scheme",
-                new BigDecimal("5"), new BigDecimal("8"), "2120", "5050", "2130", fyStart));
-
-        taxConfigurationService.create(taxConfiguration("Standard Progressive Tax", "Demo Jurisdiction", fyStart, "2110",
-                List.of(
-                        bracket(1, BigDecimal.ZERO, new BigDecimal("2000"), new BigDecimal("10")),
-                        bracket(2, new BigDecimal("2000"), new BigDecimal("5000"), new BigDecimal("20")),
-                        bracket(3, new BigDecimal("5000"), null, new BigDecimal("30"))
-                )));
-
-        EmployeeResponse alice = hireEmployee("Alice", "Nkemah", finance.getId(), accountant.getId(),
-                monthlyGroup.getId(), structure.getId(), new BigDecimal("4500"), fyStart);
-        EmployeeResponse ben = hireEmployee("Ben", "Osei", engineering.getId(), engineer.getId(),
-                monthlyGroup.getId(), structure.getId(), new BigDecimal("5200"), fyStart);
-        EmployeeResponse chloe = hireEmployee("Chloe", "Mensah", engineering.getId(), engineer.getId(),
-                monthlyGroup.getId(), structure.getId(), new BigDecimal("4800"), fyStart);
-        EmployeeResponse david = hireEmployee("David", "Owusu", finance.getId(), accountant.getId(),
-                monthlyGroup.getId(), structure.getId(), new BigDecimal("3900"), fyStart);
-        EmployeeResponse elena = hireEmployee("Elena", "Boateng", engineering.getId(), engineer.getId(),
-                monthlyGroup.getId(), structure.getId(), new BigDecimal("4200"), fyStart);
-
-        // Give one employee a raise later in the year, so compensation history (§6, §59) has more than one row.
-        employeeService.changeCompensation(ben.getId(), raise(structure.getId(), new BigDecimal("5600"),
-                LocalDate.of(2025, 7, 1), "Mid-year performance increment"));
-
-        // An active loan and an outstanding advance, to exercise §14/§15 through a real run.
-        // Dated in FY2026 (not FY2025, which DemoDataSeeder has already closed and fully locked)
-        // and after FY2026's first two periods, which DemoDataSeeder locks deliberately (§7.2).
-        CreateEmployeeLoanRequest loanRequest = new CreateEmployeeLoanRequest();
-        loanRequest.setEmployeeId(chloe.getId());
-        loanRequest.setPrincipal(new BigDecimal("1200"));
-        loanRequest.setInterestRatePercent(BigDecimal.ZERO);
-        loanRequest.setStartDate(LocalDate.of(2026, 4, 1));
-        loanRequest.setInstallmentAmount(new BigDecimal("100"));
-        loanRequest.setReason("Emergency medical loan");
-        employeeLoanService.disburse(loanRequest);
-
-        CreateSalaryAdvanceRequest advanceRequest = new CreateSalaryAdvanceRequest();
-        advanceRequest.setEmployeeId(david.getId());
-        advanceRequest.setAmountIssued(new BigDecimal("500"));
-        advanceRequest.setDateIssued(LocalDate.of(2026, 4, 1));
-        advanceRequest.setRecurringDeductionAmount(new BigDecimal("50"));
-        advanceRequest.setReason("Requested salary advance");
-        salaryAdvanceService.issue(advanceRequest);
-
-        // The payroll period this demo run covers: April 2026 - inside FY2026, and past the
-        // first two (locked) periods.
-        CreatePayrollCalendarPeriodRequest periodRequest = new CreatePayrollCalendarPeriodRequest();
-        periodRequest.setPayrollGroupId(monthlyGroup.getId());
-        periodRequest.setPeriodStart(LocalDate.of(2026, 4, 1));
-        periodRequest.setPeriodEnd(LocalDate.of(2026, 4, 30));
-        periodRequest.setPayDate(LocalDate.of(2026, 5, 5));
-        periodRequest.setAccountingDate(LocalDate.of(2026, 4, 30));
-        PayrollCalendarPeriodResponse period = payrollCalendarService.create(periodRequest);
-
-        // An approved overtime input for Alice, so the run exercises a variable payroll input (§12, §18).
-        CreatePayrollInputRequest overtimeInput = new CreatePayrollInputRequest();
-        overtimeInput.setEmployeeId(alice.getId());
-        overtimeInput.setPayrollCalendarPeriodId(period.getId());
-        overtimeInput.setSourceType(PayrollInputSourceType.OVERTIME);
-        overtimeInput.setPayComponentId(payComponentService.getByCode(OVERTIME_COMPONENT).getId());
-        overtimeInput.setDescription("June weekend release support");
-        overtimeInput.setHours(new BigDecimal("6"));
-        overtimeInput.setRate(new BigDecimal("25"));
-        overtimeInput.setMultiplier(new BigDecimal("1.5"));
-        var savedInput = payrollInputService.create(overtimeInput);
-        payrollInputService.approve(savedInput.getId());
-
-        // Drive one full run through the whole lifecycle: calculation, review, approval,
-        // accounting posting, and payment are five separate, auditable events (the module's
-        // central requirement), not one action.
-        var run = payrollRunService.create(runRequest(period.getId()));
-        payrollRunService.calculate(run.getId());
-        payrollRunService.submitForReview(run.getId());
-        payrollRunService.approve(run.getId());
-        payrollRunService.post(run.getId());
-        payrollRunService.pay(run.getId(), period.getPayDate());
-
-        log.info("Payroll demo seeding complete: run {} posted and paid for {} employees, net pay {}.",
-                run.getRunNumber(), 5, payrollRunService.getById(run.getId()).getTotalNetPay());
     }
 
     // ================= helpers =================

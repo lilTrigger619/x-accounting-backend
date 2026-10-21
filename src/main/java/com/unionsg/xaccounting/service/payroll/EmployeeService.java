@@ -240,10 +240,22 @@ public class EmployeeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + id));
     }
 
-    /** Employees eligible for a new payroll run in this group - excludes anyone not ACTIVE (§2, §36). */
+    /**
+     * Employees eligible for a payroll run covering a period ending on {@code periodEnd} - excludes
+     * anyone not ACTIVE (§2, §36), and anyone hired after the period ends. Without the latter check,
+     * an employee hired later (including one created with no compensation assignment yet) would be
+     * pulled into a historical run it couldn't possibly have been part of, and
+     * {@link PayrollCalculationService} would then fail that run for having no compensation
+     * effective that far back - a data problem for one employee, not a reason to fail the whole run.
+     * An employee with no {@code dateOfEmployment} recorded is treated as eligible (nothing to
+     * exclude them on) rather than silently dropped.
+     */
     @Transactional(readOnly = true)
-    public List<Employee> getActiveEmployeesForGroup(Long payrollGroupId) {
-        return employeeRepository.findByPayrollGroupIdAndEmploymentStatus(payrollGroupId, EmploymentStatus.ACTIVE);
+    public List<Employee> getActiveEmployeesForGroup(Long payrollGroupId, LocalDate periodEnd) {
+        return employeeRepository.findByPayrollGroupIdAndEmploymentStatus(payrollGroupId, EmploymentStatus.ACTIVE)
+                .stream()
+                .filter(e -> e.getDateOfEmployment() == null || !e.getDateOfEmployment().isAfter(periodEnd))
+                .toList();
     }
 
     public EmployeeResponse toResponse(Employee employee) {

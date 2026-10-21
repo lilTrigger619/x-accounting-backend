@@ -63,6 +63,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -122,50 +123,56 @@ public class DemoDataSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        try {
+            if (financialYearRepository.count() > 0) {
+                log.info("Demo data already seeded, skipping.");
+                return;
+            }
+            if (!accountRepository.existsByAccountId(CHECKING_ACCOUNT)) {
+                log.warn("Chart of accounts not seeded yet; skipping demo data seeding this run.");
+                return;
+            }
 
-        if (financialYearRepository.count() > 0) {
-            log.info("Demo data already seeded, skipping.");
-            return;
+            log.info("Seeding demo data for investor-facing environment...");
+
+            List<Long> customerIds = seedCustomers();
+            List<Long> supplierIds = seedSuppliers();
+            seedProducts();
+
+            LocalDate fy2025Start = LocalDate.of(2025, 1, 1);
+            LocalDate fy2025End = LocalDate.of(2025, 12, 31);
+            FinancialYearResponse fy2025 = financialYearService.create(
+                    newFinancialYearRequest("FY 2025", fy2025Start, fy2025End)
+            );
+            financialYearService.activate(fy2025.getId());
+            seedOpeningBalance(fy2025.getId(), fy2025Start);
+
+            LocalDate today = LocalDate.now();
+            LocalDate seedThrough = today.withDayOfMonth(1);
+
+            seedInvoicesAndPayments(customerIds, fy2025Start, seedThrough);
+            seedBillsAndPayments(supplierIds, fy2025Start, seedThrough);
+            seedRecurringJournals(fy2025Start);
+            seedManualAdjustingJournal();
+
+            yearEndClosingService.closeFinancialYear(fy2025.getId());
+            log.info("Closed FY 2025 - net profit/loss transferred to Retained Earnings.");
+
+            LocalDate fy2026Start = LocalDate.of(2026, 1, 1);
+            LocalDate fy2026End = LocalDate.of(2026, 12, 31);
+            FinancialYearResponse fy2026 = financialYearService.create(
+                    newFinancialYearRequest("FY 2026", fy2026Start, fy2026End)
+            );
+            financialYearService.activate(fy2026.getId());
+            lockEarlyPeriods(fy2026.getId(), 2);
+
+            log.info("Demo data seeding complete.");
+    
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("DemoDataSeeder failed during startup seeding - skipping so the "
+                    + "application can still start. Any changes from this run were rolled back.", e);
         }
-        if (!accountRepository.existsByAccountId(CHECKING_ACCOUNT)) {
-            log.warn("Chart of accounts not seeded yet; skipping demo data seeding this run.");
-            return;
-        }
-
-        log.info("Seeding demo data for investor-facing environment...");
-
-        List<Long> customerIds = seedCustomers();
-        List<Long> supplierIds = seedSuppliers();
-        seedProducts();
-
-        LocalDate fy2025Start = LocalDate.of(2025, 1, 1);
-        LocalDate fy2025End = LocalDate.of(2025, 12, 31);
-        FinancialYearResponse fy2025 = financialYearService.create(
-                newFinancialYearRequest("FY 2025", fy2025Start, fy2025End)
-        );
-        financialYearService.activate(fy2025.getId());
-        seedOpeningBalance(fy2025.getId(), fy2025Start);
-
-        LocalDate today = LocalDate.now();
-        LocalDate seedThrough = today.withDayOfMonth(1);
-
-        seedInvoicesAndPayments(customerIds, fy2025Start, seedThrough);
-        seedBillsAndPayments(supplierIds, fy2025Start, seedThrough);
-        seedRecurringJournals(fy2025Start);
-        seedManualAdjustingJournal();
-
-        yearEndClosingService.closeFinancialYear(fy2025.getId());
-        log.info("Closed FY 2025 - net profit/loss transferred to Retained Earnings.");
-
-        LocalDate fy2026Start = LocalDate.of(2026, 1, 1);
-        LocalDate fy2026End = LocalDate.of(2026, 12, 31);
-        FinancialYearResponse fy2026 = financialYearService.create(
-                newFinancialYearRequest("FY 2026", fy2026Start, fy2026End)
-        );
-        financialYearService.activate(fy2026.getId());
-        lockEarlyPeriods(fy2026.getId(), 2);
-
-        log.info("Demo data seeding complete.");
     }
 
     // ==========================================================================================

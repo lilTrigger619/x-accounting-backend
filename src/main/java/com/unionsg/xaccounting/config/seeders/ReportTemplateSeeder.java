@@ -18,6 +18,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -40,7 +41,14 @@ public class ReportTemplateSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        seedPlStandardTemplateIfMissing();
+        try {
+            seedPlStandardTemplateIfMissing();
+    
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("ReportTemplateSeeder failed during startup seeding - skipping so the "
+                    + "application can still start. Any changes from this run were rolled back.", e);
+        }
     }
 
     private void seedPlStandardTemplateIfMissing() {

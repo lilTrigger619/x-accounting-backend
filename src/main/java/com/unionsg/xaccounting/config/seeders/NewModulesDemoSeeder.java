@@ -43,6 +43,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -96,27 +97,34 @@ public class NewModulesDemoSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (expenseRepository.count() > 0) {
-            log.info("New-modules demo data already present - skipping NewModulesDemoSeeder.");
-            return;
+        try {
+            if (expenseRepository.count() > 0) {
+                log.info("New-modules demo data already present - skipping NewModulesDemoSeeder.");
+                return;
+            }
+
+            Customer novaRetail = findCustomer("Nova Retail Group");
+            Supplier atlasOffice = findSupplier("Atlas Office Supply Co.");
+            Supplier voltageUtilities = findSupplier("Voltage Utilities Inc.");
+
+            Long operatingAccountId = seedBankAccount("KES Operating Account", KES_OPERATING_GL, true);
+            Long reserveAccountId = seedBankAccount("KES Reserve Account", KES_RESERVE_GL, false);
+            fundNewAccounts();
+
+            seedExpenses(operatingAccountId, atlasOffice, voltageUtilities);
+            seedDeposits(operatingAccountId, novaRetail);
+            seedDownpayments(operatingAccountId, novaRetail, atlasOffice);
+            seedBankTransfers(operatingAccountId, reserveAccountId);
+            seedBankReconciliation(operatingAccountId);
+
+            log.info("New-modules demo seeding complete: expenses, deposits, downpayments, bank transfers "
+                    + "and one bank reconciliation with adjustments have been posted.");
+    
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("NewModulesDemoSeeder failed during startup seeding - skipping so the "
+                    + "application can still start. Any changes from this run were rolled back.", e);
         }
-
-        Customer novaRetail = findCustomer("Nova Retail Group");
-        Supplier atlasOffice = findSupplier("Atlas Office Supply Co.");
-        Supplier voltageUtilities = findSupplier("Voltage Utilities Inc.");
-
-        Long operatingAccountId = seedBankAccount("KES Operating Account", KES_OPERATING_GL, true);
-        Long reserveAccountId = seedBankAccount("KES Reserve Account", KES_RESERVE_GL, false);
-        fundNewAccounts();
-
-        seedExpenses(operatingAccountId, atlasOffice, voltageUtilities);
-        seedDeposits(operatingAccountId, novaRetail);
-        seedDownpayments(operatingAccountId, novaRetail, atlasOffice);
-        seedBankTransfers(operatingAccountId, reserveAccountId);
-        seedBankReconciliation(operatingAccountId);
-
-        log.info("New-modules demo seeding complete: expenses, deposits, downpayments, bank transfers "
-                + "and one bank reconciliation with adjustments have been posted.");
     }
 
     // ================= Opening funding for the two new accounts =================

@@ -16,6 +16,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 @Slf4j
 @Component
@@ -28,18 +29,25 @@ public class DocumentTemplateSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (templateRepository.existsByTemplateCode("INVOICE_CLASSIC")) {
-            log.info("Document templates already seeded, skipping...");
-            return;
+        try {
+            if (templateRepository.existsByTemplateCode("INVOICE_CLASSIC")) {
+                log.info("Document templates already seeded, skipping...");
+                return;
+            }
+
+            log.info("Seeding default document templates...");
+
+            createClassicTemplate();
+            createModernTemplate();
+            createProfessionalTemplate();
+
+            log.info("Document template seeding complete.");
+    
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("DocumentTemplateSeeder failed during startup seeding - skipping so the "
+                    + "application can still start. Any changes from this run were rolled back.", e);
         }
-
-        log.info("Seeding default document templates...");
-
-        createClassicTemplate();
-        createModernTemplate();
-        createProfessionalTemplate();
-
-        log.info("Document template seeding complete.");
     }
 
     // =============================

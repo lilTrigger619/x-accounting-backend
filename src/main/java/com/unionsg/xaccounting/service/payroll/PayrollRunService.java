@@ -102,9 +102,11 @@ public class PayrollRunService {
             run.getRecords().clear();
         }
 
-        List<Employee> employees = employeeService.getActiveEmployeesForGroup(run.getPayrollGroup().getId());
+        List<Employee> employees = employeeService.getActiveEmployeesForGroup(
+                run.getPayrollGroup().getId(), run.getPayrollCalendarPeriod().getPeriodEnd());
         if (employees.isEmpty()) {
-            throw new BusinessException("No active employees belong to payroll group " + run.getPayrollGroup().getName());
+            throw new BusinessException("No active employees belong to payroll group " + run.getPayrollGroup().getName()
+                    + " as of " + run.getPayrollCalendarPeriod().getPeriodEnd());
         }
 
         BigDecimal gross = BigDecimal.ZERO, deductions = BigDecimal.ZERO, net = BigDecimal.ZERO, employerCost = BigDecimal.ZERO;

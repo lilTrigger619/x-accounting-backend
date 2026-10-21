@@ -69,6 +69,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -132,35 +133,42 @@ public class FY2025FullDemoSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (loanRepository.count() > 0) {
-            log.info("FY 2025 full demo data already present - skipping FY2025FullDemoSeeder.");
-            return;
+        try {
+            if (loanRepository.count() > 0) {
+                log.info("FY 2025 full demo data already present - skipping FY2025FullDemoSeeder.");
+                return;
+            }
+
+            FinancialYear fy2025 = financialYearRepository.findAll().stream()
+                    .filter(fy -> FY_2025.equals(fy.getName()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException(FY_2025 + " not found - DemoDataSeeder should have seeded it already"));
+            Long fy2025Id = fy2025.getId();
+
+            reopenAndUnlock(fy2025Id);
+
+            Long operatingAccountId = bankAccountId(KES_OPERATING_ACCOUNT);
+            Long reserveAccountId = bankAccountId(KES_RESERVE_ACCOUNT);
+            fundFy2025Accounts();
+
+            seedPayrollYear();
+            seedPrepayments(operatingAccountId);
+            seedLoans(operatingAccountId, reserveAccountId);
+            seedExpenses(operatingAccountId);
+            seedDeposits(operatingAccountId);
+            seedDownpayments(operatingAccountId);
+            seedBankTransfers(operatingAccountId, reserveAccountId);
+            seedBankReconciliation(reserveAccountId);
+
+            yearEndClosingService.closeFinancialYear(fy2025Id);
+            log.info("FY 2025 full demo seeding complete: re-closed with a full payroll year, prepayments, "
+                    + "loans and the newer modules all posted alongside the original invoices/bills.");
+    
+        } catch (Exception e) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            log.error("FY2025FullDemoSeeder failed during startup seeding - skipping so the "
+                    + "application can still start. Any changes from this run were rolled back.", e);
         }
-
-        FinancialYear fy2025 = financialYearRepository.findAll().stream()
-                .filter(fy -> FY_2025.equals(fy.getName()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(FY_2025 + " not found - DemoDataSeeder should have seeded it already"));
-        Long fy2025Id = fy2025.getId();
-
-        reopenAndUnlock(fy2025Id);
-
-        Long operatingAccountId = bankAccountId(KES_OPERATING_ACCOUNT);
-        Long reserveAccountId = bankAccountId(KES_RESERVE_ACCOUNT);
-        fundFy2025Accounts();
-
-        seedPayrollYear();
-        seedPrepayments(operatingAccountId);
-        seedLoans(operatingAccountId, reserveAccountId);
-        seedExpenses(operatingAccountId);
-        seedDeposits(operatingAccountId);
-        seedDownpayments(operatingAccountId);
-        seedBankTransfers(operatingAccountId, reserveAccountId);
-        seedBankReconciliation(reserveAccountId);
-
-        yearEndClosingService.closeFinancialYear(fy2025Id);
-        log.info("FY 2025 full demo seeding complete: re-closed with a full payroll year, prepayments, "
-                + "loans and the newer modules all posted alongside the original invoices/bills.");
     }
 
     // ================= Reopen / unlock =================

@@ -1495,3 +1495,44 @@ real, non-trivial comparison year - e.g. Operating Expenses of KES 291,181.75 fo
 2025 period, not the near-zero prior year the same call would have returned before this seeder.
 Backend `compileJava` is clean (JDK temporarily bumped to 21 for the sandbox's compiler, reverted
 to 20 before committing, same as every prior phase).
+
+> **Update — one bad employee could crash the whole backend on startup:** the user reported that
+> `PayrollCalculationService` was throwing `"<employee> has no compensation assignment effective
+> 2025-01-31"` on every single run of the application. Root cause had two layers, both fixed.
+
+The proximate cause: they had manually created an employee through the UI without setting a
+salary structure/basic salary (both optional fields on `CreateEmployeeRequest` - `EmployeeService
+.create()` only opens an `EmployeeSalaryStructure` assignment "if (request.getSalaryStructureId()
+!= null && request.getBasicSalary() != null)"), and assigned them to the same "Monthly Salaried
+Staff" payroll group `FY2025FullDemoSeeder` drives through all twelve 2025 periods.
+`PayrollRunService.calculate()` built its employee list from `EmployeeService
+.getActiveEmployeesForGroup()`, which filtered on nothing but `EmploymentStatus.ACTIVE` - no
+`dateOfEmployment` check at all - so every currently-active employee got pulled into every
+historical run regardless of whether they existed yet, and `PayrollCalculationService` correctly,
+but unhelpfully, blew up the instant it hit one with no compensation covering that period.
+Fixed by giving `getActiveEmployeesForGroup` the period's end date and filtering out anyone hired
+after it (nulls left in, since `dateOfEmployment` isn't required at the DB/DTO level) -
+`PayrollRunService.calculate()` passes `run.getPayrollCalendarPeriod().getPeriodEnd()` through.
+Confirmed live: created an employee hired 2026-10-01 with no salary in the same payroll group,
+calculated a May-2026 run, and `employeeCount` came back `5` (the employee correctly excluded) -
+same scenario that used to throw.
+
+The reason this took down the *whole application* rather than failing one screen: it was firing
+from inside `FY2025FullDemoSeeder`'s `ApplicationRunner.run()` at startup, where nothing has ever
+caught an exception in this codebase's dozen seeders - an uncaught exception there propagates
+straight out of Spring Boot's `SpringApplication.run()` and kills the process, which is exactly
+what crashed on every restart since the transaction rollback left the bad employee (and
+`FY2025FullDemoSeeder`'s own idempotency gate) exactly where they'd break it again. One
+employee's bad data has no business taking the entire backend down with it, seed or otherwise, so
+every seeder's `run()` now wraps its body in a `try/catch(Exception)` that calls
+`TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` (so anything already
+written in that transaction still rolls back - swallowing the exception without this would have
+instead *committed* a half-seeded run) and logs an `ERROR` naming the seeder, instead of
+rethrowing. Verified live with a throwaway seeder that unconditionally throws: the application
+still logged `Started XaccountingApplication` and served a login request normally, with only an
+`ERROR` line marking the seeder that failed - confirmed the real twelve seeders behave the same
+way by force-recompiling and booting against the fully-seeded database with no regressions, then
+merged in the fixed-asset module another session had landed on this branch in the meantime (no
+conflicts, one `bootRun` afterward to confirm `SettingsPermissionBackfillSeeder` still grants its
+new permission group cleanly alongside everything else). Backend `compileJava` is clean (JDK
+bumped to 21 then reverted to 20, same as every prior phase).

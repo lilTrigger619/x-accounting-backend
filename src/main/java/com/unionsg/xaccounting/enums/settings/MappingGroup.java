@@ -11,7 +11,8 @@ public enum MappingGroup implements LabeledEnum {
     PREPAYMENTS("Prepayments"),
     LOANS("Loans"),
     BANKING("Banking"),
-    DEPOSITS("Deposits");
+    DEPOSITS("Deposits"),
+    FIXED_ASSETS("Fixed Assets");
 
     private final String label;
 

@@ -14,7 +14,9 @@ public enum JournalType {
     LOAN,
     BANK_TRANSFER,
     DEPOSIT,
-    EXPENSE;
+    EXPENSE,
+    FIXED_ASSET,
+    DEPRECIATION;
 
     /**
      * Whether a person may pick this type for a journal entered by hand. Every other type is

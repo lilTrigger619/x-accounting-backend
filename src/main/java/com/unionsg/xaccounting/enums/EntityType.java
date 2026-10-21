@@ -27,5 +27,6 @@ public enum EntityType {
     CLOSING_JOURNAL,
     REVERSING_JOURNAL,
     BANK_TRANSFER,
-    LOAN
+    LOAN,
+    FIXED_ASSET
 }

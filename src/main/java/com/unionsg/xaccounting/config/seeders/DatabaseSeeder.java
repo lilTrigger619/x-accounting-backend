@@ -571,6 +571,21 @@ public class DatabaseSeeder implements ApplicationRunner {
         seedBankingAccountsIfMissing(revenueChart, expenseChart);
         // Bank reconciliation suspense (MappingKey.BANK_RECONCILIATION_SUSPENSE).
         addAccountIfMissing("1799", "Bank Reconciliation Suspense", assetChart, 90L);
+        seedFixedAssetAccountsIfMissing(assetChart, revenueChart, expenseChart);
+    }
+
+    /**
+     * Default targets for the {@code MappingKey.FIXED_ASSET_*} keys. Cost and accumulated
+     * depreciation already exist (1730, 1710); these add the depreciation expense, impairment and
+     * disposal gain/loss accounts. Gain and loss sit in the existing "Other income" (22) and
+     * "Other expense" (28) groups so analytics reads them as non-operating.
+     */
+    private void seedFixedAssetAccountsIfMissing(ChartOfAccount assetChart, ChartOfAccount revenueChart, ChartOfAccount expenseChart) {
+        addAccountIfMissing("1715", "Accumulated Impairment", assetChart, 9201L);
+        addAccountIfMissing("5120", "Depreciation Expense", expenseChart, 9202L);
+        addAccountIfMissing("5130", "Impairment Loss", expenseChart, 28L);
+        addAccountIfMissing("4070", "Gain on Disposal of Assets", revenueChart, 22L);
+        addAccountIfMissing("5125", "Loss on Disposal of Assets", expenseChart, 28L);
     }
 
     /**

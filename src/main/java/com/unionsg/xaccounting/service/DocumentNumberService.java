@@ -245,6 +245,8 @@ public class DocumentNumberService {
             case "DEPOSIT" -> "DEP";
             case "BANK_RECONCILIATION" -> "BREC";
             case "EXPENSE" -> "EXP";
+            case "FIXED_ASSET" -> "FA";
+            case "DEPRECIATION_RUN" -> "DEPR";
             default -> moduleName.substring(0, Math.min(moduleName.length(), 3));
         };
     }
@@ -284,7 +286,9 @@ public class DocumentNumberService {
                 DocumentModule.BANK_TRANSFER,
                 DocumentModule.DEPOSIT,
                 DocumentModule.BANK_RECONCILIATION,
-                DocumentModule.EXPENSE
+                DocumentModule.EXPENSE,
+                DocumentModule.FIXED_ASSET,
+                DocumentModule.DEPRECIATION_RUN
         ).stream().map(this::getConfig).toList();
     }
 

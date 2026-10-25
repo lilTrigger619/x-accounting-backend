@@ -108,6 +108,10 @@ class FixedAssetIntegrationTest {
         for (AccountingPeriod p : periodRepository.findAll()) {
             if (p.getStartDate().getYear() == 2026 && p.getStartDate().getMonthValue() >= 3) p.setStatus(AccountingPeriodStatus.OPEN);
         }
+        // Set aside whatever FixedAssetDemoSeeder (or earlier use) left, so each period is free to run
+        // and only the test's own assets are depreciated. Rolled back with the test.
+        entityManager.createNativeQuery("update depreciation_runs set active_period_id = null").executeUpdate();
+        entityManager.createNativeQuery("update fixed_assets set is_deleted = true").executeUpdate();
 
         SaveAssetCategoryRequest c = new SaveAssetCategoryRequest();
         c.setCode("TEST-EQ");

@@ -18,6 +18,8 @@ public class AccountListResponse {
     private String accountName;
     private String accountType;
     private String subType;
+    /** The chart-of-accounts heading the account sits under, e.g. "Current Assets". */
+    private String chartType;
     private AccountStatus status;
     private BigDecimal balance;
     private boolean controlAccount;

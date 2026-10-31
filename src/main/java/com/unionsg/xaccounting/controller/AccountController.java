@@ -3,6 +3,7 @@ package com.unionsg.xaccounting.controller;
 import com.unionsg.xaccounting.dto.AccountCreationDTO;
 import com.unionsg.xaccounting.dto.AccountDTO;
 import com.unionsg.xaccounting.dto.AccountListResponse;
+import com.unionsg.xaccounting.dto.SimilarAccountsResponse;
 import com.unionsg.xaccounting.service.AccountCommandService;
 import com.unionsg.xaccounting.service.AccountService;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,15 @@ public class AccountController {
     @GetMapping("/v1/by-number")
     public ResponseEntity<List<AccountListResponse>> getAccountsByNumbers(@RequestParam List<String> numbers) {
         return ResponseEntity.ok(accountService.getAccountsByNumbers(numbers));
+    }
+
+    // GET /api/accounts/v1/similar?name=Cash%20at%20bank — warns about near-duplicate names before creating one
+    @GetMapping("/v1/similar")
+    public ResponseEntity<SimilarAccountsResponse> getSimilarAccounts(
+            @RequestParam String name,
+            @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ResponseEntity.ok(accountService.findSimilarByName(name, Math.min(limit, 200)));
     }
 
     @GetMapping("/{id}")

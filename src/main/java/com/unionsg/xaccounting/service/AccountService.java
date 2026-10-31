@@ -1,6 +1,7 @@
 package com.unionsg.xaccounting.service;
 
 import com.unionsg.xaccounting.dto.AccountListResponse;
+import com.unionsg.xaccounting.dto.SimilarAccountsResponse;
 import com.unionsg.xaccounting.enums.AccountStatus;
 import com.unionsg.xaccounting.enums.AccountType;
 import org.springframework.data.domain.Page;
@@ -20,4 +21,7 @@ public interface AccountService {
 
     /** The accounts with these account numbers, with their current balances. */
     List<AccountListResponse> getAccountsByNumbers(Collection<String> accountNumbers);
+
+    /** Existing accounts whose names look like {@code name}, most alike first, at most {@code limit} of them. */
+    SimilarAccountsResponse findSimilarByName(String name, int limit);
 }

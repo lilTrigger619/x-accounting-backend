@@ -1,12 +1,14 @@
 package com.unionsg.xaccounting.service;
 
 import com.unionsg.xaccounting.dto.AccountListResponse;
+import com.unionsg.xaccounting.dto.SimilarAccountsResponse;
 import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.enums.AccountStatus;
 import com.unionsg.xaccounting.enums.AccountType;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.repository.AccountRepository;
 import com.unionsg.xaccounting.repository.journal.JournalLineRepository;
+import com.unionsg.xaccounting.utils.AccountNameSimilarity;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -83,6 +86,24 @@ public class AccountServiceImpl implements AccountService {
         return toListResponses(accountRepository.findAll(spec));
     }
 
+    @Override
+    public SimilarAccountsResponse findSimilarByName(String name, int limit) {
+        if (name == null || name.trim().length() < 2) {
+            return new SimilarAccountsResponse(0, List.of());
+        }
+        // A chart of accounts is small enough to score every live account in memory.
+        Specification<AccountEntity> live = (root, query, cb) -> cb.equal(root.get("deleted"), false);
+        record Scored(AccountEntity account, double score) { }
+        List<Scored> similar = accountRepository.findAll(live).stream()
+                .map(a -> new Scored(a, AccountNameSimilarity.score(name, a.getAccountName())))
+                .filter(s -> s.score() >= AccountNameSimilarity.THRESHOLD)
+                .sorted(Comparator.comparingDouble(Scored::score).reversed()
+                        .thenComparing(s -> s.account().getAccountName(), Comparator.nullsLast(String::compareToIgnoreCase)))
+                .toList();
+        List<AccountEntity> shown = similar.stream().limit(Math.max(limit, 1)).map(Scored::account).toList();
+        return new SimilarAccountsResponse(similar.size(), toListResponses(shown));
+    }
+
     private List<AccountListResponse> toListResponses(List<AccountEntity> accounts) {
         List<String> codes = accounts.stream().map(AccountEntity::getAccountId).toList();
         Map<String, BigDecimal> movements = codes.isEmpty()
@@ -114,6 +135,9 @@ public class AccountServiceImpl implements AccountService {
                 .accountType(type != null ? type.name() : null)
                 .subType(entity.getCoaClearTo() != null
                         ? entity.getCoaClearTo().getDescription()
+                        : null)
+                .chartType(entity.getCoaClearTo() != null && entity.getCoaClearTo().getChartOfAccount() != null
+                        ? entity.getCoaClearTo().getChartOfAccount().getCoa_description()
                         : null)
 
                 .status(entity.getIsActive() != null && entity.getIsActive() ? AccountStatus.ACTIVE : AccountStatus.INACTIVE)

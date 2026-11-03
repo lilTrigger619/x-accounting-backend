@@ -1,6 +1,10 @@
 package com.unionsg.xaccounting.entity.settings;
 
 import com.unionsg.xaccounting.entity.BaseEntity;
+import com.unionsg.xaccounting.entity.branch.Branch;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import com.unionsg.xaccounting.enums.settings.BankAccountStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,8 +42,17 @@ public class BankAccount extends BaseEntity {
     @Column(name = "gl_account_code", nullable = false, length = 20)
     private String glAccountCode;
 
+    /** The bank's own branch name (e.g. "Osu"), not one of the business's branches. */
     @Column(length = 100)
     private String branch;
+
+    /**
+     * The business branch that holds this account. Lines posted to its GL account land in this
+     * branch, so paying another branch's cost from it produces inter-branch lines.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "home_branch_id")
+    private Branch homeBranch;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

@@ -60,6 +60,9 @@ public class YearEndClosingService {
     private final FinancialPeriodAuditLogService auditLogService;
 
     private final com.unionsg.xaccounting.service.settings.AccountingMappingService accountingMappingService;
+    private final com.unionsg.xaccounting.repository.branch.BranchLedgerRepository branchLedgerRepository;
+    private final com.unionsg.xaccounting.repository.branch.CostCenterRepository costCenterRepository;
+    private final com.unionsg.xaccounting.service.branch.BranchService branchService;
 
     @Transactional(readOnly = true)
     public YearEndClosingPreviewResponse getClosingPreview(Long financialYearId) {
@@ -185,23 +188,44 @@ public class YearEndClosingService {
             ProfitLossReportInternalDTO report,
             BigDecimal netProfitLoss
     ) {
+        // Close each income / expense account in each cost center it was used in, and move each
+        // branch's own net result to Retained Earnings in that branch, so every branch's books
+        // still balance on their own after closing (self-balancing branches).
         List<JournalLine> lines = new ArrayList<>();
         int lineNumber = 1;
 
-        for (ProfitLossAccountDto revenue : report.revenueAccounts()) {
-            JournalLine line = zeroingLine(revenue, true, lineNumber);
-            if (line != null) {
-                lines.add(line);
-                lineNumber++;
-            }
-        }
+        java.util.Map<Long, com.unionsg.xaccounting.entity.branch.CostCenter> costCenters = new java.util.HashMap<>();
+        costCenterRepository.findAll().forEach(cc -> costCenters.put(cc.getId(), cc));
+        java.util.Map<Long, BigDecimal> branchNet = new java.util.LinkedHashMap<>();
+        java.util.Map<Long, com.unionsg.xaccounting.entity.branch.Branch> branches = new java.util.HashMap<>();
 
-        for (ProfitLossAccountDto expense : report.expenseAccounts()) {
-            JournalLine line = zeroingLine(expense, false, lineNumber);
-            if (line != null) {
-                lines.add(line);
-                lineNumber++;
+        for (com.unionsg.xaccounting.repository.branch.BranchLedgerRepository.CostCenterActivity activity
+                : branchLedgerRepository.costCenterActivity(fy.getStartDate(), fy.getEndDate(), costCenters.keySet().isEmpty()
+                        ? java.util.Set.of(-1L) : costCenters.keySet(), true)) {
+            boolean isRevenue = activity.getAccountType() == com.unionsg.xaccounting.enums.AccountType.INCOME;
+            BigDecimal amount = isRevenue
+                    ? activity.getTotalCredit().subtract(activity.getTotalDebit())
+                    : activity.getTotalDebit().subtract(activity.getTotalCredit());
+            if (amount.signum() == 0) {
+                continue;
             }
+            com.unionsg.xaccounting.entity.branch.CostCenter cc = costCenters.get(activity.getCostCenterId());
+            AccountEntity account = accountRepository.findById(activity.getAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + activity.getAccountName()));
+            JournalLine line = new JournalLine();
+            line.setAccount(account);
+            line.setLineNumber(lineNumber++);
+            line.setDescription("Closing of " + activity.getAccountName());
+            // Revenue normally sits as a credit; zero it with a debit (and the mirror for
+            // expenses or an unusual balance).
+            boolean zeroWithDebit = isRevenue == (amount.signum() > 0);
+            line.setDebitAmount(zeroWithDebit ? amount.abs() : BigDecimal.ZERO);
+            line.setCreditAmount(zeroWithDebit ? BigDecimal.ZERO : amount.abs());
+            line.setCostCenter(cc);
+            line.setBranch(cc.getBranch());
+            lines.add(line);
+            branches.putIfAbsent(cc.getBranch().getId(), cc.getBranch());
+            branchNet.merge(cc.getBranch().getId(), isRevenue ? amount : amount.negate(), BigDecimal::add);
         }
 
         if (lines.isEmpty() || netProfitLoss.compareTo(BigDecimal.ZERO) == 0) {
@@ -214,19 +238,24 @@ public class YearEndClosingService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Retained Earnings account not found (accountId " + retainedEarningsAccountId + ")"));
 
-        JournalLine retainedEarningsLine = new JournalLine();
-        retainedEarningsLine.setAccount(retainedEarnings);
-        retainedEarningsLine.setLineNumber(lineNumber);
-        retainedEarningsLine.setDescription("Transfer of net "
-                + (netProfitLoss.compareTo(BigDecimal.ZERO) >= 0 ? "profit" : "loss") + " to Retained Earnings");
-        if (netProfitLoss.compareTo(BigDecimal.ZERO) > 0) {
-            retainedEarningsLine.setDebitAmount(BigDecimal.ZERO);
-            retainedEarningsLine.setCreditAmount(netProfitLoss);
-        } else {
-            retainedEarningsLine.setDebitAmount(netProfitLoss.abs());
-            retainedEarningsLine.setCreditAmount(BigDecimal.ZERO);
+        for (java.util.Map.Entry<Long, BigDecimal> e : branchNet.entrySet()) {
+            BigDecimal net = e.getValue();
+            if (net.signum() == 0) {
+                continue;
+            }
+            com.unionsg.xaccounting.entity.branch.Branch branch = branches.get(e.getKey());
+            com.unionsg.xaccounting.entity.branch.CostCenter branchDefault = branchService.defaultCostCenterOf(branch);
+            JournalLine retainedEarningsLine = new JournalLine();
+            retainedEarningsLine.setAccount(retainedEarnings);
+            retainedEarningsLine.setLineNumber(lineNumber++);
+            retainedEarningsLine.setDescription("Transfer of " + branch.getName() + " net "
+                    + (net.signum() >= 0 ? "profit" : "loss") + " to Retained Earnings");
+            retainedEarningsLine.setDebitAmount(net.signum() > 0 ? BigDecimal.ZERO : net.abs());
+            retainedEarningsLine.setCreditAmount(net.signum() > 0 ? net : BigDecimal.ZERO);
+            retainedEarningsLine.setCostCenter(branchDefault);
+            retainedEarningsLine.setBranch(branch);
+            lines.add(retainedEarningsLine);
         }
-        lines.add(retainedEarningsLine);
 
         JournalEntry entry = new JournalEntry();
         entry.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
@@ -258,35 +287,4 @@ public class YearEndClosingService {
         return journalMapper.toResponse(saved);
     }
 
-    private JournalLine zeroingLine(ProfitLossAccountDto accountDto, boolean isRevenue, int lineNumber) {
-        BigDecimal amount = accountDto.amount();
-        if (amount.compareTo(BigDecimal.ZERO) == 0) {
-            return null;
-        }
-
-        AccountEntity account = accountRepository.findById(accountDto.accountId())
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountDto.accountName()));
-
-        JournalLine line = new JournalLine();
-        line.setAccount(account);
-        line.setLineNumber(lineNumber);
-        line.setDescription("Closing of " + accountDto.accountName());
-
-        boolean normalPositive = amount.compareTo(BigDecimal.ZERO) > 0;
-        BigDecimal absAmount = amount.abs();
-
-        // Revenue accounts normally carry a credit balance; zero it with a debit (and vice versa
-        // for an unusual/contra balance). Expense accounts are the mirror image.
-        boolean zeroWithDebit = isRevenue == normalPositive;
-
-        if (zeroWithDebit) {
-            line.setDebitAmount(absAmount);
-            line.setCreditAmount(BigDecimal.ZERO);
-        } else {
-            line.setDebitAmount(BigDecimal.ZERO);
-            line.setCreditAmount(absAmount);
-        }
-
-        return line;
-    }
 }

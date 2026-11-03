@@ -32,12 +32,19 @@ public class TrialBalanceServiceImpl implements TrialBalanceService {
 
     @Override
     public TrialBalanceResponseDTO generateReport(LocalDate asOfDate) {
+        return generateReport(asOfDate, null);
+    }
+
+    @Override
+    public TrialBalanceResponseDTO generateReport(LocalDate asOfDate, java.util.Set<Long> costCenterIds) {
 
         if (asOfDate == null) {
             throw new BadRequestException("As-of date is required");
         }
 
-        List<ProfitLossAccountProjection> accounts = ledgerAsOfBalanceRepository.findAsOfBalances(asOfDate, ALL_TYPES);
+        List<ProfitLossAccountProjection> accounts = costCenterIds == null
+                ? ledgerAsOfBalanceRepository.findAsOfBalances(asOfDate, ALL_TYPES)
+                : ledgerAsOfBalanceRepository.findAsOfBalancesInCostCenters(asOfDate, ALL_TYPES, costCenterIds);
 
         List<TrialBalanceRowDto> rows = new ArrayList<>();
         BigDecimal totalDebit = BigDecimal.ZERO;

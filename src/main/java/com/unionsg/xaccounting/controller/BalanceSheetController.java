@@ -17,14 +17,19 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class BalanceSheetController {
 
+    private final com.unionsg.xaccounting.service.branch.ReportScopeResolver reportScopeResolver;
+
     private final BalanceSheetService balanceSheetService;
 
     @GetMapping("/balance-sheet")
     public ResponseEntity<BalanceSheetResponseDTO> getBalanceSheet(
             @RequestParam
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate asOfDate
+            LocalDate asOfDate,
+            @RequestParam(required = false) java.util.List<Long> branchIds,
+            @RequestParam(required = false) java.util.List<Long> costCenterIds
     ) {
-        return ResponseEntity.ok(balanceSheetService.generateReport(asOfDate));
+        return ResponseEntity.ok(balanceSheetService.generateReport(asOfDate,
+                reportScopeResolver.costCenterFilter(branchIds, costCenterIds)));
     }
 }

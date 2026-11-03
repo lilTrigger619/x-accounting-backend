@@ -106,11 +106,14 @@ public class JournalController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(required = false) String sourceModule,
+            @RequestParam(required = false) java.util.List<Long> branchIds,
+            @RequestParam(required = false) java.util.List<Long> costCenterIds,
             Pageable pageable
     ) {
 
         Page<JournalResponse> response =
-                journalService.getAll(search, status, journalType, fromDate, toDate, sourceModule, pageable);
+                journalService.getAll(search, status, journalType, fromDate, toDate, sourceModule,
+                        branchIds, costCenterIds, pageable);
 
         return ResponseEntity.ok(response);
     }
@@ -158,5 +161,55 @@ public class JournalController {
         journalService.deleteDraft(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    // =====================================================
+    // Approval workflow
+    // =====================================================
+
+    /** Journals waiting for approval, limited to the approver's branch / cost center scope. */
+    @GetMapping("/approval-queue")
+    @com.unionsg.xaccounting.security.annotation.RequirePermission(value = "approve_journals", group = "Journals")
+    public ResponseEntity<Page<JournalResponse>> approvalQueue(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) java.util.List<Long> branchIds,
+            @RequestParam(required = false) java.util.List<Long> costCenterIds,
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(journalService.getAll(search, JournalStatus.SUBMITTED, null, null, null, null,
+                branchIds, costCenterIds, pageable));
+    }
+
+    @PostMapping("/{id}/submit")
+    public ResponseEntity<JournalResponse> submit(
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, String> body
+    ) {
+        return ResponseEntity.ok(journalService.submit(id, body != null ? body.get("comment") : null));
+    }
+
+    @PostMapping("/{id}/approve")
+    @com.unionsg.xaccounting.security.annotation.RequirePermission(value = "approve_journals", group = "Journals")
+    public ResponseEntity<JournalResponse> approve(
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, String> body
+    ) {
+        return ResponseEntity.ok(journalService.approve(id, body != null ? body.get("comment") : null));
+    }
+
+    @PostMapping("/{id}/reject")
+    @com.unionsg.xaccounting.security.annotation.RequirePermission(value = "approve_journals", group = "Journals")
+    public ResponseEntity<JournalResponse> reject(
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, String> body
+    ) {
+        return ResponseEntity.ok(journalService.reject(id, body != null ? body.get("reason") : null));
+    }
+
+    @GetMapping("/{id}/approval-history")
+    public ResponseEntity<java.util.List<com.unionsg.xaccounting.dto.branch.JournalApprovalEventResponse>> approvalHistory(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(journalService.approvalHistory(id));
     }
 }

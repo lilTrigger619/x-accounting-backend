@@ -28,4 +28,13 @@ public class JournalLineResponse {
 
     private BigDecimal creditAmount;
 
+    private Long branchId;
+    private String branchCode;
+    private String branchName;
+    private Long costCenterId;
+    private String costCenterCode;
+    private String costCenterName;
+    private Long counterpartyBranchId;
+    private String counterpartyBranchName;
+    private Boolean interBranch;
 }

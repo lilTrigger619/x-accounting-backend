@@ -17,6 +17,11 @@ public interface BankAccountRepository extends JpaRepository<BankAccount, Long> 
 
     boolean existsByGlAccountCode(String glAccountCode);
 
+    boolean existsByHomeBranchId(Long branchId);
+
+    @Query("SELECT b FROM BankAccount b JOIN FETCH b.homeBranch WHERE b.homeBranch IS NOT NULL AND b.deleted = false")
+    List<BankAccount> findAllWithHomeBranch();
+
     /** Locks the row so concurrent postings that draw on the same account run one at a time. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM BankAccount b WHERE b.id = :id")

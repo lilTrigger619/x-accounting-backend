@@ -49,4 +49,35 @@ public interface LedgerAsOfBalanceRepository extends JpaRepository<JournalLine, 
             @Param("asOfDate") @NonNull LocalDate asOfDate,
             @Param("accountTypes") List<AccountType> accountTypes
     );
+
+    /** Same, limited to the given cost centers (branch / cost center reporting). */
+    @Query("""
+        SELECT
+            acc.id AS accountId,
+            acc.accountId AS accountCode,
+            acc.accountName AS accountName,
+            coa.accountType AS accountType,
+            coa.normalBalance AS normalBalance,
+            COALESCE(SUM(jl.debitAmount), 0) AS totalDebit,
+            COALESCE(SUM(jl.creditAmount), 0) AS totalCredit
+        FROM JournalLine jl
+            JOIN jl.journalEntry je
+            JOIN jl.account acc
+            JOIN acc.coaClearTo clearTo
+            JOIN clearTo.chartOfAccount coa
+        WHERE
+            je.status IN (JournalStatus.POSTED, JournalStatus.REVERSED)
+            AND je.journalDate <= :asOfDate
+            AND coa.accountType IN :accountTypes
+            AND jl.costCenter.id IN :costCenterIds
+        GROUP BY
+            acc.id, acc.accountId, acc.accountName, coa.accountType, coa.normalBalance
+        ORDER BY
+            acc.accountId ASC
+        """)
+    List<ProfitLossAccountProjection> findAsOfBalancesInCostCenters(
+            @Param("asOfDate") @NonNull LocalDate asOfDate,
+            @Param("accountTypes") List<AccountType> accountTypes,
+            @Param("costCenterIds") java.util.Collection<Long> costCenterIds
+    );
 }

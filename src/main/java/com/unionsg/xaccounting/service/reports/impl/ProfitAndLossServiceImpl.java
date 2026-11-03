@@ -39,18 +39,22 @@ public class ProfitAndLossServiceImpl implements ProfitAndLossService {
             LocalDate fromDate,
             LocalDate toDate
     ) {
+        return generateReport(fromDate, toDate, null);
+    }
+
+    @Override
+    public ProfitLossReportInternalDTO generateReport(
+            LocalDate fromDate,
+            LocalDate toDate,
+            java.util.Set<Long> costCenterIds
+    ) {
 
         validateDates(fromDate, toDate);
 
-        List<ProfitLossAccountProjection> projections =
-                repository.findProfitLossAccounts(
-                        fromDate,
-                        toDate,
-                        List.of(
-                                AccountType.INCOME,
-                                AccountType.EXPENSE
-                        )
-                );
+        List<AccountType> types = List.of(AccountType.INCOME, AccountType.EXPENSE);
+        List<ProfitLossAccountProjection> projections = costCenterIds == null
+                ? repository.findProfitLossAccounts(fromDate, toDate, types)
+                : repository.findProfitLossAccountsInCostCenters(fromDate, toDate, types, costCenterIds);
 
         List<ProfitLossAccountDto> revenueAccounts = new ArrayList<>();
         List<ProfitLossAccountDto> expenseAccounts = new ArrayList<>();

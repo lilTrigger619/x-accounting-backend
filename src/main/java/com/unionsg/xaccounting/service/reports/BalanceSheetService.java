@@ -8,4 +8,7 @@ public interface BalanceSheetService {
 
     BalanceSheetResponseDTO generateReport(LocalDate asOfDate);
 
+    /** costCenterIds null = every cost center (consolidated). */
+    BalanceSheetResponseDTO generateReport(LocalDate asOfDate, java.util.Set<Long> costCenterIds);
+
 }

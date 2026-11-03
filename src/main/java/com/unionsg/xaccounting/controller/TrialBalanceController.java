@@ -17,14 +17,19 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class TrialBalanceController {
 
+    private final com.unionsg.xaccounting.service.branch.ReportScopeResolver reportScopeResolver;
+
     private final TrialBalanceService trialBalanceService;
 
     @GetMapping("/trial-balance")
     public ResponseEntity<TrialBalanceResponseDTO> getTrialBalance(
             @RequestParam
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate asOfDate
+            LocalDate asOfDate,
+            @RequestParam(required = false) java.util.List<Long> branchIds,
+            @RequestParam(required = false) java.util.List<Long> costCenterIds
     ) {
-        return ResponseEntity.ok(trialBalanceService.generateReport(asOfDate));
+        return ResponseEntity.ok(trialBalanceService.generateReport(asOfDate,
+                reportScopeResolver.costCenterFilter(branchIds, costCenterIds)));
     }
 }

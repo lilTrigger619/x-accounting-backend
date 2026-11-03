@@ -33,15 +33,22 @@ public class BalanceSheetServiceImpl implements BalanceSheetService {
 
     @Override
     public BalanceSheetResponseDTO generateReport(LocalDate asOfDate) {
+        return generateReport(asOfDate, null);
+    }
+
+    @Override
+    public BalanceSheetResponseDTO generateReport(LocalDate asOfDate, java.util.Set<Long> costCenterIds) {
 
         if (asOfDate == null) {
             throw new BadRequestException("As-of date is required");
         }
 
-        List<ProfitLossAccountProjection> rows = ledgerAsOfBalanceRepository.findAsOfBalances(
-                asOfDate,
-                List.of(AccountType.ASSET, AccountType.LIABILITY, AccountType.EQUITY)
-        );
+        List<AccountType> types = List.of(AccountType.ASSET, AccountType.LIABILITY, AccountType.EQUITY);
+        // Consolidated (no filter): inter-branch balances net to zero and drop out below.
+        // Per branch: they show as that branch's due from / due to other branches.
+        List<ProfitLossAccountProjection> rows = costCenterIds == null
+                ? ledgerAsOfBalanceRepository.findAsOfBalances(asOfDate, types)
+                : ledgerAsOfBalanceRepository.findAsOfBalancesInCostCenters(asOfDate, types, costCenterIds);
 
         List<BalanceSheetAccountDto> assets = new ArrayList<>();
         List<BalanceSheetAccountDto> liabilities = new ArrayList<>();
@@ -82,7 +89,7 @@ public class BalanceSheetServiceImpl implements BalanceSheetService {
             }
         }
 
-        BigDecimal currentYearEarnings = computeCurrentYearEarnings(asOfDate);
+        BigDecimal currentYearEarnings = computeCurrentYearEarnings(asOfDate, costCenterIds);
         BigDecimal totalEquityAndCurrentEarnings = totalEquity.add(currentYearEarnings);
         BigDecimal totalLiabilitiesAndEquity = totalLiabilities.add(totalEquityAndCurrentEarnings);
         BigDecimal balanceCheck = totalAssets.subtract(totalLiabilitiesAndEquity);
@@ -95,7 +102,7 @@ public class BalanceSheetServiceImpl implements BalanceSheetService {
                 currentYearEarnings, totalEquityAndCurrentEarnings,
                 totalLiabilitiesAndEquity,
                 balanceCheck,
-                fixedAssetReportService.balanceSheetNote(asOfDate)
+                costCenterIds == null ? fixedAssetReportService.balanceSheetNote(asOfDate) : null
         );
     }
 
@@ -106,14 +113,14 @@ public class BalanceSheetServiceImpl implements BalanceSheetService {
      * year-to-date so the report still produces a sensible number before Financial Years are
      * set up at all.
      */
-    private BigDecimal computeCurrentYearEarnings(LocalDate asOfDate) {
+    private BigDecimal computeCurrentYearEarnings(LocalDate asOfDate, java.util.Set<Long> costCenterIds) {
         LocalDate periodStart = currentFiscalPeriodResolver.resolveYearStart(asOfDate);
 
         if (periodStart.isAfter(asOfDate)) {
             return BigDecimal.ZERO;
         }
 
-        ProfitLossReportInternalDTO ytd = profitAndLossService.generateReport(periodStart, asOfDate);
+        ProfitLossReportInternalDTO ytd = profitAndLossService.generateReport(periodStart, asOfDate, costCenterIds);
         return ytd.totalRevenue().subtract(ytd.totalExpenses());
     }
 }

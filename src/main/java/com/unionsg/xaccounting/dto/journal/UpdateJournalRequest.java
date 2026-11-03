@@ -37,4 +37,9 @@ public class UpdateJournalRequest {
     @NotEmpty(message = "Journal must contain at least one line")
     private List<CreateJournalLineRequest> lines;
 
+    /** Originating branch; defaults to the cost center's branch or the poster's default. */
+    private Long branchId;
+
+    /** Default cost center for lines that don't name one. */
+    private Long costCenterId;
 }

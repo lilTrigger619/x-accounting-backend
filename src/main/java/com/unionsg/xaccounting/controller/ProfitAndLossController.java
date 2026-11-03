@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ProfitAndLossController {
 
+    private final com.unionsg.xaccounting.service.branch.ReportScopeResolver reportScopeResolver;
+
     private final ProfitAndLossService profitAndLossService;
 
     private final ProfitAndLossFormatter profitAndLossFormatter;
@@ -30,11 +32,16 @@ public class ProfitAndLossController {
 
             @RequestParam
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate toDate
+            LocalDate toDate,
+
+            @RequestParam(required = false) java.util.List<Long> branchIds,
+
+            @RequestParam(required = false) java.util.List<Long> costCenterIds
     ) {
 
         ProfitLossReportResponseDTO response =
-                profitAndLossFormatter.format(fromDate, toDate);
+                profitAndLossFormatter.format(fromDate, toDate,
+                        reportScopeResolver.costCenterFilter(branchIds, costCenterIds));
 
         return ResponseEntity.ok(response);
     }

@@ -21,6 +21,28 @@ import com.unionsg.xaccounting.service.DocumentNumberService;
 import com.unionsg.xaccounting.service.accounting.PeriodLockGuard;
 import com.unionsg.xaccounting.service.config.ConfigValueValidator;
 import com.unionsg.xaccounting.MapperLayer.CreatedByMapper;
+import com.unionsg.xaccounting.dto.branch.JournalApprovalEventResponse;
+import com.unionsg.xaccounting.entity.Journals.JournalApprovalEvent;
+import com.unionsg.xaccounting.entity.User.User;
+import com.unionsg.xaccounting.entity.branch.Branch;
+import com.unionsg.xaccounting.entity.branch.BranchAccountingSettings;
+import com.unionsg.xaccounting.entity.branch.CostCenter;
+import com.unionsg.xaccounting.enums.JournalApprovalAction;
+import com.unionsg.xaccounting.exception.AccessDeniedException;
+import com.unionsg.xaccounting.repository.journal.JournalApprovalEventRepository;
+import com.unionsg.xaccounting.security.service.PermissionService;
+import com.unionsg.xaccounting.security.util.SecurityUtils;
+import com.unionsg.xaccounting.service.branch.AccessScope;
+import com.unionsg.xaccounting.service.branch.AccessScopeService;
+import com.unionsg.xaccounting.service.branch.BranchAccountingSettingsService;
+import com.unionsg.xaccounting.service.branch.InterBranchBalancer;
+import com.unionsg.xaccounting.service.branch.JournalDimensionResolver;
+import jakarta.persistence.criteria.Subquery;
+import jakarta.persistence.criteria.Root;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
@@ -46,6 +68,12 @@ public class JournalServiceImpl implements JournalService {
     private final DocumentNumberService generalSequenceGeneratorService;
     private final PeriodLockGuard periodLockGuard;
     private final ConfigValueValidator configValues;
+    private final JournalDimensionResolver dimensionResolver;
+    private final InterBranchBalancer interBranchBalancer;
+    private final AccessScopeService accessScopeService;
+    private final BranchAccountingSettingsService branchSettings;
+    private final JournalApprovalEventRepository approvalEventRepository;
+    private final PermissionService permissionService;
 
     public JournalServiceImpl(
             JournalEntryRepository journalRepository,
@@ -55,7 +83,13 @@ public class JournalServiceImpl implements JournalService {
             JournalNumberGenerator numberGenerator,
             DocumentNumberService generalSequenceGeneratorService,
             PeriodLockGuard periodLockGuard,
-            ConfigValueValidator configValues
+            ConfigValueValidator configValues,
+            JournalDimensionResolver dimensionResolver,
+            InterBranchBalancer interBranchBalancer,
+            AccessScopeService accessScopeService,
+            BranchAccountingSettingsService branchSettings,
+            JournalApprovalEventRepository approvalEventRepository,
+            PermissionService permissionService
     ) {
         this.journalRepository = journalRepository;
         this.accountRepository = accountRepository;
@@ -65,32 +99,17 @@ public class JournalServiceImpl implements JournalService {
         this.generalSequenceGeneratorService = generalSequenceGeneratorService;
         this.periodLockGuard = periodLockGuard;
         this.configValues = configValues;
+        this.dimensionResolver = dimensionResolver;
+        this.interBranchBalancer = interBranchBalancer;
+        this.accessScopeService = accessScopeService;
+        this.branchSettings = branchSettings;
+        this.approvalEventRepository = approvalEventRepository;
+        this.permissionService = permissionService;
     }
 
     @Override
     public JournalResponse create(CreateJournalRequest request) {
-
-        JournalEntry journal = new JournalEntry();
-
-//        journal.setJournalNumber(numberGenerator.generate());
-        journal.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
-        journal.setJournalDate(request.getJournalDate());
-        journal.setReference(request.getReference());
-        journal.setDescription(request.getDescription());
-        journal.setJournalType(request.getJournalType());
-        journal.setCurrencyCode(request.getCurrencyCode());
-
-        buildLines(journal, request.getLines());
-
-        calculateTotals(journal);
-
-        validateBalanced(journal);
-
-
-        JournalEntry saved = journalRepository.save(journal);
-
-
-        return journalMapper.toResponse(saved);
+        return toResponse(journalRepository.save(build(request, false)));
     }
 
     @Override
@@ -98,7 +117,37 @@ public class JournalServiceImpl implements JournalService {
         assertManualType(request.getJournalType());
         request.setCurrencyCode(configValues.require("currencies", request.getCurrencyCode(), null, "Currency"));
         assertNoControlAccountLines(request.getLines());
-        return create(request);
+        return toResponse(journalRepository.save(build(request, true)));
+    }
+
+    private JournalEntry build(CreateJournalRequest request, boolean manual) {
+
+        JournalEntry journal = new JournalEntry();
+
+        journal.setJournalNumber(generalSequenceGeneratorService.generateNextNumber(DocumentModule.JOURNAL));
+        journal.setJournalDate(request.getJournalDate());
+        journal.setReference(request.getReference());
+        journal.setDescription(request.getDescription());
+        journal.setJournalType(request.getJournalType());
+        journal.setCurrencyCode(request.getCurrencyCode());
+        journal.setManualEntry(manual);
+
+        applyHeaderDimensions(journal, request.getBranchId(), request.getCostCenterId());
+
+        buildLines(journal, request.getLines());
+
+        interBranchBalancer.balance(journal);
+
+        calculateTotals(journal);
+
+        validateBalanced(journal);
+
+        if (manual) {
+            assertLinesInScope(journal, "post to");
+            journal.setRequiresApproval(needsApproval(journal));
+        }
+
+        return journal;
     }
 
     @Override
@@ -106,8 +155,12 @@ public class JournalServiceImpl implements JournalService {
 
         JournalEntry journal = getEntity(id);
 
-        if (journal.getStatus() != JournalStatus.DRAFT) {
-            throw new BadRequestException("Only draft journals can be edited");
+        if (journal.getStatus() != JournalStatus.DRAFT && journal.getStatus() != JournalStatus.REJECTED) {
+            throw new BadRequestException("Only draft or rejected journals can be edited");
+        }
+
+        if (Boolean.TRUE.equals(journal.getManualEntry())) {
+            assertLinesInScope(journal, "edit");
         }
 
         assertNoControlAccountLines(request.getLines());
@@ -124,20 +177,38 @@ public class JournalServiceImpl implements JournalService {
         journal.setReference(request.getReference());
         journal.setDescription(request.getDescription());
 
+        if (request.getBranchId() != null || request.getCostCenterId() != null) {
+            applyHeaderDimensions(journal, request.getBranchId(), request.getCostCenterId());
+        }
+
         journal.getLines().clear();
 
         buildLines(journal, request.getLines());
 
+        interBranchBalancer.balance(journal);
+
         calculateTotals(journal);
+
+        if (Boolean.TRUE.equals(journal.getManualEntry())) {
+            assertLinesInScope(journal, "post to");
+            journal.setRequiresApproval(needsApproval(journal));
+        }
+
+        if (journal.getStatus() == JournalStatus.REJECTED) {
+            // Editing a rejected journal sends it back to draft so it can be resubmitted.
+            journal.setStatus(JournalStatus.DRAFT);
+        }
 
         JournalEntry updated = journalRepository.save(journal);
 
-        return journalMapper.toResponse(updated);
+        return toResponse(updated);
     }
 
     @Override
     public JournalResponse getById(Long id) {
-        JournalResponse response = journalMapper.toResponse(getEntity(id));
+        JournalEntry entity = getEntity(id);
+        assertVisible(entity);
+        JournalResponse response = toResponse(entity);
         journalRepository.findFirstByReversalOfJournalId(id).ifPresent(r -> response.setReversal(
                 JournalReversalResponse.builder()
                         .journalId(r.getId())
@@ -158,7 +229,9 @@ public class JournalServiceImpl implements JournalService {
                         new ResourceNotFoundException("Journal not found")
                 );
 
-        return journalMapper.toResponse(journal);
+        assertVisible(journal);
+
+        return toResponse(journal);
     }
 
 @Override
@@ -171,6 +244,22 @@ public class JournalServiceImpl implements JournalService {
             String sourceModule,
             Pageable pageable
     ) {
+        return getAll(search, status, journalType, fromDate, toDate, sourceModule, null, null, pageable);
+    }
+
+    @Override
+    public Page<JournalResponse> getAll(
+            String search,
+            JournalStatus status,
+            JournalType journalType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String sourceModule,
+            List<Long> branchIds,
+            List<Long> costCenterIds,
+            Pageable pageable
+    ) {
+        AccessScope scope = accessScopeService.current();
         Specification<JournalEntry> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -200,11 +289,23 @@ public class JournalServiceImpl implements JournalService {
                 predicates.add(cb.equal(root.get("sourceModule"), sourceModule));
             }
 
+            if (!scope.global()) {
+                // Visible when any line falls in one of the user's cost centers.
+                Set<Long> ids = scope.costCenterIds().isEmpty() ? Set.of(-1L) : scope.costCenterIds();
+                predicates.add(cb.exists(lineSubquery(query, cb, root, "costCenter", ids)));
+            }
+            if (branchIds != null && !branchIds.isEmpty()) {
+                predicates.add(cb.exists(lineSubquery(query, cb, root, "branch", branchIds)));
+            }
+            if (costCenterIds != null && !costCenterIds.isEmpty()) {
+                predicates.add(cb.exists(lineSubquery(query, cb, root, "costCenter", costCenterIds)));
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
         return journalRepository.findAll(spec, pageable)
-                .map(journalMapper::toResponse);
+                .map(this::toResponse);
     }
 
     @Override
@@ -212,12 +313,17 @@ public class JournalServiceImpl implements JournalService {
 
         JournalEntry journal = getEntity(id);
 
-        if (journal.getStatus() != JournalStatus.DRAFT) {
+        if (journal.getStatus() != JournalStatus.DRAFT && journal.getStatus() != JournalStatus.REJECTED) {
             throw new BadRequestException(
-                    "Only draft journals can be deleted"
+                    "Only draft or rejected journals can be deleted"
             );
         }
 
+        if (Boolean.TRUE.equals(journal.getManualEntry())) {
+            assertLinesInScope(journal, "delete");
+        }
+
+        approvalEventRepository.deleteAll(approvalEventRepository.findByJournalEntryIdOrderByCreatedAtAsc(id));
         journalRepository.delete(journal);
     }
 
@@ -226,11 +332,19 @@ public class JournalServiceImpl implements JournalService {
 
         JournalEntry journal = getEntity(id);
 
+        if (Boolean.TRUE.equals(journal.getManualEntry())) {
+            assertLinesInScope(journal, "post");
+        }
+
         postingService.post(journal);
 
         JournalEntry saved = journalRepository.save(journal);
 
-        return journalMapper.toResponse(saved);
+        if (Boolean.TRUE.equals(journal.getManualEntry())) {
+            recordEvent(saved.getId(), JournalApprovalAction.POSTED, null);
+        }
+
+        return toResponse(saved);
     }
 
     @Override
@@ -280,6 +394,16 @@ public class JournalServiceImpl implements JournalService {
 
         reversal.setJournalType(original.getJournalType());
 
+        reversal.setBranch(original.getBranch());
+
+        reversal.setCostCenter(original.getCostCenter());
+
+        reversal.setManualEntry(original.getManualEntry());
+
+        if (Boolean.TRUE.equals(original.getManualEntry())) {
+            assertLinesInScope(original, "reverse");
+        }
+
         for (JournalLine line : original.getLines()) {
 
             JournalLine reversalLine = new JournalLine();
@@ -296,6 +420,16 @@ public class JournalServiceImpl implements JournalService {
 
             reversalLine.setCreditAmount(line.getDebitAmount());
 
+            reversalLine.setCurrencyCode(line.getCurrencyCode());
+
+            reversalLine.setBranch(line.getBranch());
+
+            reversalLine.setCostCenter(line.getCostCenter());
+
+            reversalLine.setCounterpartyBranch(line.getCounterpartyBranch());
+
+            reversalLine.setInterBranch(Boolean.TRUE.equals(line.getInterBranch()));
+
             reversal.addLine(reversalLine);
         }
 
@@ -309,7 +443,11 @@ public class JournalServiceImpl implements JournalService {
 
         journalRepository.save(original);
 
-        return journalMapper.toResponse(reversal);
+        if (Boolean.TRUE.equals(original.getManualEntry())) {
+            recordEvent(original.getId(), JournalApprovalAction.REVERSED, request.getReason());
+        }
+
+        return toResponse(reversal);
     }
 
     // ======================================================
@@ -355,6 +493,8 @@ public class JournalServiceImpl implements JournalService {
 
         int lineNumber = 1;
 
+        Map<String, Branch> homeBranches = dimensionResolver.accountHomeBranches();
+
         for (CreateJournalLineRequest request : requests) {
 
             AccountEntity account = accountRepository.findByAccountId(
@@ -382,6 +522,11 @@ public class JournalServiceImpl implements JournalService {
             );
 
             line.setCurrencyCode(journal.getCurrencyCode());
+
+            CostCenter costCenter = dimensionResolver.lineCostCenter(
+                    request.getCostCenterId(), account, journal.getCostCenter(), homeBranches);
+            line.setCostCenter(costCenter);
+            line.setBranch(costCenter.getBranch());
 
             journal.addLine(line);
         }
@@ -448,6 +593,197 @@ public class JournalServiceImpl implements JournalService {
     private BigDecimal defaultAmount(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
     }
+
+    // ======================================================
+    // Approval workflow
+    // ======================================================
+
+    @Override
+    public JournalResponse submit(Long id, String comment) {
+        JournalEntry journal = getEntity(id);
+        if (journal.getStatus() != JournalStatus.DRAFT) {
+            throw new BadRequestException("Only draft journals can be submitted for approval");
+        }
+        if (!Boolean.TRUE.equals(journal.getRequiresApproval())) {
+            throw new BadRequestException("This journal doesn't need approval. Post it directly.");
+        }
+        assertLinesInScope(journal, "submit");
+        postingService.validateLines(journal);
+        validateBalanced(journal);
+        interBranchBalancer.assertBalancedPerBranch(journal);
+        periodLockGuard.assertPostable(journal.getJournalDate());
+
+        journal.setStatus(JournalStatus.SUBMITTED);
+        journal.setSubmittedBy(SecurityUtils.getCurrentUser());
+        journal.setSubmittedAt(LocalDateTime.now());
+        journal.setRejectedBy(null);
+        journal.setRejectedAt(null);
+        journal.setRejectionReason(null);
+        JournalEntry saved = journalRepository.save(journal);
+        recordEvent(id, JournalApprovalAction.SUBMITTED, comment);
+        return toResponse(saved);
+    }
+
+    @Override
+    public JournalResponse approve(Long id, String comment) {
+        JournalEntry journal = getEntity(id);
+        if (journal.getStatus() != JournalStatus.SUBMITTED) {
+            throw new BadRequestException("Only submitted journals can be approved");
+        }
+        assertSegregation(journal, "approve");
+        assertLinesInScope(journal, "approve");
+        periodLockGuard.assertPostable(journal.getJournalDate());
+
+        journal.setStatus(JournalStatus.APPROVED);
+        journal.setApprovedBy(SecurityUtils.getCurrentUser());
+        journal.setApprovedAt(LocalDateTime.now());
+        JournalEntry saved = journalRepository.save(journal);
+        recordEvent(id, JournalApprovalAction.APPROVED, comment);
+        return toResponse(saved);
+    }
+
+    @Override
+    public JournalResponse reject(Long id, String reason) {
+        JournalEntry journal = getEntity(id);
+        if (journal.getStatus() != JournalStatus.SUBMITTED) {
+            throw new BadRequestException("Only submitted journals can be rejected");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new BadRequestException("Give a reason so the preparer knows what to fix");
+        }
+        if (reason.trim().length() > 500) {
+            throw new BadRequestException("The rejection reason can be at most 500 characters");
+        }
+        assertSegregation(journal, "reject");
+        assertLinesInScope(journal, "reject");
+
+        journal.setStatus(JournalStatus.REJECTED);
+        journal.setRejectedBy(SecurityUtils.getCurrentUser());
+        journal.setRejectedAt(LocalDateTime.now());
+        journal.setRejectionReason(reason.trim());
+        JournalEntry saved = journalRepository.save(journal);
+        recordEvent(id, JournalApprovalAction.REJECTED, reason.trim());
+        return toResponse(saved);
+    }
+
+    @Override
+    public List<JournalApprovalEventResponse> approvalHistory(Long id) {
+        assertVisible(getEntity(id));
+        return approvalEventRepository.findByJournalEntryIdOrderByCreatedAtAsc(id).stream()
+                .map(e -> JournalApprovalEventResponse.builder()
+                        .id(e.getId())
+                        .action(e.getAction())
+                        .comment(e.getComment())
+                        .userName(e.getCreatedBy() != null ? CreatedByMapper.toDto(e.getCreatedBy()).getFullName() : null)
+                        .at(e.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    private void recordEvent(Long journalId, JournalApprovalAction action, String comment) {
+        JournalApprovalEvent event = new JournalApprovalEvent();
+        event.setJournalEntryId(journalId);
+        event.setAction(action);
+        String text = comment == null || comment.isBlank() ? null : comment.trim();
+        event.setComment(text == null ? null : text.substring(0, Math.min(text.length(), 500)));
+        approvalEventRepository.save(event);
+    }
+
+    /** Nobody approves or rejects a journal they prepared or submitted. */
+    private void assertSegregation(JournalEntry journal, String verb) {
+        User me = SecurityUtils.getCurrentUser();
+        if (me == null) {
+            return;
+        }
+        boolean preparedIt = journal.getCreatedBy() != null && me.getId().equals(journal.getCreatedBy().getId());
+        boolean submittedIt = journal.getSubmittedBy() != null && me.getId().equals(journal.getSubmittedBy().getId());
+        if (preparedIt || submittedIt) {
+            throw new BadRequestException("You can't " + verb + " a journal you prepared or submitted. "
+                    + "Another approver has to review it.");
+        }
+    }
+
+    private boolean needsApproval(JournalEntry journal) {
+        BranchAccountingSettings settings = branchSettings.settings();
+        if (!Boolean.TRUE.equals(settings.getJournalApprovalRequired())) {
+            return false;
+        }
+        BigDecimal threshold = settings.getApprovalThreshold();
+        return threshold == null || defaultAmount(journal.getTotalDebit()).compareTo(threshold) >= 0;
+    }
+
+    private void applyHeaderDimensions(JournalEntry journal, Long branchId, Long costCenterId) {
+        CostCenter header = dimensionResolver.headerCostCenter(branchId, costCenterId);
+        journal.setCostCenter(header);
+        journal.setBranch(header.getBranch());
+    }
+
+    private static Subquery<Long> lineSubquery(jakarta.persistence.criteria.CriteriaQuery<?> query,
+                                               jakarta.persistence.criteria.CriteriaBuilder cb,
+                                               Root<JournalEntry> root, String dimension,
+                                               java.util.Collection<Long> ids) {
+        Subquery<Long> sub = query.subquery(Long.class);
+        Root<JournalLine> line = sub.from(JournalLine.class);
+        sub.select(line.get("id")).where(
+                cb.equal(line.get("journalEntry"), root),
+                line.get(dimension).get("id").in(ids));
+        return sub;
+    }
+
+    /** Every line the user entered (not the system's inter-branch lines) must be in their scope. */
+    private void assertLinesInScope(JournalEntry journal, String verb) {
+        AccessScope scope = accessScopeService.current();
+        if (scope.global()) {
+            return;
+        }
+        List<String> outside = journal.getLines().stream()
+                .filter(l -> !Boolean.TRUE.equals(l.getInterBranch()))
+                .map(JournalLine::getCostCenter)
+                .filter(Objects::nonNull)
+                .filter(cc -> !scope.coversCostCenter(cc.getId()))
+                .map(cc -> cc.getCode() + " (" + cc.getName() + ")")
+                .distinct()
+                .toList();
+        if (!outside.isEmpty()) {
+            throw AccessDeniedException.outOfScope("You can't " + verb + " this journal: it has lines in "
+                    + String.join(", ", outside) + ", which are outside your branch / cost center access.");
+        }
+    }
+
+    private void assertVisible(JournalEntry journal) {
+        AccessScope scope = accessScopeService.current();
+        if (scope.global()) {
+            return;
+        }
+        boolean visible = journal.getLines().stream()
+                .map(JournalLine::getCostCenter)
+                .filter(Objects::nonNull)
+                .anyMatch(cc -> scope.coversCostCenter(cc.getId()));
+        if (!visible) {
+            throw new ResourceNotFoundException("Journal not found");
+        }
+    }
+
+    private JournalResponse toResponse(JournalEntry journal) {
+        JournalResponse response = journalMapper.toResponse(journal);
+        Map<Long, BigDecimal> net = journal.getLines().stream()
+                .filter(l -> l.getBranch() != null)
+                .collect(Collectors.groupingBy(l -> l.getBranch().getId(), Collectors.reducing(BigDecimal.ZERO,
+                        l -> defaultAmount(l.getDebitAmount()).subtract(defaultAmount(l.getCreditAmount())), BigDecimal::add)));
+        response.setBalancedPerBranch(net.values().stream().allMatch(v -> v.signum() == 0));
+
+        User me = SecurityUtils.getCurrentUser();
+        boolean mine = me != null && ((journal.getCreatedBy() != null && me.getId().equals(journal.getCreatedBy().getId()))
+                || (journal.getSubmittedBy() != null && me.getId().equals(journal.getSubmittedBy().getId())));
+        boolean approval = Boolean.TRUE.equals(journal.getRequiresApproval());
+        JournalStatus status = journal.getStatus();
+        response.setCanSubmit(approval && status == JournalStatus.DRAFT);
+        response.setCanApprove(status == JournalStatus.SUBMITTED && !mine
+                && (me == null || permissionService.currentUserHasPermission("approve_journals")));
+        response.setCanPost(status == JournalStatus.APPROVED || (status == JournalStatus.DRAFT && !approval));
+        return response;
+    }
+
 
     private void JournalMapper(){}
 }

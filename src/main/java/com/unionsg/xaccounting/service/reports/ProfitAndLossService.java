@@ -13,4 +13,11 @@ public interface ProfitAndLossService {
             LocalDate toDate
     );
 
+    /** costCenterIds null = every cost center (consolidated). */
+    ProfitLossReportInternalDTO generateReport(
+            LocalDate fromDate,
+            LocalDate toDate,
+            java.util.Set<Long> costCenterIds
+    );
+
 }

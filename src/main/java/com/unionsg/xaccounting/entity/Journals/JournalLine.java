@@ -1,6 +1,8 @@
 package com.unionsg.xaccounting.entity.Journals;
 import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.entity.BaseEntity;
+import com.unionsg.xaccounting.entity.branch.Branch;
+import com.unionsg.xaccounting.entity.branch.CostCenter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,7 +14,9 @@ import java.math.BigDecimal;
         name = "journal_lines",
         indexes = {
                 @Index(name = "idx_journal_line_journal", columnList = "journal_entry_id"),
-                @Index(name = "idx_journal_line_account", columnList = "account_id")
+                @Index(name = "idx_journal_line_account", columnList = "account_id"),
+                @Index(name = "idx_journal_line_branch", columnList = "branch_id"),
+                @Index(name = "idx_journal_line_cost_center", columnList = "cost_center_id")
         }
 )
 @Getter
@@ -50,4 +54,22 @@ public class JournalLine extends BaseEntity {
     private BigDecimal exchangeRate;
 
 
+    /** Always the cost center's branch; stored so per-branch checks and reports skip a join. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cost_center_id")
+    private CostCenter costCenter;
+
+    /** On an inter-branch line: the other branch this branch is owed by (debit) or owes (credit). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "counterparty_branch_id")
+    private Branch counterpartyBranch;
+
+    /** System-generated due to / due from line added by the inter-branch balancer. */
+    @Builder.Default
+    @Column(name = "is_inter_branch", nullable = false, columnDefinition = "boolean default false not null")
+    private Boolean interBranch = false;
 }

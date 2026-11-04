@@ -72,4 +72,8 @@ public class JournalLine extends BaseEntity {
     @Builder.Default
     @Column(name = "is_inter_branch", nullable = false, columnDefinition = "boolean default false not null")
     private Boolean interBranch = false;
+
+    /** Document ID of one of the journal's attachments that supports this line, e.g. "DOC-2". */
+    @Column(name = "document_ref", length = 20)
+    private String documentRef;
 }

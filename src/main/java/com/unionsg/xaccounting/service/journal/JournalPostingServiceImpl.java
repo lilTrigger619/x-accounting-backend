@@ -22,6 +22,7 @@ public class JournalPostingServiceImpl implements JournalPostingService {
     private final PeriodLockGuard periodLockGuard;
     private final InterBranchBalancer interBranchBalancer;
     private final JournalDimensionResolver dimensionResolver;
+    private final JournalDocumentService journalDocumentService;
 
     @Override
     public void validateJournal(JournalEntry journal) {
@@ -31,6 +32,8 @@ public class JournalPostingServiceImpl implements JournalPostingService {
         validateBalanced(journal);
 
         interBranchBalancer.assertBalancedPerBranch(journal);
+
+        journalDocumentService.assertReferencedDocumentsAttached(journal);
 
         validatePostingPeriod(journal);
     }

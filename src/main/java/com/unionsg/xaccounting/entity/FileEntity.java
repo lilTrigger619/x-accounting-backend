@@ -74,6 +74,13 @@ public class FileEntity {
     @Column(length = 500)
     private String description;
 
+    /**
+     * Short document ID within the record it is attached to, e.g. "DOC-3" on a journal.
+     * Journal lines quote it to point at the document that supports them.
+     */
+    @Column(name = "reference_no", length = 20)
+    private String referenceNo;
+
     @Builder.Default
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;

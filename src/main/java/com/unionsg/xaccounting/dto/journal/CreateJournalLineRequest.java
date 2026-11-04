@@ -26,4 +26,8 @@ public class CreateJournalLineRequest {
 
     /** Cost center this line is charged to; defaults to the account's home branch or the journal's. */
     private Long costCenterId;
+
+    /** Document ID of one of the journal's attachments, e.g. "DOC-2". */
+    @Size(max = 20, message = "A document ID can be at most 20 characters")
+    private String documentRef;
 }

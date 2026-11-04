@@ -37,4 +37,9 @@ public class JournalLineResponse {
     private Long counterpartyBranchId;
     private String counterpartyBranchName;
     private Boolean interBranch;
+
+    /** The attachment this line points at; file id and name are empty when it isn't attached. */
+    private String documentRef;
+    private String documentFileId;
+    private String documentName;
 }

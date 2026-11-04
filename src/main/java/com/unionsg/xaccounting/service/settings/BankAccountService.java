@@ -24,6 +24,7 @@ public class BankAccountService {
     private final BankAccountRepository repository;
     private final AccountRepository accountRepository;
     private final SettingsAuditLogService auditLogService;
+    private final com.unionsg.xaccounting.repository.branch.BranchRepository branchRepository;
 
     @Transactional(readOnly = true)
     public List<BankAccountResponse> list() {
@@ -70,7 +71,8 @@ public class BankAccountService {
     }
 
     private String describe(BankAccount account) {
-        return account.getAccountName() + " (" + account.getGlAccountCode() + ")";
+        return account.getAccountName() + " (" + account.getGlAccountCode() + ")"
+                + (account.getHomeBranch() != null ? " @ " + account.getHomeBranch().getName() : "");
     }
 
     private void validateGlAccount(String code) {
@@ -86,6 +88,17 @@ public class BankAccountService {
         account.setCurrency(request.getCurrency());
         account.setGlAccountCode(request.getGlAccountCode());
         account.setBranch(request.getBranch());
+        if (request.getHomeBranchId() == null) {
+            account.setHomeBranch(null);
+        } else {
+            com.unionsg.xaccounting.entity.branch.Branch home = branchRepository.findById(request.getHomeBranchId())
+                    .filter(b -> !Boolean.TRUE.equals(b.getDeleted()))
+                    .orElseThrow(() -> new BusinessException("Branch not found: " + request.getHomeBranchId()));
+            if (!Boolean.TRUE.equals(home.getActive())) {
+                throw new BusinessException("Branch \"" + home.getName() + "\" is inactive and can't hold a bank account");
+            }
+            account.setHomeBranch(home);
+        }
         if (request.getIsDefault() != null) {
             account.setIsDefault(request.getIsDefault());
         }
@@ -108,6 +121,8 @@ public class BankAccountService {
                 .glAccountCode(account.getGlAccountCode())
                 .glAccountName(glAccount.map(AccountEntity::getAccountName).orElse(null))
                 .branch(account.getBranch())
+                .homeBranchId(account.getHomeBranch() != null ? account.getHomeBranch().getId() : null)
+                .homeBranchName(account.getHomeBranch() != null ? account.getHomeBranch().getName() : null)
                 .status(account.getStatus())
                 .isDefault(account.getIsDefault())
                 .enableReconciliation(account.getEnableReconciliation())

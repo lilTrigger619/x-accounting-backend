@@ -63,4 +63,26 @@ public class JournalResponse {
     /** Set on a reversed journal (single-journal reads only): the entry that reversed it. */
     private JournalReversalResponse reversal;
 
+    private Long branchId;
+    private String branchCode;
+    private String branchName;
+    private Long costCenterId;
+    private String costCenterCode;
+    private String costCenterName;
+
+    private Boolean manualEntry;
+    private Boolean requiresApproval;
+    private String submittedByName;
+    private LocalDateTime submittedAt;
+    private String approvedByName;
+    private LocalDateTime approvedAt;
+    private String rejectedByName;
+    private LocalDateTime rejectedAt;
+    private String rejectionReason;
+    /** True when every branch's lines balance on their own. */
+    private Boolean balancedPerBranch;
+    /** What the current user may do next with this journal. */
+    private Boolean canSubmit;
+    private Boolean canApprove;
+    private Boolean canPost;
 }

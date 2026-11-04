@@ -12,4 +12,10 @@ public interface ProfitAndLossFormatter {
             LocalDate toDate
     );
 
+    ProfitLossReportResponseDTO format(
+            LocalDate fromDate,
+            LocalDate toDate,
+            java.util.Set<Long> costCenterIds
+    );
+
 }

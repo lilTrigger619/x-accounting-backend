@@ -25,9 +25,13 @@ public class ProfitAndLossFormatterImpl implements ProfitAndLossFormatter {
 
     @Override
     public ProfitLossReportResponseDTO format(LocalDate fromDate, LocalDate toDate) {
+        return format(fromDate, toDate, null);
+    }
 
-//        ProfitLossReportResponseDTO raw = profitAndLossService.generateReport(fromDate, toDate);
-        ProfitLossReportInternalDTO raw = profitAndLossService.generateReport(fromDate, toDate);
+    @Override
+    public ProfitLossReportResponseDTO format(LocalDate fromDate, LocalDate toDate, java.util.Set<Long> costCenterIds) {
+
+        ProfitLossReportInternalDTO raw = profitAndLossService.generateReport(fromDate, toDate, costCenterIds);
 
         // -----------------------------
         // 1. Revenue Section

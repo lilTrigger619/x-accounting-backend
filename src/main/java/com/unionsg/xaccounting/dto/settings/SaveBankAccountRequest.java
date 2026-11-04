@@ -13,4 +13,7 @@ public class SaveBankAccountRequest {
     private Boolean isDefault;
     private Boolean enableReconciliation;
     private Boolean allowOverdraft;
+
+    /** One of the business's branches; null leaves the account unhomed. */
+    private Long homeBranchId;
 }

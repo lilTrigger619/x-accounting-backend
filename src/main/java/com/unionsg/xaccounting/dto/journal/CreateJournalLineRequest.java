@@ -23,4 +23,7 @@ public class CreateJournalLineRequest {
 
     @DecimalMin(value = "0.00", inclusive = true)
     private BigDecimal creditAmount;
+
+    /** Cost center this line is charged to; defaults to the account's home branch or the journal's. */
+    private Long costCenterId;
 }

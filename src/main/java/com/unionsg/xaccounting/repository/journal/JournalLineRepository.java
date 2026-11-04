@@ -16,6 +16,12 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
 
     List<JournalLine> findByAccountId(Long accountId);
 
+    boolean existsByBranchId(Long branchId);
+
+    boolean existsByCostCenterId(Long costCenterId);
+
+    boolean existsByCounterpartyBranchId(Long branchId);
+
     /**
      * Net debit-minus-credit movement on one GL account (by its code) across journals in the
      * given statuses. Pass both POSTED and REVERSED: a reversed journal and its posted

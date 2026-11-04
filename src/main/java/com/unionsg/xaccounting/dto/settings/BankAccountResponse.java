@@ -23,4 +23,7 @@ public class BankAccountResponse {
     private Boolean isDefault;
     private Boolean enableReconciliation;
     private Boolean allowOverdraft;
+
+    private Long homeBranchId;
+    private String homeBranchName;
 }

@@ -1,5 +1,8 @@
 package com.unionsg.xaccounting.entity.Journals;
 import com.unionsg.xaccounting.entity.BaseEntity;
+import com.unionsg.xaccounting.entity.User.User;
+import com.unionsg.xaccounting.entity.branch.Branch;
+import com.unionsg.xaccounting.entity.branch.CostCenter;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
 import jakarta.persistence.*;
@@ -23,7 +26,8 @@ import java.util.List;
         indexes = {
                 @Index(name = "idx_journal_entry_number", columnList = "journal_number"),
                 @Index(name = "idx_journal_entry_date", columnList = "journal_date"),
-                @Index(name = "idx_journal_entry_status", columnList = "status")
+                @Index(name = "idx_journal_entry_status", columnList = "status"),
+                @Index(name = "idx_journal_entry_branch", columnList = "branch_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_journal_number", columnNames = "journal_number")
@@ -94,6 +98,51 @@ public class JournalEntry extends BaseEntity {
 
     @Column(name = "reversal_of_journal_id")
     private Long reversalOfJournalId;
+
+    /** Originating branch; the hub that inter-branch balancing lines pair against. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
+
+    /** Default cost center for lines that don't name their own. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cost_center_id")
+    private CostCenter costCenter;
+
+    /** Entered by hand on the Journal screen (as opposed to posted by a module). */
+    @Builder.Default
+    @Column(name = "is_manual_entry", nullable = false, columnDefinition = "boolean default false not null")
+    private Boolean manualEntry = false;
+
+    // ===== Approval =====
+
+    @Builder.Default
+    @Column(name = "requires_approval", nullable = false, columnDefinition = "boolean default false not null")
+    private Boolean requiresApproval = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "submitted_by")
+    private User submittedBy;
+
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rejected_by")
+    private User rejectedBy;
+
+    @Column(name = "rejected_at")
+    private LocalDateTime rejectedAt;
+
+    @Column(name = "rejection_reason", length = 500)
+    private String rejectionReason;
 
     @Builder.Default
     @OneToMany(

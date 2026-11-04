@@ -6,7 +6,9 @@ import com.unionsg.xaccounting.dto.journal.ReverseJournalRequest;
 import com.unionsg.xaccounting.dto.journal.UpdateJournalRequest;
 import com.unionsg.xaccounting.enums.JournalStatus;
 import com.unionsg.xaccounting.enums.JournalType;
+import com.unionsg.xaccounting.dto.branch.JournalApprovalEventResponse;
 import org.springframework.data.domain.Page;
+import java.util.List;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
@@ -38,7 +40,31 @@ public interface JournalService {
             Pageable pageable
     );
 
+    /** Same as above, also limited to journals with a line in one of the given branches / cost centers. */
+    Page<JournalResponse> getAll(
+            String search,
+            JournalStatus status,
+            JournalType journalType,
+            LocalDate fromDate,
+            LocalDate toDate,
+            String sourceModule,
+            List<Long> branchIds,
+            List<Long> costCenterIds,
+            Pageable pageable
+    );
+
     void deleteDraft(Long id);
+
+    /** DRAFT -> SUBMITTED, for manual journals that need approval. */
+    JournalResponse submit(Long id, String comment);
+
+    /** SUBMITTED -> APPROVED. The approver can't be the preparer or submitter. */
+    JournalResponse approve(Long id, String comment);
+
+    /** SUBMITTED -> REJECTED, with a reason; editing it returns it to DRAFT. */
+    JournalResponse reject(Long id, String reason);
+
+    List<JournalApprovalEventResponse> approvalHistory(Long id);
 
     JournalResponse post(Long id);
 

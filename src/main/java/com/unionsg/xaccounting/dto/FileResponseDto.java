@@ -31,6 +31,8 @@ public class FileResponseDto {
 
     private String description;
 
+    private String referenceNo;
+
     private LocalDateTime createdAt;
 
 //    private UUID entityId;

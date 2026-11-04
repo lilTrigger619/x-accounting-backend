@@ -21,6 +21,9 @@ public class FileUploadRequestDto {
 
     private String description;
 
+    /** Document ID to give the file, e.g. "DOC-3". Journal files get the next free one when omitted. */
+    private String referenceNo;
+
     @NotNull
     private UUID uploadedBy;
 

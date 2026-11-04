@@ -53,6 +53,8 @@ public interface JournalMapper {
     @Mapping(target = "costCenterName", source = "costCenter.name")
     @Mapping(target = "counterpartyBranchId", source = "counterpartyBranch.id")
     @Mapping(target = "counterpartyBranchName", source = "counterpartyBranch.name")
+    @Mapping(target = "documentFileId", ignore = true)
+    @Mapping(target = "documentName", ignore = true)
     JournalLineResponse toLineResponse(JournalLine line);
 
     List<JournalLineResponse> toLineResponseList(

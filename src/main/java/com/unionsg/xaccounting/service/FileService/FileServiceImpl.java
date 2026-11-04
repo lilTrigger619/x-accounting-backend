@@ -7,6 +7,8 @@ import com.unionsg.xaccounting.enums.EntityType;
 import com.unionsg.xaccounting.enums.FileSource;
 import com.unionsg.xaccounting.enums.StorageProvider;
 import com.unionsg.xaccounting.repository.FileRepository;
+import com.unionsg.xaccounting.exception.BadRequestException;
+import com.unionsg.xaccounting.service.journal.JournalDocumentService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,7 @@ public class FileServiceImpl implements FileService {
 
     private final FileRepository fileRepository;
     private final FileStorageService fileStorageService;
+    private final JournalDocumentService journalDocumentService;
 
     @Override
     public List<FileResponseDto> uploadFile(
@@ -37,12 +40,24 @@ public class FileServiceImpl implements FileService {
     ) {
 
         List<FileResponseDto> responses = new ArrayList<>();
+        boolean journal = JournalDocumentService.isJournalEntity(request.getEntityType());
+        if (journal && request.getReferenceNo() != null && files.length > 1) {
+            throw new BadRequestException("Upload one file at a time when you choose its document ID");
+        }
+        List<String> assigned = new ArrayList<>();
 
         for (MultipartFile file : files){
 
             validateFile(file);
 
             String fileName = generateFileName(file);
+
+            String referenceNo = journal
+                    ? journalDocumentService.assignReference(request.getEntityType(), request.getEntityId(), request.getReferenceNo(), assigned)
+                    : request.getReferenceNo();
+            if (referenceNo != null) {
+                assigned.add(referenceNo);
+            }
 
             String storagePath = fileStorageService.upload(file, fileName);
 
@@ -58,6 +73,7 @@ public class FileServiceImpl implements FileService {
                     .entityType(request.getEntityType())
                     .entityId(request.getEntityId())
                     .description(request.getDescription())
+                    .referenceNo(referenceNo)
                     .isDeleted(false)
                     .build();
 
@@ -115,6 +131,7 @@ public class FileServiceImpl implements FileService {
                 .findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new RuntimeException("File not found"));
 
+        journalDocumentService.assertNotReferenced(entity);
         entity.setIsDeleted(true);
 
         fileRepository.save(entity);
@@ -134,6 +151,7 @@ public class FileServiceImpl implements FileService {
                 .entityType(entity.getEntityType())
                 .entityId(entity.getEntityId())
                 .description(entity.getDescription())
+                .referenceNo(entity.getReferenceNo())
                 .createdAt(entity.getCreatedAt())
                 .fileUrl("/api/files/" + entity.getId() + "/download")
                 .storagePath(entity.getStoragePath())

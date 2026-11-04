@@ -22,6 +22,9 @@ public interface JournalLineRepository extends JpaRepository<JournalLine, Long> 
 
     boolean existsByCounterpartyBranchId(Long branchId);
 
+    /** True when a line of the journal quotes this document ID. */
+    boolean existsByJournalEntryIdAndDocumentRefIgnoreCase(Long journalEntryId, String documentRef);
+
     /**
      * Net debit-minus-credit movement on one GL account (by its code) across journals in the
      * given statuses. Pass both POSTED and REVERSED: a reversed journal and its posted

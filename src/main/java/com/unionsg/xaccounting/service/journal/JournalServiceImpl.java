@@ -74,6 +74,7 @@ public class JournalServiceImpl implements JournalService {
     private final BranchAccountingSettingsService branchSettings;
     private final JournalApprovalEventRepository approvalEventRepository;
     private final PermissionService permissionService;
+    private final JournalDocumentService journalDocumentService;
 
     public JournalServiceImpl(
             JournalEntryRepository journalRepository,
@@ -89,7 +90,8 @@ public class JournalServiceImpl implements JournalService {
             AccessScopeService accessScopeService,
             BranchAccountingSettingsService branchSettings,
             JournalApprovalEventRepository approvalEventRepository,
-            PermissionService permissionService
+            PermissionService permissionService,
+            JournalDocumentService journalDocumentService
     ) {
         this.journalRepository = journalRepository;
         this.accountRepository = accountRepository;
@@ -105,6 +107,7 @@ public class JournalServiceImpl implements JournalService {
         this.branchSettings = branchSettings;
         this.approvalEventRepository = approvalEventRepository;
         this.permissionService = permissionService;
+        this.journalDocumentService = journalDocumentService;
     }
 
     @Override
@@ -523,6 +526,8 @@ public class JournalServiceImpl implements JournalService {
 
             line.setCurrencyCode(journal.getCurrencyCode());
 
+            line.setDocumentRef(JournalDocumentService.normalize(request.getDocumentRef()));
+
             CostCenter costCenter = dimensionResolver.lineCostCenter(
                     request.getCostCenterId(), account, journal.getCostCenter(), homeBranches);
             line.setCostCenter(costCenter);
@@ -766,6 +771,16 @@ public class JournalServiceImpl implements JournalService {
 
     private JournalResponse toResponse(JournalEntry journal) {
         JournalResponse response = journalMapper.toResponse(journal);
+        if (response.getLines() != null && response.getLines().stream().anyMatch(l -> l.getDocumentRef() != null)) {
+            Map<String, com.unionsg.xaccounting.entity.FileEntity> docs = journalDocumentService.documentsOf(journal);
+            response.getLines().forEach(l -> {
+                com.unionsg.xaccounting.entity.FileEntity f = l.getDocumentRef() == null ? null : docs.get(l.getDocumentRef());
+                if (f != null) {
+                    l.setDocumentFileId(f.getId());
+                    l.setDocumentName(f.getOriginalName());
+                }
+            });
+        }
         Map<Long, BigDecimal> net = journal.getLines().stream()
                 .filter(l -> l.getBranch() != null)
                 .collect(Collectors.groupingBy(l -> l.getBranch().getId(), Collectors.reducing(BigDecimal.ZERO,

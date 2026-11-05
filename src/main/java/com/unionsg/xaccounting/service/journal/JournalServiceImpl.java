@@ -486,11 +486,6 @@ public class JournalServiceImpl implements JournalService {
      * account - see {@link JournalService#createManualJournal(CreateJournalRequest)}.
      */
     private void assertNoControlAccountLines(List<CreateJournalLineRequest> requests) {
-        // Subledger journals let control accounts take manual postings, accepting that the
-        // owning module's records won't reflect them.
-        if (lineTagService.enabled()) {
-            return;
-        }
         for (CreateJournalLineRequest request : requests) {
             AccountEntity account = accountRepository.findByAccountId(request.getAccountId().toString())
                     .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
@@ -498,8 +493,7 @@ public class JournalServiceImpl implements JournalService {
                 throw new BadRequestException(
                         "\"" + account.getAccountName() + "\" (" + account.getAccountId() + ") is a control account "
                                 + "and cannot be posted to from a manual journal entry - it is only ever updated by "
-                                + "the transaction that owns it (an invoice, payment, payroll run, etc.). "
-                                + "To allow it, turn on subledger journals in Settings > Branch Accounting.");
+                                + "the transaction that owns it (an invoice, payment, payroll run, etc.)");
             }
         }
     }

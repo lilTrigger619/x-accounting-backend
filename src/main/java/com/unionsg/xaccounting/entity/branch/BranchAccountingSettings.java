@@ -38,10 +38,9 @@ public class BranchAccountingSettings extends BaseEntity {
     private BigDecimal approvalThreshold;
 
     /**
-     * Lets manual journals post to control accounts (payables, receivables, payroll) and lets
-     * their lines name an employee, vendor or customer and the bill or invoice they settle.
-     * Off by default: such journals don't update the Bills, Invoices, Payments or Payroll
-     * records, so those screens and their reports can disagree with the ledger.
+     * Lets manual journal lines name an employee, vendor or customer and the bill or invoice
+     * they relate to. Off by default: the tags don't update the Bills, Invoices, Payments or
+     * Payroll records. Control accounts stay closed to manual journals either way.
      */
     @Column(name = "subledger_journals_enabled", nullable = false, columnDefinition = "boolean default false not null")
     private Boolean subledgerJournalsEnabled = false;

@@ -22,10 +22,10 @@ import org.springframework.stereotype.Service;
 import java.util.Objects;
 
 /**
- * The "subledger journals" setting: while it is on, manual journals may post to control
- * accounts and their lines may name an employee, vendor or customer and the bill or invoice
- * they settle. These are labels on the ledger only; the bill, invoice and payroll records they
- * name are not changed.
+ * The "subledger journals" setting: while it is on, manual journal lines may name an employee,
+ * vendor or customer and the bill or invoice they relate to. These are labels on the ledger
+ * only; the bill, invoice and payroll records they name are not changed, and control accounts
+ * stay closed to manual journals.
  */
 @Service
 @RequiredArgsConstructor

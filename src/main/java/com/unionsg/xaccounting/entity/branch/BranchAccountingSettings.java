@@ -37,6 +37,15 @@ public class BranchAccountingSettings extends BaseEntity {
     @Column(name = "approval_threshold", precision = 19, scale = 2)
     private BigDecimal approvalThreshold;
 
+    /**
+     * Lets manual journals post to control accounts (payables, receivables, payroll) and lets
+     * their lines name an employee, vendor or customer and the bill or invoice they settle.
+     * Off by default: such journals don't update the Bills, Invoices, Payments or Payroll
+     * records, so those screens and their reports can disagree with the ledger.
+     */
+    @Column(name = "subledger_journals_enabled", nullable = false, columnDefinition = "boolean default false not null")
+    private Boolean subledgerJournalsEnabled = false;
+
     /** Set once existing users have been given Global scope, so later users aren't. */
     @Column(name = "scope_backfill_done", nullable = false, columnDefinition = "boolean default false not null")
     private Boolean scopeBackfillDone = false;

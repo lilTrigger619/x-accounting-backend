@@ -75,6 +75,7 @@ public class JournalServiceImpl implements JournalService {
     private final JournalApprovalEventRepository approvalEventRepository;
     private final PermissionService permissionService;
     private final JournalDocumentService journalDocumentService;
+    private final JournalLineTagService lineTagService;
 
     public JournalServiceImpl(
             JournalEntryRepository journalRepository,
@@ -91,7 +92,8 @@ public class JournalServiceImpl implements JournalService {
             BranchAccountingSettingsService branchSettings,
             JournalApprovalEventRepository approvalEventRepository,
             PermissionService permissionService,
-            JournalDocumentService journalDocumentService
+            JournalDocumentService journalDocumentService,
+            JournalLineTagService lineTagService
     ) {
         this.journalRepository = journalRepository;
         this.accountRepository = accountRepository;
@@ -108,6 +110,7 @@ public class JournalServiceImpl implements JournalService {
         this.approvalEventRepository = approvalEventRepository;
         this.permissionService = permissionService;
         this.journalDocumentService = journalDocumentService;
+        this.lineTagService = lineTagService;
     }
 
     @Override
@@ -433,6 +436,12 @@ public class JournalServiceImpl implements JournalService {
 
             reversalLine.setInterBranch(Boolean.TRUE.equals(line.getInterBranch()));
 
+            reversalLine.setEmployee(line.getEmployee());
+            reversalLine.setSupplier(line.getSupplier());
+            reversalLine.setCustomer(line.getCustomer());
+            reversalLine.setAllocatedBill(line.getAllocatedBill());
+            reversalLine.setAllocatedInvoice(line.getAllocatedInvoice());
+
             reversal.addLine(reversalLine);
         }
 
@@ -477,6 +486,11 @@ public class JournalServiceImpl implements JournalService {
      * account - see {@link JournalService#createManualJournal(CreateJournalRequest)}.
      */
     private void assertNoControlAccountLines(List<CreateJournalLineRequest> requests) {
+        // Subledger journals let control accounts take manual postings, accepting that the
+        // owning module's records won't reflect them.
+        if (lineTagService.enabled()) {
+            return;
+        }
         for (CreateJournalLineRequest request : requests) {
             AccountEntity account = accountRepository.findByAccountId(request.getAccountId().toString())
                     .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
@@ -484,7 +498,8 @@ public class JournalServiceImpl implements JournalService {
                 throw new BadRequestException(
                         "\"" + account.getAccountName() + "\" (" + account.getAccountId() + ") is a control account "
                                 + "and cannot be posted to from a manual journal entry - it is only ever updated by "
-                                + "the transaction that owns it (an invoice, payment, payroll run, etc.)");
+                                + "the transaction that owns it (an invoice, payment, payroll run, etc.). "
+                                + "To allow it, turn on subledger journals in Settings > Branch Accounting.");
             }
         }
     }
@@ -497,6 +512,7 @@ public class JournalServiceImpl implements JournalService {
         int lineNumber = 1;
 
         Map<String, Branch> homeBranches = dimensionResolver.accountHomeBranches();
+        boolean tagsEnabled = requests.stream().anyMatch(JournalLineTagService::hasTags) && lineTagService.enabled();
 
         for (CreateJournalLineRequest request : requests) {
 
@@ -527,6 +543,8 @@ public class JournalServiceImpl implements JournalService {
             line.setCurrencyCode(journal.getCurrencyCode());
 
             line.setDocumentRef(JournalDocumentService.normalize(request.getDocumentRef()));
+
+            lineTagService.apply(line, request, tagsEnabled);
 
             CostCenter costCenter = dimensionResolver.lineCostCenter(
                     request.getCostCenterId(), account, journal.getCostCenter(), homeBranches);

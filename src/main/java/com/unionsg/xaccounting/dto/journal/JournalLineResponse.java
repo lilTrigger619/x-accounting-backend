@@ -42,4 +42,18 @@ public class JournalLineResponse {
     private String documentRef;
     private String documentFileId;
     private String documentName;
+
+    private Long employeeId;
+    private String employeeNumber;
+    private String employeeName;
+    private Long supplierId;
+    private String supplierCode;
+    private String supplierName;
+    private Long customerId;
+    private String customerCode;
+    private String customerName;
+    private Long billId;
+    private String billNumber;
+    private Long invoiceId;
+    private String invoiceNumber;
 }

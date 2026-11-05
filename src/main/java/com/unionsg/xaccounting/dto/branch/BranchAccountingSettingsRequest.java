@@ -13,4 +13,6 @@ public class BranchAccountingSettingsRequest {
     private Long interBranchAccountId;
     private Boolean journalApprovalRequired;
     private BigDecimal approvalThreshold;
+    /** Control-account postings plus employee, vendor, customer and allocation on manual journal lines. */
+    private Boolean subledgerJournalsEnabled;
 }

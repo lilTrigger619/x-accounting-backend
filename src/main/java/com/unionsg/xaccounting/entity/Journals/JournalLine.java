@@ -2,7 +2,12 @@ package com.unionsg.xaccounting.entity.Journals;
 import com.unionsg.xaccounting.entity.AccountEntity;
 import com.unionsg.xaccounting.entity.BaseEntity;
 import com.unionsg.xaccounting.entity.branch.Branch;
+import com.unionsg.xaccounting.entity.bill.Bill;
 import com.unionsg.xaccounting.entity.branch.CostCenter;
+import com.unionsg.xaccounting.entity.customer.Customer;
+import com.unionsg.xaccounting.entity.invoice.Invoice;
+import com.unionsg.xaccounting.entity.payroll.Employee;
+import com.unionsg.xaccounting.entity.supplier.Supplier;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -76,4 +81,31 @@ public class JournalLine extends BaseEntity {
     /** Document ID of one of the journal's attachments that supports this line, e.g. "DOC-2". */
     @Column(name = "document_ref", length = 20)
     private String documentRef;
+
+    // Optional tags, only accepted while subledger journals are turned on in Branch Accounting
+    // settings. They label the line for reporting; they don't change the bill, invoice or
+    // payroll records they name.
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
+
+    /** Vendor (supplier). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
+    /** The vendor bill this line settles or adjusts. At most one of bill and invoice is set. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "allocated_bill_id")
+    private Bill allocatedBill;
+
+    /** The customer invoice this line settles or adjusts. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "allocated_invoice_id")
+    private Invoice allocatedInvoice;
 }

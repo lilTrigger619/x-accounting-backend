@@ -37,6 +37,9 @@ public class BranchAccountingSettingsService {
         if (request.getSelfBalancingBranches() != null) {
             s.setSelfBalancingBranches(request.getSelfBalancingBranches());
         }
+        if (request.getSubledgerJournalsEnabled() != null) {
+            s.setSubledgerJournalsEnabled(request.getSubledgerJournalsEnabled());
+        }
         if (request.getJournalApprovalRequired() != null) {
             s.setJournalApprovalRequired(request.getJournalApprovalRequired());
         }
@@ -70,6 +73,7 @@ public class BranchAccountingSettingsService {
                 .interBranchAccountCode(account != null ? account.getAccountId() : null)
                 .interBranchAccountName(account != null ? account.getAccountName() : null)
                 .journalApprovalRequired(Boolean.TRUE.equals(s.getJournalApprovalRequired()))
+                .subledgerJournalsEnabled(Boolean.TRUE.equals(s.getSubledgerJournalsEnabled()))
                 .approvalThreshold(s.getApprovalThreshold())
                 .updatedAt(s.getUpdatedAt() != null ? s.getUpdatedAt() : s.getCreatedAt())
                 .build();

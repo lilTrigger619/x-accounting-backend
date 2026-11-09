@@ -40,6 +40,9 @@ public class BranchAccountingSettingsService {
         if (request.getSubledgerJournalsEnabled() != null) {
             s.setSubledgerJournalsEnabled(request.getSubledgerJournalsEnabled());
         }
+        if (request.getJournalLineEntryMode() != null) {
+            s.setJournalLineEntryMode(lineEntryMode(request.getJournalLineEntryMode()));
+        }
         if (request.getJournalApprovalRequired() != null) {
             s.setJournalApprovalRequired(request.getJournalApprovalRequired());
         }
@@ -65,6 +68,16 @@ public class BranchAccountingSettingsService {
         return toResponse(repository.save(s));
     }
 
+    /** Normalizes the line entry mode, refusing anything but GRID or MODAL. */
+    static String lineEntryMode(String value) {
+        String mode = value.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!BranchAccountingSettings.JOURNAL_LINE_ENTRY_GRID.equals(mode)
+                && !BranchAccountingSettings.JOURNAL_LINE_ENTRY_MODAL.equals(mode)) {
+            throw new BusinessException("Journal line entry must be GRID (editable rows) or MODAL (a dialog per line)");
+        }
+        return mode;
+    }
+
     private static BranchAccountingSettingsResponse toResponse(BranchAccountingSettings s) {
         AccountEntity account = s.getInterBranchAccount();
         return BranchAccountingSettingsResponse.builder()
@@ -74,6 +87,8 @@ public class BranchAccountingSettingsService {
                 .interBranchAccountName(account != null ? account.getAccountName() : null)
                 .journalApprovalRequired(Boolean.TRUE.equals(s.getJournalApprovalRequired()))
                 .subledgerJournalsEnabled(Boolean.TRUE.equals(s.getSubledgerJournalsEnabled()))
+                .journalLineEntryMode(BranchAccountingSettings.JOURNAL_LINE_ENTRY_MODAL.equals(s.getJournalLineEntryMode())
+                        ? BranchAccountingSettings.JOURNAL_LINE_ENTRY_MODAL : BranchAccountingSettings.JOURNAL_LINE_ENTRY_GRID)
                 .approvalThreshold(s.getApprovalThreshold())
                 .updatedAt(s.getUpdatedAt() != null ? s.getUpdatedAt() : s.getCreatedAt())
                 .build();

@@ -45,6 +45,17 @@ public class BranchAccountingSettings extends BaseEntity {
     @Column(name = "subledger_journals_enabled", nullable = false, columnDefinition = "boolean default false not null")
     private Boolean subledgerJournalsEnabled = false;
 
+    /**
+     * How the journal entry screen takes its lines: "GRID" shows editable rows like a
+     * spreadsheet, "MODAL" adds and edits each line in a dialog. A plain string, not an
+     * enum, so ddl-auto=update never pins a CHECK constraint on it.
+     */
+    @Column(name = "journal_line_entry_mode", nullable = false, length = 10, columnDefinition = "varchar(10) default 'GRID' not null")
+    private String journalLineEntryMode = JOURNAL_LINE_ENTRY_GRID;
+
+    public static final String JOURNAL_LINE_ENTRY_GRID = "GRID";
+    public static final String JOURNAL_LINE_ENTRY_MODAL = "MODAL";
+
     /** Set once existing users have been given Global scope, so later users aren't. */
     @Column(name = "scope_backfill_done", nullable = false, columnDefinition = "boolean default false not null")
     private Boolean scopeBackfillDone = false;

@@ -55,6 +55,19 @@ public interface JournalMapper {
     @Mapping(target = "counterpartyBranchName", source = "counterpartyBranch.name")
     @Mapping(target = "documentFileId", ignore = true)
     @Mapping(target = "documentName", ignore = true)
+    @Mapping(target = "employeeId", source = "employee.id")
+    @Mapping(target = "employeeNumber", source = "employee.employeeNumber")
+    @Mapping(target = "employeeName", source = "employee.fullName")
+    @Mapping(target = "supplierId", source = "supplier.id")
+    @Mapping(target = "supplierCode", source = "supplier.supplierCode")
+    @Mapping(target = "supplierName", source = "supplier.displayName")
+    @Mapping(target = "customerId", source = "customer.id")
+    @Mapping(target = "customerCode", source = "customer.customerCode")
+    @Mapping(target = "customerName", source = "customer.displayName")
+    @Mapping(target = "billId", source = "allocatedBill.id")
+    @Mapping(target = "billNumber", source = "allocatedBill.billNumber")
+    @Mapping(target = "invoiceId", source = "allocatedInvoice.id")
+    @Mapping(target = "invoiceNumber", source = "allocatedInvoice.invoiceNumber")
     JournalLineResponse toLineResponse(JournalLine line);
 
     List<JournalLineResponse> toLineResponseList(

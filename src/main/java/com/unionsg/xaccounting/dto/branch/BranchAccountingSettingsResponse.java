@@ -17,5 +17,6 @@ public class BranchAccountingSettingsResponse {
     private String interBranchAccountName;
     private Boolean journalApprovalRequired;
     private BigDecimal approvalThreshold;
+    private Boolean subledgerJournalsEnabled;
     private LocalDateTime updatedAt;
 }

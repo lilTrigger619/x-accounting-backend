@@ -15,4 +15,6 @@ public class BranchAccountingSettingsRequest {
     private BigDecimal approvalThreshold;
     /** Employee, vendor, customer and allocation on manual journal lines. */
     private Boolean subledgerJournalsEnabled;
+    /** "GRID" (editable rows) or "MODAL" (a dialog per line) on the journal entry screen. */
+    private String journalLineEntryMode;
 }

@@ -156,7 +156,11 @@ public class DatabaseSeeder implements ApplicationRunner {
             // ==================================
             // Chart Code clear to
             // ==================================
-            if (chartOfAccountClearToRepo.count() == 0){
+            // Each base clear-to row is looked up by its code and only created when it is missing,
+            // so a database that is empty, half-seeded, or seeded by an older build without one of
+            // these rows (e.g. code 16 "Credit card") still ends up with the full set before
+            // createAccount() below references them by code. See ERR-LED-005.
+            {
                 // all assets clear to
                 // assetsClearTo.add( createChartClearToCode(1, "Current Asset"));
                 // assetsClearTo.add(createChartClearToCode(2, "Fixed Asset"));
@@ -254,6 +258,19 @@ public class DatabaseSeeder implements ApplicationRunner {
 
                 log.info("Database seeding complete.");
             }
+
+            // Clear-to rows created above for a database whose charts already existed are not yet
+            // attached to a chart; attach them to the chart they belong to.
+            attachOrphanClearTos(1L, assetsClearTo);
+            attachOrphanClearTos(2L, liabilityClearTo);
+            attachOrphanClearTos(3L, equityClearTo);
+            attachOrphanClearTos(4L, revenueClearTo);
+            attachOrphanClearTos(5L, expenseClearTo);
+            attachOrphanClearTos(6L, bankAccountClearTo);
+            attachOrphanClearTos(7L, creditCardClearTo);
+            attachOrphanClearTos(8L, costOfGoodsSoldClearTo);
+            attachOrphanClearTos(9L, accountsPayableClearTo);
+            attachOrphanClearTos(10L, accountsReceivableClearTo);
 
 
             // Document config seeding for setting account codes and invoice numbers.
@@ -749,12 +766,31 @@ public class DatabaseSeeder implements ApplicationRunner {
       return   userRepository.save(u);
     }
 
+    /** Returns the clear-to row with this code, creating it only when it does not exist yet. */
     private ChartOfAccountClearTo_ENTITY createChartClearToCode(long clearToCode, String description){
+        var existing = chartOfAccountClearToRepo.findByClearToCode(clearToCode);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        log.info("Seeding missing chart of account clear-to {} ({})", clearToCode, description);
         ChartOfAccountClearTo_ENTITY ch = ChartOfAccountClearTo_ENTITY.builder()
                 .clearToCode(clearToCode)
                 .description(description)
                 .build();
         return chartOfAccountClearToRepo.save(ch);
+    }
+
+    private void attachOrphanClearTos(Long chartCode, List<ChartOfAccountClearTo_ENTITY> clearTos) {
+        List<ChartOfAccountClearTo_ENTITY> orphans = clearTos.stream()
+                .filter(ct -> ct.getChartOfAccount() == null)
+                .toList();
+        if (orphans.isEmpty()) {
+            return;
+        }
+        chartOfAccountRepo.findByCoaCode(chartCode).ifPresent(chart -> orphans.forEach(ct -> {
+            ct.setChartOfAccount(chart);
+            chartOfAccountClearToRepo.save(ct);
+        }));
     }
 
     private void createChartOfAccounts(int chartCode, String chartDescription, AccountType accountType, NormalBalance normalBalance, List<ChartOfAccountClearTo_ENTITY> coa_ct){
@@ -780,12 +816,11 @@ public class DatabaseSeeder implements ApplicationRunner {
         ChartOfAccountClearTo_ENTITY clearTo =
                 clearToRepo.findByClearToCode(clearToCode)
                         .orElseThrow(() ->
-                                new RuntimeException("ClearTo not found: " + clearToCode)
+                                new RuntimeException("ClearTo not found: " + clearToCode + " (seeding account " + accountNumber + ")")
                         );
 
-        this.adminUser = userRepository.findByEmail("admin@xaccounting.com")   .orElseThrow(() ->
-                                new RuntimeException("ClearTo not found: " + clearToCode)
-                        );
+        this.adminUser = userRepository.findByEmail("admin@xaccounting.com").orElseThrow(() ->
+                new RuntimeException("Admin user admin@xaccounting.com not found while seeding account " + accountNumber));
 
         AccountEntity account = new AccountEntity();
 

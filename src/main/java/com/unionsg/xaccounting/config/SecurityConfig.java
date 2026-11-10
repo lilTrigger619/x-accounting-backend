@@ -142,11 +142,16 @@ public class SecurityConfig {
 
     // allow frontend origins
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(){
+    public CorsConfigurationSource corsConfigurationSource(
+            @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins}") String allowedOrigins){
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // allow frontend origins
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:8081", "http://localhost:8080"));
+        // allow frontend origins (app.cors.allowed-origins / CORS_ALLOWED_ORIGINS, comma separated;
+        // patterns such as http://192.168.*:* are accepted)
+        configuration.setAllowedOriginPatterns(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList());
 
         // allow http methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

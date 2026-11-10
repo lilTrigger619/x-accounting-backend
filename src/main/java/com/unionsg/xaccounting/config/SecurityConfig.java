@@ -103,6 +103,10 @@ import com.unionsg.xaccounting.security.JwtService;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    // comma separated; see app.cors.allowed-origins in application.properties
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:8081,http://localhost:8080}")
+    private String allowedOrigins;
+
     private final JwtAuthenticationFilter jwtFilter;
 
     public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
@@ -142,8 +146,7 @@ public class SecurityConfig {
 
     // allow frontend origins
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(
-            @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins}") String allowedOrigins){
+    public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration configuration = new CorsConfiguration();
 
         // allow frontend origins (app.cors.allowed-origins / CORS_ALLOWED_ORIGINS, comma separated;
